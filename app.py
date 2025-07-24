@@ -1,5 +1,13 @@
 import streamlit as st
-from pages import cadastro_cliente, cadastro_imovel, cadastro_inquilino, cadastro_contrato, prestacao_contas
+from pages import (
+    cadastro_cliente,
+    cadastro_imovel,
+    cadastro_inquilino,
+    cadastro_contrato,
+    prestacao_contas
+)
+
+st.set_page_config(page_title="Cobimob", layout="wide")
 
 st.markdown("""
     <style>
@@ -19,10 +27,6 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-
-
-
-st.set_page_config(page_title="Cobimob", layout="wide")
 
 st.title("🏡 Cobimob")
 st.write("Bem-vindo ao sistema de locações!")

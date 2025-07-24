@@ -1,0 +1,20 @@
+name: Projeto Locação
+version: 1.0.0
+schema: v1
+
+models:
+  - name: GPT-4o
+    provider: openai
+    model: gpt-4o
+    apiKey: apiKey: ${{ inputs.OPENAI_API_KEY }}
+    baseUrl: https://api.openai.com/v1
+    roles:
+      - chat
+      - autocomplete
+      - edit
+
+context:
+  - type: folder
+    path: locacao/
+  - type: file
+    path: locacao/banco_estrutura.sql
