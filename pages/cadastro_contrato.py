@@ -7,12 +7,13 @@ from locacao.repositories.imovel_repository import buscar_imoveis
 def render():
     st.title("📑 Cadastro de Contrato")
 
-    df_inquilinos = buscar_inquilinos()
-    df_imoveis = buscar_imoveis()
+    df_inquilinos = pd.DataFrame(buscar_inquilinos())
+    df_imoveis = pd.DataFrame(buscar_imoveis())
 
     if df_inquilinos.empty or df_imoveis.empty:
         st.error("Você precisa cadastrar inquilinos e imóveis antes de criar contratos.")
         return
+
 
     nome_inquilino = st.selectbox("Selecione o Inquilino", df_inquilinos["nome"])
     endereco_imovel = st.selectbox("Selecione o Imóvel", df_imoveis["endereco"])

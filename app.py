@@ -32,17 +32,17 @@ st.title("🏡 Cobimob")
 st.write("Bem-vindo ao sistema de locações!")
 
 aba = st.sidebar.selectbox("Escolha a funcionalidade", [
-    "📋 Cadastro - Cliente",
     "📋 Cadastro - Imóvel",
+    "📋 Cadastro - Cliente",
     "📋 Cadastro - Inquilino",
     "📋 Cadastro - Contrato",
     "📊 Prestação de Contas"
 ])
 
-if aba == "📋 Cadastro - Cliente":
-    cadastro_cliente.render()
-elif aba == "📋 Cadastro - Imóvel":
+if aba == "📋 Cadastro - Imóvel":
     cadastro_imovel.render()
+elif aba == "📋 Cadastro - Cliente":
+    cadastro_cliente.render()
 elif aba == "📋 Cadastro - Inquilino":
     cadastro_inquilino.render()
 elif aba == "📋 Cadastro - Contrato":
