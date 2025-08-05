@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { Building2, User, Users } from 'lucide-react';
+import { Building2, User, Users, FileText } from 'lucide-react';
 
-type FormType = 'cliente' | 'inquilino' | 'imovel';
+type FormType = 'cliente' | 'inquilino' | 'imovel' | 'contrato';
 
 interface MiniFormNavigationProps {
   currentForm: FormType;
@@ -27,6 +27,11 @@ export const MiniFormNavigation: React.FC<MiniFormNavigationProps> = ({
       id: 'imovel' as FormType,
       label: 'Imóvel',
       icon: Building2,
+    },
+    {
+      id: 'contrato' as FormType,
+      label: 'Contrato',
+      icon: FileText,
     },
   ];
 

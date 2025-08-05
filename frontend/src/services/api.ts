@@ -1,4 +1,4 @@
-import type { Cliente, Inquilino, Imovel, ApiResponse } from '../types';
+import type { Cliente, Inquilino, Imovel, Contrato, ApiResponse } from '../types';
 
 const API_BASE_URL = '/api'; // usa proxy do vite
 
@@ -58,6 +58,18 @@ class ApiService {
 
   async listarImoveis(): Promise<ApiResponse<any[]>> {
     return this.request('/imoveis');
+  }
+
+  // Métodos para Contratos
+  async criarContrato(contrato: Contrato): Promise<ApiResponse<any>> {
+    return this.request('/contratos', {
+      method: 'POST',
+      body: JSON.stringify(contrato),
+    });
+  }
+
+  async listarContratos(): Promise<ApiResponse<any[]>> {
+    return this.request('/contratos');
   }
 
   // Verifica se a API está viva

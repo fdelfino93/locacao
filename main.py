@@ -103,6 +103,34 @@ class ImovelCreate(BaseModel):
     info_gas: str
     boleto_condominio: bool
 
+class ContratoCreate(BaseModel):
+    id_imovel: int
+    id_inquilino: int
+    data_inicio: date
+    data_fim: date
+    taxa_administracao: float
+    fundo_conservacao: float
+    tipo_reajuste: str
+    percentual_reajuste: float
+    vencimento_dia: int
+    renovacao_automatica: bool
+    seguro_obrigatorio: bool
+    clausulas_adicionais: str
+    tipo_plano_locacao: str
+    valores_contrato: str
+    data_vigencia_segfianca: date
+    data_vigencia_segincendio: date
+    data_assinatura: date
+    ultimo_reajuste: date
+    proximo_reajuste: date
+    antecipacao_encargos: bool
+    aluguel_garantido: bool
+    mes_de_referencia: str
+    tipo_garantia: str
+    bonificacao: float
+    retidos: str
+    info_garantias: str
+
 # Endpoints da API
 @app.get("/")
 async def root():
@@ -172,6 +200,50 @@ async def listar_imoveis():
         return {"data": imoveis, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar imóveis: {str(e)}")
+
+# --- ENDPOINTS DE CONTRATOS ---
+@app.post("/api/contratos")
+async def criar_contrato(contrato: ContratoCreate):
+    try:
+        inserir_contrato(
+            id_imovel=contrato.id_imovel,
+            id_inquilino=contrato.id_inquilino,
+            data_inicio=contrato.data_inicio,
+            data_fim=contrato.data_fim,
+            taxa_administracao=contrato.taxa_administracao,
+            fundo_conservacao=contrato.fundo_conservacao,
+            tipo_reajuste=contrato.tipo_reajuste,
+            percentual_reajuste=contrato.percentual_reajuste,
+            vencimento_dia=contrato.vencimento_dia,
+            renovacao_automatica=contrato.renovacao_automatica,
+            seguro_obrigatorio=contrato.seguro_obrigatorio,
+            clausulas_adicionais=contrato.clausulas_adicionais,
+            tipo_plano_locacao=contrato.tipo_plano_locacao,
+            valores_contrato=contrato.valores_contrato,
+            data_vigencia_segfianca=contrato.data_vigencia_segfianca,
+            data_vigencia_segincendio=contrato.data_vigencia_segincendio,
+            data_assinatura=contrato.data_assinatura,
+            ultimo_reajuste=contrato.ultimo_reajuste,
+            proximo_reajuste=contrato.proximo_reajuste,
+            antecipacao_encargos=contrato.antecipacao_encargos,
+            aluguel_garantido=contrato.aluguel_garantido,
+            mes_de_referencia=contrato.mes_de_referencia,
+            tipo_garantia=contrato.tipo_garantia,
+            bonificacao=contrato.bonificacao,
+            retidos=contrato.retidos,
+            info_garantias=contrato.info_garantias
+        )
+        return {"message": "Contrato salvo com sucesso!", "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar contrato: {str(e)}")
+
+@app.get("/api/contratos")
+async def listar_contratos():
+    try:
+        # Por enquanto retorna lista vazia, pois não temos buscar_contratos implementado
+        return {"data": [], "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

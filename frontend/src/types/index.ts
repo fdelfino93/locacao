@@ -81,6 +81,36 @@ export interface Imovel {
   boleto_condominio: boolean;
 }
 
+// Tipos para Contrato
+export interface Contrato {
+  id_imovel: number;
+  id_inquilino: number;
+  data_inicio: string;
+  data_fim: string;
+  taxa_administracao: number;
+  fundo_conservacao: number;
+  tipo_reajuste: string;
+  percentual_reajuste: number;
+  vencimento_dia: number;
+  renovacao_automatica: boolean;
+  seguro_obrigatorio: boolean;
+  clausulas_adicionais: string;
+  tipo_plano_locacao: string;
+  valores_contrato: string;
+  data_vigencia_segfianca: string;
+  data_vigencia_segincendio: string;
+  data_assinatura: string;
+  ultimo_reajuste: string;
+  proximo_reajuste: string;
+  antecipacao_encargos: boolean;
+  aluguel_garantido: boolean;
+  mes_de_referencia: string;
+  tipo_garantia: string;
+  bonificacao: number;
+  retidos: string;
+  info_garantias: string;
+}
+
 // Tipos para resposta da API
 export interface ApiResponse<T> {
   data?: T;

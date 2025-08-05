@@ -6,8 +6,9 @@ import { MiniFormNavigation } from './components/sections/MiniFormNavigation';
 import { ModernClienteForm } from './components/forms/ModernClienteForm';
 import { ModernInquilinoForm } from './components/forms/ModernInquilinoForm';
 import { ModernImovelForm } from './components/forms/ModernImovelForm';
+import { ModernContratoForm } from './components/forms/ModernContratoForm';
 
-type PageType = 'hero' | 'cliente' | 'inquilino' | 'imovel';
+type PageType = 'hero' | 'cliente' | 'inquilino' | 'imovel' | 'contrato';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('cliente');
@@ -16,7 +17,7 @@ function App() {
     setCurrentPage('cliente');
   };
 
-  const handleFormChange = (form: 'cliente' | 'inquilino' | 'imovel') => {
+  const handleFormChange = (form: 'cliente' | 'inquilino' | 'imovel' | 'contrato') => {
     setCurrentPage(form);
   };
 
@@ -74,6 +75,18 @@ function App() {
             <ModernImovelForm />
           </motion.div>
         );
+      case 'contrato':
+        return (
+          <motion.div
+            key="contrato"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernContratoForm />
+          </motion.div>
+        );
       default:
         return null;
     }
@@ -104,7 +117,7 @@ function App() {
               {/* Form Navigation */}
               <div className="flex items-center space-x-4">
                 <MiniFormNavigation 
-                  currentForm={currentPage as 'cliente' | 'inquilino' | 'imovel'} 
+                  currentForm={currentPage as 'cliente' | 'inquilino' | 'imovel' | 'contrato'} 
                   onFormChange={handleFormChange} 
                 />
               </div>

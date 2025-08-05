@@ -12,7 +12,8 @@
       "Bash(rm:*)",
       "Bash(uvicorn:*)",
       "Bash(curl:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }
