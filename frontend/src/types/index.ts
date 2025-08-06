@@ -1,12 +1,58 @@
+// Tipos auxiliares
+export interface Endereco {
+  rua: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+}
+
+export interface DadosBancarios {
+  tipo_recebimento: 'PIX' | 'TED' | 'Conta Corrente' | 'Conta Poupança';
+  chave_pix?: string;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  tipo_conta?: 'Corrente' | 'Poupança' | 'Conta Digital';
+  titular?: string;
+  cpf_titular?: string;
+}
+
+export interface RepresentanteLegal {
+  nome: string;
+  cpf: string;
+  rg: string;
+  telefone?: string;
+  email?: string;
+  endereco?: Endereco;
+  data_nascimento?: string;
+  nacionalidade?: string;
+  estado_civil?: string;
+  profissao?: string;
+}
+
+export interface DocumentosEmpresa {
+  contrato_social?: string;
+  cartao_cnpj?: string;
+  comprovante_renda?: string;
+  comprovante_endereco?: string;
+  inscricao_estadual?: string;
+  inscricao_municipal?: string;
+}
+
 // Tipos para Cliente
 export interface Cliente {
   nome: string;
   cpf_cnpj: string;
   telefone: string;
   email: string;
-  endereco: string;
-  tipo_recebimento: string;
-  conta_bancaria: string;
+  endereco?: Endereco;
+  dados_bancarios?: DadosBancarios;
+  tipo_pessoa: 'PF' | 'PJ';
+  representante_legal?: RepresentanteLegal;
+  documentos_empresa?: DocumentosEmpresa;
   deseja_fci: string;
   deseja_seguro_fianca: string;
   deseja_seguro_incendio: string;
@@ -24,6 +70,36 @@ export interface Cliente {
   telefone_conjuge?: string;
   tipo_cliente: string;
   data_nascimento: string;
+  observacoes?: string;
+}
+
+// Tipos para Fiador
+export interface Fiador {
+  nome: string;
+  cpf_cnpj: string;
+  rg?: string;
+  telefone?: string;
+  email?: string;
+  endereco?: Endereco;
+  dados_bancarios?: DadosBancarios;
+  tipo_pessoa: 'PF' | 'PJ';
+  representante_legal?: RepresentanteLegal;
+  documentos_empresa?: DocumentosEmpresa;
+  renda_mensal?: number;
+  profissao?: string;
+  observacoes?: string;
+}
+
+// Tipos para Morador
+export interface Morador {
+  nome: string;
+  cpf?: string;
+  rg?: string;
+  data_nascimento?: string;
+  parentesco?: string;
+  profissao?: string;
+  telefone?: string;
+  email?: string;
 }
 
 // Tipos para Inquilino
@@ -32,7 +108,14 @@ export interface Inquilino {
   cpf_cnpj: string;
   telefone: string;
   email: string;
+  endereco?: Endereco;
+  dados_bancarios?: DadosBancarios;
+  tipo_pessoa: 'PF' | 'PJ';
+  representante_legal?: RepresentanteLegal;
+  documentos_empresa?: DocumentosEmpresa;
   tipo_garantia: string;
+  tem_fiador: boolean;
+  fiador?: Fiador;
   responsavel_pgto_agua: string;
   responsavel_pgto_luz: string;
   responsavel_pgto_gas: string;
@@ -43,6 +126,8 @@ export interface Inquilino {
   estado_civil: string;
   profissao: string;
   dados_moradores: string;
+  tem_moradores: boolean;
+  moradores?: Morador[];
   Endereco_inq: string;
   responsavel_inq?: number | null;
   dependentes_inq?: number | null;
@@ -55,6 +140,7 @@ export interface Inquilino {
   rg_conjuge?: string;
   endereco_conjuge?: string;
   telefone_conjuge?: string;
+  observacoes?: string;
 }
 
 // Tipos para Imóvel
@@ -62,7 +148,7 @@ export interface Imovel {
   id_cliente: number;
   id_inquilino: number;
   tipo: string;
-  endereco: string;
+  endereco?: Endereco;
   valor_aluguel: number;
   iptu: number;
   condominio: number;
@@ -81,12 +167,27 @@ export interface Imovel {
   boleto_condominio: boolean;
 }
 
+// Tipos para Planos de Locação
+export interface PlanoLocacao {
+  id: number;
+  codigo: string;
+  nome: string;
+  categoria: 'COMPLETO' | 'BASICO';
+  opcao: 1 | 2;
+  taxa_primeiro_aluguel: number;
+  taxa_demais_alugueis: number;
+  taxa_administracao: number;
+  descricao?: string;
+}
+
 // Tipos para Contrato
 export interface Contrato {
   id_imovel: number;
   id_inquilino: number;
   data_inicio: string;
   data_fim: string;
+  plano_locacao?: PlanoLocacao;
+  id_plano_locacao?: number;
   taxa_administracao: number;
   fundo_conservacao: number;
   tipo_reajuste: string;
@@ -96,6 +197,30 @@ export interface Contrato {
   seguro_obrigatorio: boolean;
   clausulas_adicionais: string;
   tipo_plano_locacao: string;
+  
+  // Valores estruturados
+  valor_aluguel: number;
+  valor_iptu: number;
+  valor_condominio: number;
+  
+  // Antecipação estruturada
+  antecipa_condominio: boolean;
+  antecipa_seguro_fianca: boolean;
+  antecipa_seguro_incendio: boolean;
+  
+  // Retidos estruturados
+  retido_fci: boolean;
+  retido_condominio: boolean;
+  retido_seguro_fianca: boolean;
+  retido_seguro_incendio: boolean;
+  
+  // Datas de seguro estruturadas
+  seguro_fianca_inicio?: string;
+  seguro_fianca_fim?: string;
+  seguro_incendio_inicio?: string;
+  seguro_incendio_fim?: string;
+  
+  // Campos legados (manter compatibilidade)
   valores_contrato: string;
   data_vigencia_segfianca: string;
   data_vigencia_segincendio: string;

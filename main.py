@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
@@ -11,6 +12,16 @@ from locacao.repositories.cliente_repository import inserir_cliente, buscar_clie
 from locacao.repositories.inquilino_repository import inserir_inquilino, buscar_inquilinos
 from locacao.repositories.imovel_repository import inserir_imovel, buscar_imoveis
 from locacao.repositories.contrato_repository import inserir_contrato
+from locacao.repositories.prestacao_contas_repository import (
+    buscar_prestacao_contas_mensal,
+    buscar_clientes_com_contratos,
+    inserir_lancamento_liquido,
+    inserir_desconto_deducao,
+    atualizar_pagamento_detalhes,
+    buscar_historico_prestacao_contas,
+    gerar_relatorio_excel,
+    gerar_relatorio_pdf
+)
 
 load_dotenv()
 
@@ -131,6 +142,26 @@ class ContratoCreate(BaseModel):
     retidos: str
     info_garantias: str
 
+# Modelos para Prestação de Contas
+class LancamentoLiquidoCreate(BaseModel):
+    id_pagamento: int
+    tipo: str
+    valor: float
+
+class DescontoDeducaoCreate(BaseModel):
+    id_pagamento: int
+    tipo: str
+    valor: float
+
+class PagamentoDetalheUpdate(BaseModel):
+    id_pagamento: int
+    mes_referencia: int
+    ano_referencia: int
+    total_bruto: float
+    total_liquido: float
+    observacao: Optional[str] = None
+    pagamento_atrasado: bool = False
+
 # Endpoints da API
 @app.get("/")
 async def root():
@@ -244,6 +275,162 @@ async def listar_contratos():
         return {"data": [], "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos: {str(e)}")
+
+# --- ENDPOINTS DE PRESTAÇÃO DE CONTAS ---
+@app.get("/api/prestacao-contas/clientes")
+async def listar_clientes_prestacao():
+    """Lista todos os clientes que possuem contratos ativos"""
+    try:
+        clientes = buscar_clientes_com_contratos()
+        return {"data": clientes, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar clientes: {str(e)}")
+
+@app.get("/api/prestacao-contas/{id_cliente}/{ano}/{mes}")
+async def obter_prestacao_contas(id_cliente: int, ano: int, mes: int):
+    """Obtém a prestação de contas mensal de um cliente"""
+    try:
+        if mes < 1 or mes > 12:
+            raise HTTPException(status_code=400, detail="Mês deve estar entre 1 e 12")
+        
+        if ano < 2020 or ano > 2030:
+            raise HTTPException(status_code=400, detail="Ano deve estar entre 2020 e 2030")
+        
+        dados = buscar_prestacao_contas_mensal(id_cliente, mes, ano)
+        
+        if "error" in dados:
+            raise HTTPException(status_code=404, detail=dados["error"])
+        
+        return {"data": dados, "success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar prestação de contas: {str(e)}")
+
+@app.get("/api/prestacao-contas/{id_cliente}/historico")
+async def obter_historico_prestacao(id_cliente: int, limit: int = 12):
+    """Obtém o histórico de prestações de contas de um cliente"""
+    try:
+        historico = buscar_historico_prestacao_contas(id_cliente, limit)
+        return {"data": historico, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar histórico: {str(e)}")
+
+@app.post("/api/prestacao-contas/lancamentos")
+async def criar_lancamento_liquido(lancamento: LancamentoLiquidoCreate):
+    """Cria um novo lançamento líquido"""
+    try:
+        sucesso = inserir_lancamento_liquido(
+            lancamento.id_pagamento, 
+            lancamento.tipo, 
+            lancamento.valor
+        )
+        if sucesso:
+            return {"message": "Lançamento líquido criado com sucesso!", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao criar lançamento líquido")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar lançamento líquido: {str(e)}")
+
+@app.post("/api/prestacao-contas/descontos")
+async def criar_desconto_deducao(desconto: DescontoDeducaoCreate):
+    """Cria um novo desconto/dedução"""
+    try:
+        sucesso = inserir_desconto_deducao(
+            desconto.id_pagamento, 
+            desconto.tipo, 
+            desconto.valor
+        )
+        if sucesso:
+            return {"message": "Desconto/dedução criado com sucesso!", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao criar desconto/dedução")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar desconto/dedução: {str(e)}")
+
+@app.put("/api/prestacao-contas/pagamento-detalhes")
+async def atualizar_detalhes_pagamento(detalhe: PagamentoDetalheUpdate):
+    """Atualiza os detalhes de um pagamento"""
+    try:
+        sucesso = atualizar_pagamento_detalhes(
+            detalhe.id_pagamento,
+            detalhe.mes_referencia,
+            detalhe.ano_referencia,
+            detalhe.total_bruto,
+            detalhe.total_liquido,
+            detalhe.observacao,
+            detalhe.pagamento_atrasado
+        )
+        if sucesso:
+            return {"message": "Detalhes do pagamento atualizados com sucesso!", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao atualizar detalhes do pagamento")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar detalhes do pagamento: {str(e)}")
+
+@app.get("/api/prestacao-contas/{id_cliente}/{ano}/{mes}/relatorio/excel")
+async def gerar_excel_prestacao_contas(id_cliente: int, ano: int, mes: int):
+    """Gera relatório em Excel da prestação de contas"""
+    try:
+        if mes < 1 or mes > 12:
+            raise HTTPException(status_code=400, detail="Mês deve estar entre 1 e 12")
+        
+        if ano < 2020 or ano > 2030:
+            raise HTTPException(status_code=400, detail="Ano deve estar entre 2020 e 2030")
+        
+        dados = buscar_prestacao_contas_mensal(id_cliente, mes, ano)
+        
+        if "error" in dados:
+            raise HTTPException(status_code=404, detail=dados["error"])
+        
+        excel_file = gerar_relatorio_excel(dados)
+        
+        meses = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+        
+        filename = f"prestacao_contas_{dados['cliente']['nome'].replace(' ', '_')}_{meses[mes]}_{ano}.xlsx"
+        
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório Excel: {str(e)}")
+
+@app.get("/api/prestacao-contas/{id_cliente}/{ano}/{mes}/relatorio/pdf")
+async def gerar_pdf_prestacao_contas(id_cliente: int, ano: int, mes: int):
+    """Gera relatório em PDF da prestação de contas"""
+    try:
+        if mes < 1 or mes > 12:
+            raise HTTPException(status_code=400, detail="Mês deve estar entre 1 e 12")
+        
+        if ano < 2020 or ano > 2030:
+            raise HTTPException(status_code=400, detail="Ano deve estar entre 2020 e 2030")
+        
+        dados = buscar_prestacao_contas_mensal(id_cliente, mes, ano)
+        
+        if "error" in dados:
+            raise HTTPException(status_code=404, detail=dados["error"])
+        
+        pdf_file = gerar_relatorio_pdf(dados)
+        
+        meses = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+                'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+        
+        filename = f"prestacao_contas_{dados['cliente']['nome'].replace(' ', '_')}_{meses[mes]}_{ano}.pdf"
+        
+        return StreamingResponse(
+            pdf_file,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar relatório PDF: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
