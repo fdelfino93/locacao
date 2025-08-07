@@ -14,7 +14,12 @@
       "Bash(curl:*)",
       "Bash(npm run dev:*)",
       "Bash(python:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(del \"C:\\Users\\fernando\\Documents\\PY\\Locacao\\frontend\\src\\test-types.ts\")",
+      "Bash(timeout 10 python app_test.py)",
+      "Bash(timeout 8 npm run dev)",
+      "Bash(timeout 5 npm run dev)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

@@ -72,6 +72,12 @@ class ApiService {
     return this.request('/contratos');
   }
 
+  // Método público para requests customizados  
+  public async requestPublic<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T }> {
+    const result = await this.request<T>(endpoint, options);
+    return { data: result.data || result as any };
+  }
+
   // Verifica se a API está viva
   async healthCheck(): Promise<{ status: string }> {
     const response = await fetch('/health'); // também usa proxy

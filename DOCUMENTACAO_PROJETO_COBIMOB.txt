@@ -1,0 +1,896 @@
+===================================================================
+                    DOCUMENTAÇÃO TÉCNICA - COBIMOB
+                    Sistema de Gestão de Locações
+===================================================================
+
+ÚLTIMA ATUALIZAÇÃO: 06 de Janeiro de 2025
+VERSÃO DO SISTEMA: 1.0.0
+
+===================================================================
+                        ÍNDICE
+===================================================================
+
+1. VISÃO GERAL DO SISTEMA
+2. ARQUITETURA E TECNOLOGIAS
+3. ESTRUTURA DE PASTAS
+4. BACKEND - API FASTAPI
+5. FRONTEND - REACT/TYPESCRIPT
+6. BANCO DE DADOS - SQL SERVER
+7. INTEGRAÇÕES E CONEXÕES
+8. ENDPOINTS DA API
+9. COMPONENTES DO FRONTEND
+10. SCRIPTS E MIGRAÇÕES
+11. CONFIGURAÇÃO E DEPLOY
+12. PLANOS DE LOCAÇÃO
+13. FLUXO DE DADOS
+14. SEGURANÇA E VALIDAÇÕES
+
+===================================================================
+                    1. VISÃO GERAL DO SISTEMA
+===================================================================
+
+O COBIMOB é um sistema completo de gestão de locações imobiliárias 
+que permite:
+
+- Cadastro de Clientes (Proprietários)
+- Cadastro de Inquilinos
+- Gestão de Imóveis
+- Controle de Contratos
+- Prestação de Contas automatizada
+- Geração de relatórios (Excel/PDF)
+
+O sistema foi desenvolvido com arquitetura moderna usando:
+- Backend em Python/FastAPI
+- Frontend em React/TypeScript
+- Interface dupla: Streamlit (legado) + React (moderna)
+- Banco de dados SQL Server
+- Design responsivo com Tailwind CSS + ShadCN
+- Animações com Framer Motion
+
+===================================================================
+                    2. ARQUITETURA E TECNOLOGIAS
+===================================================================
+
+BACKEND:
+- Python 3.8+
+- FastAPI 0.104.1 (API REST)
+- Uvicorn (Servidor ASGI)
+- Pydantic (Validação de dados)
+- PyODBC (Conexão com SQL Server)
+- Pandas (Manipulação de dados)
+- ReportLab (Geração de PDFs)
+- OpenPyXL (Geração de Excel)
+- Python-dotenv (Variáveis de ambiente)
+
+FRONTEND:
+- React 19.1.0
+- TypeScript 5.8.3
+- Vite 7.0.4 (Build tool)
+- Tailwind CSS 3.4.17
+- ShadCN UI (Componentes)
+- Radix UI (Componentes base)
+- Framer Motion 12.23.12 (Animações)
+- Lucide React (Ícones)
+
+BANCO DE DADOS:
+- Microsoft SQL Server
+- Tabelas: Clientes, Inquilinos, Imoveis, Contratos, Pagamentos
+- Stored Procedures para relatórios complexos
+- Índices otimizados para performance
+
+INTERFACE LEGADO:
+- Streamlit (app.py) - Interface administrativa
+- Componentes Python para formulários
+
+===================================================================
+                    3. ESTRUTURA DE PASTAS
+===================================================================
+
+Locacao/
+├── 📁 locacao/                    # Módulo principal backend
+│   └── 📁 repositories/           # Camada de dados
+│       ├── cliente_repository.py  # CRUD de clientes
+│       ├── inquilino_repository.py# CRUD de inquilinos
+│       ├── imovel_repository.py   # CRUD de imóveis
+│       ├── contrato_repository.py # CRUD de contratos
+│       └── prestacao_contas_repository.py # Relatórios
+│
+├── 📁 frontend/                   # Aplicação React moderna
+│   ├── 📁 src/
+│   │   ├── 📁 components/         # Componentes React
+│   │   │   ├── 📁 forms/          # Formulários específicos
+│   │   │   ├── 📁 sections/       # Seções de página
+│   │   │   └── 📁 ui/             # Componentes base UI
+│   │   ├── 📁 services/           # Integração com API
+│   │   └── 📁 types/              # TypeScript interfaces
+│   └── 📦 package.json            # Dependências Node.js
+│
+├── 📁 pages/                      # Interface Streamlit (legado)
+│   ├── cadastro_cliente.py       # Página de cadastro cliente
+│   ├── cadastro_inquilino.py     # Página de cadastro inquilino
+│   ├── cadastro_imovel.py        # Página de cadastro imóvel
+│   ├── cadastro_contrato.py      # Página de cadastro contrato
+│   └── prestacao_contas.py       # Relatórios Streamlit
+│
+├── 📁 components/                 # Componentes Streamlit
+│   └── form_components.py         # Widgets reutilizáveis
+│
+├── 📁 scripts/                    # Scripts de banco e migração
+│   ├── migration_*.py             # Scripts de migração
+│   ├── test_*.py                  # Scripts de teste
+│   └── analyze_database.py       # Análise de performance
+│
+├── 🐍 app.py                      # Aplicação Streamlit principal
+├── 🚀 main.py                     # API FastAPI principal
+├── 📋 requirements.txt            # Dependências Python
+└── 📄 .env                        # Configurações ambiente
+
+===================================================================
+                    4. BACKEND - API FASTAPI
+===================================================================
+
+ARQUIVO PRINCIPAL: main.py
+- Configuração FastAPI com CORS
+- Middleware de segurança
+- Validação Pydantic
+- Tratamento de exceções
+- Logging estruturado
+
+MODELOS PYDANTIC:
+- ClienteCreate: Validação de dados de cliente
+- InquilinoCreate: Validação de dados de inquilino
+- ImovelCreate: Validação de dados de imóvel
+- ContratoCreate: Validação de dados de contrato
+- Modelos para Prestação de Contas
+
+REPOSITÓRIOS (Repository Pattern):
+
+📁 cliente_repository.py:
+- get_conexao(): Conexão com banco
+- buscar_clientes(): Lista todos os clientes
+- buscar_cliente_por_id(): Busca cliente específico
+- inserir_cliente(): Cadastro novo cliente
+
+📁 inquilino_repository.py:
+- Operações CRUD para inquilinos
+- Validação CPF/CNPJ
+- Gestão de fiadores e moradores
+
+📁 imovel_repository.py:
+- Operações CRUD para imóveis
+- Associação com cliente/inquilino
+- Controle de status e valores
+
+📁 contrato_repository.py:
+- Gestão completa de contratos
+- Cálculo de reajustes
+- Controle de datas de vigência
+
+📁 prestacao_contas_repository.py:
+- Relatórios mensais complexos
+- Geração de Excel/PDF
+- Cálculos financeiros automatizados
+- Histórico de pagamentos
+
+CARACTERÍSTICAS TÉCNICAS:
+- Pool de conexões otimizado
+- Transações atomicas
+- Prevenção SQL Injection
+- Validação de regras de negócio
+- Logging de auditoria
+- Tratamento robusto de erros
+
+===================================================================
+                    5. FRONTEND - REACT/TYPESCRIPT
+===================================================================
+
+ESTRUTURA PRINCIPAL:
+
+📁 src/App.tsx:
+- Roteamento entre formulários
+- Navegação com animações
+- Estado global da aplicação
+- Layout responsivo
+
+📁 services/api.ts:
+- Classe ApiService centralizada
+- Interceptação de requests
+- Tratamento de erros HTTP
+- Proxy para desenvolvimento
+
+📁 types/index.ts:
+- Interfaces TypeScript completas
+- Tipos para Cliente, Inquilino, Imóvel, Contrato
+- Validações de tipos em tempo de compilação
+
+FORMULÁRIOS PRINCIPAIS:
+
+📁 components/forms/ModernClienteFormV2.tsx:
+- Formulário multi-etapa para clientes
+- Validação em tempo real
+- Suporte PF/PJ com representante legal
+- Integração com API de CEP
+
+📁 components/forms/ModernInquilinoFormV2.tsx:
+- Cadastro completo de inquilinos
+- Sistema de fiadores
+- Cadastro de moradores
+- Validações específicas
+
+📁 components/forms/ModernImovelForm.tsx:
+- Dados completos do imóvel
+- Cálculos automáticos
+- Upload de documentos
+- Geocodificação de endereços
+
+📁 components/forms/ModernContratoForm.tsx:
+- Planos de locação estruturados
+- Cálculo de valores automático
+- Datas de vigência inteligentes
+- Preview do contrato
+
+COMPONENTES UI (ShadCN):
+- Button: Botões com variações
+- Input: Campos de entrada validados
+- Select: Seletores customizados
+- Checkbox: Checkboxes estilizados
+- Label: Labels semânticos
+- Textarea: Áreas de texto
+
+SEÇÕES ESPECIAIS:
+
+📁 components/sections/PrestacaoContas.tsx:
+- Interface para relatórios
+- Filtros avançados
+- Exportação Excel/PDF
+- Visualização de dados
+
+📁 components/sections/Hero.tsx:
+- Landing page do sistema
+- Call-to-action
+- Apresentação das funcionalidades
+
+CARACTERÍSTICAS TÉCNICAS:
+- TypeScript strict mode
+- Componentes funcionais com hooks
+- Estado local com useState
+- Efeitos com useEffect
+- Formulários controlados
+- Validação client-side
+- Responsive design mobile-first
+- Acessibilidade (WCAG 2.1)
+- Performance otimizada
+
+===================================================================
+                    6. BANCO DE DADOS - SQL SERVER
+===================================================================
+
+TABELAS PRINCIPAIS:
+
+🗃️ Clientes:
+- id (PK, IDENTITY)
+- nome, cpf_cnpj, telefone, email
+- endereco (texto livre - será migrado)
+- tipo_recebimento, conta_bancaria
+- dados_empresa, representante
+- informações do cônjuge
+- preferências de seguro
+- data_nascimento, nacionalidade, estado_civil
+
+🗃️ Inquilinos:
+- id (PK, IDENTITY)
+- dados pessoais completos
+- tipo_garantia, responsável por utilidades
+- dados de moradores e pets
+- informações empresariais (PJ)
+- fiador vinculado
+
+🗃️ Imoveis:
+- id (PK, IDENTITY)
+- id_cliente, id_inquilino (FK)
+- tipo, endereco, valores (aluguel, IPTU, condomínio)
+- status, matricula_imovel
+- dados de utilidades (Copel, Sanepar, gás)
+- permite_pets, observações
+
+🗃️ Contratos:
+- id (PK, IDENTITY)  
+- id_imovel, id_inquilino (FK)
+- datas (início, fim, assinatura, reajustes)
+- taxas e percentuais
+- tipo_plano_locacao, valores_contrato
+- seguros e garantias
+- clausulas_adicionais
+
+🗃️ Pagamentos:
+- id (PK, IDENTITY)
+- id_contrato (FK)
+- mes_referencia, ano_referencia
+- valores (bruto, líquido, descontos)
+- status_pagamento
+- observações
+
+TABELAS DE APOIO (Novas - Migração):
+
+🗃️ Enderecos:
+- Endereços estruturados
+- CEP, cidade, estado separados
+- Geocodificação
+
+🗃️ DadosBancarios:
+- Informações bancárias estruturadas
+- PIX, TED, contas específicas
+- Validações bancárias
+
+🗃️ PlanosLocacao:
+- Planos pré-definidos
+- Percentuais por categoria
+- Configurações flexíveis
+
+ÍNDICES OTIMIZADOS:
+- IX_Clientes_CPF_CNPJ (único)
+- IX_Contratos_Datas (composto)
+- IX_Pagamentos_Referencia (composto)
+- IX_Imoveis_Status (filtro)
+
+PROCEDURES:
+- SP_RelatorioMensal
+- SP_CalculoReajuste
+- SP_PrestacaoContas
+
+===================================================================
+                    7. INTEGRAÇÕES E CONEXÕES
+===================================================================
+
+FLUXO DE DADOS:
+
+Frontend React ↔ API FastAPI ↔ SQL Server
+     ↓
+Streamlit App ↔ Repositories ↔ SQL Server
+
+CONEXÕES ESPECÍFICAS:
+
+🔗 Frontend → Backend:
+- Proxy Vite (localhost:5173 → localhost:8000)
+- Headers CORS configurados
+- Interceptadores de erro
+- Retry automático
+
+🔗 Backend → Banco:
+- PyODBC connection pool
+- String de conexão via .env
+- Transações atomicas
+- Prepared statements
+
+🔗 APIs Externas:
+- ViaCEP (busca de endereços)
+- APIs bancárias (validação)
+- Geocodificação (futuro)
+
+CONFIGURAÇÃO DE AMBIENTE:
+
+📄 .env (Backend):
+```
+DB_DRIVER=ODBC Driver 17 for SQL Server
+DB_SERVER=localhost
+DB_DATABASE=Cobimob
+DB_USER=usuario
+DB_PASSWORD=senha
+```
+
+📄 frontend/.env:
+```
+VITE_API_URL=http://localhost:8000
+VITE_ENV=development
+```
+
+SEGURANÇA:
+- Validação de input em todas as camadas
+- Sanitização de dados SQL
+- Headers de segurança HTTP
+- Autenticação JWT (futuro)
+- Rate limiting (futuro)
+
+===================================================================
+                    8. ENDPOINTS DA API
+===================================================================
+
+BASE URL: http://localhost:8000
+
+🌐 ENDPOINTS GERAIS:
+GET  /                    # Status da API
+GET  /health             # Health check
+
+👥 CLIENTES:
+POST /api/clientes       # Criar cliente
+GET  /api/clientes       # Listar clientes
+
+🏠 INQUILINOS:
+POST /api/inquilinos     # Criar inquilino  
+GET  /api/inquilinos     # Listar inquilinos
+
+🏘️ IMÓVEIS:
+POST /api/imoveis        # Criar imóvel
+GET  /api/imoveis        # Listar imóveis
+
+📝 CONTRATOS:
+POST /api/contratos      # Criar contrato
+GET  /api/contratos      # Listar contratos
+
+📊 PRESTAÇÃO DE CONTAS:
+GET  /api/prestacao-contas/clientes
+     # Lista clientes com contratos
+
+GET  /api/prestacao-contas/{id_cliente}/{ano}/{mes}
+     # Dados de prestação mensal
+
+GET  /api/prestacao-contas/{id_cliente}/historico
+     # Histórico de prestações
+
+POST /api/prestacao-contas/lancamentos
+     # Criar lançamento líquido
+
+POST /api/prestacao-contas/descontos
+     # Criar desconto/dedução
+
+PUT  /api/prestacao-contas/pagamento-detalhes
+     # Atualizar detalhes pagamento
+
+📄 RELATÓRIOS:
+GET  /api/prestacao-contas/{id_cliente}/{ano}/{mes}/relatorio/excel
+     # Download Excel
+
+GET  /api/prestacao-contas/{id_cliente}/{ano}/{mes}/relatorio/pdf
+     # Download PDF
+
+FORMATO DE RESPOSTA:
+```json
+{
+  "data": [...],
+  "message": "Operação realizada com sucesso",
+  "success": true
+}
+```
+
+TRATAMENTO DE ERROS:
+- Status HTTP apropriados (400, 404, 500)
+- Mensagens descritivas
+- Logging detalhado
+- Stack trace em desenvolvimento
+
+===================================================================
+                    9. COMPONENTES DO FRONTEND
+===================================================================
+
+🎨 COMPONENTES UI BASE:
+
+📁 components/ui/button.tsx:
+- Variantes: default, destructive, outline, secondary
+- Tamanhos: sm, md, lg, xl
+- Estados: loading, disabled
+- Acessibilidade completa
+
+📁 components/ui/input.tsx:
+- Input básico estilizado
+- Validação visual
+- Estados de erro
+- Suporte a ícones
+
+📁 components/ui/input-with-icon.tsx:
+- Input com ícone integrado
+- Máscaras de formato
+- Validação em tempo real
+
+📁 components/ui/select.tsx:
+- Select customizado Radix UI
+- Busca integrada
+- Multi-seleção
+- Virtualization para listas grandes
+
+🔧 FORMULÁRIOS ESPECÍFICOS:
+
+📁 ModernClienteFormV2.tsx:
+SEÇÕES:
+1. Dados Pessoais/Empresariais
+2. Endereço (com CEP automático)
+3. Dados Bancários estruturados
+4. Preferências de seguro
+5. Observações
+
+CARACTERÍSTICAS:
+- Validação CPF/CNPJ em tempo real
+- Toggle PF/PJ dinâmico
+- Busca CEP automática
+- Dados do cônjuge condicionais
+- Preview dos dados antes de enviar
+
+📁 ModernInquilinoFormV2.tsx:
+SEÇÕES:
+1. Identificação principal
+2. Endereço e contato  
+3. Dados profissionais
+4. Sistema de fiadores
+5. Cadastro de moradores
+6. Informações sobre pets
+7. Responsabilidade por utilidades
+
+CARACTERÍSTICAS:
+- Fiador opcional estruturado
+- Lista dinâmica de moradores
+- Cálculo de dependentes
+- Validações específicas por tipo
+
+📁 ModernImovelForm.tsx:
+SEÇÕES:
+1. Dados básicos do imóvel
+2. Valores e taxas
+3. Informações de utilidades
+4. Documentação
+5. Observações e restrições
+
+CARACTERÍSTICAS:
+- Seleção de cliente/inquilino
+- Cálculos automáticos de valores
+- Validação de matrículas
+- Upload de documentos
+
+📁 ModernContratoForm.tsx:
+SEÇÕES:
+1. Partes envolvidas
+2. Período e reajustes
+3. Planos de locação
+4. Valores estruturados
+5. Seguros e garantias
+6. Antecipações e retidos
+7. Cláusulas adicionais
+
+CARACTERÍSTICAS:
+- Seleção de planos pré-definidos
+- Cálculo automático de valores
+- Datas inteligentes
+- Preview do contrato
+
+🖼️ SEÇÕES DE INTERFACE:
+
+📁 components/sections/Hero.tsx:
+- Landing page com animações
+- Call-to-action principal
+- Apresentação das funcionalidades
+- Design moderno gradiente
+
+📁 components/sections/FormNavigation.tsx:
+- Navegação entre formulários
+- Progress indicator
+- Responsivo mobile
+- Animações suaves
+
+📁 components/sections/PrestacaoContas.tsx:
+- Seletor de cliente
+- Filtros de período
+- Tabela de dados financeiros
+- Botões de exportação
+- Gráficos de resumo (futuro)
+
+===================================================================
+                    10. SCRIPTS E MIGRAÇÕES
+===================================================================
+
+📁 scripts/migration_001_clientes_melhorias.py:
+FUNCIONALIDADES:
+- Criação de tabelas estruturadas
+- Migração de dados existentes
+- Validação de integridade
+- Backup automático
+- Rollback em caso de erro
+
+NOVAS TABELAS CRIADAS:
+- Enderecos (endereços estruturados)
+- DadosBancarios (dados bancários detalhados)  
+- RepresentantesLegais (para empresas)
+- PlanosLocacao (planos pré-definidos)
+
+📁 scripts/test_*.py:
+- test_basic_functions.py: Testes de conectividade
+- test_cliente_v2.py: Testes de CRUD cliente
+- test_performance.py: Testes de performance
+- final_comprehensive_test.py: Suíte completa
+
+📁 scripts/analyze_database.py:
+ANÁLISES:
+- Índices ausentes
+- Queries lentas
+- Fragmentação de tabelas
+- Estatísticas de uso
+- Recomendações de otimização
+
+📁 scripts/diagnostic_complete.py:
+DIAGNÓSTICOS:
+- Conectividade
+- Estrutura de tabelas
+- Integridade referencial
+- Performance queries
+- Relatório detalhado
+
+EXECUÇÃO DE SCRIPTS:
+```bash
+# Migração
+python scripts/migration_001_clientes_melhorias.py
+
+# Testes
+python scripts/test_basic_functions.py
+
+# Análise
+python scripts/analyze_database.py
+```
+
+===================================================================
+                    11. CONFIGURAÇÃO E DEPLOY
+===================================================================
+
+🐍 BACKEND SETUP:
+```bash
+# Instalar dependências
+pip install -r requirements.txt
+
+# Configurar .env
+cp .env.example .env
+
+# Executar migrações
+python scripts/migration_001_clientes_melhorias.py
+
+# Iniciar API
+python main.py
+# ou
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+⚛️ FRONTEND SETUP:
+```bash
+cd frontend
+
+# Instalar dependências
+npm install
+
+# Configurar ambiente
+cp .env.example .env.local
+
+# Modo desenvolvimento
+npm run dev
+
+# Build produção
+npm run build
+```
+
+🖥️ STREAMLIT (LEGADO):
+```bash
+# Executar interface administrativa
+streamlit run app.py --server.port 8501
+```
+
+🗄️ BANCO DE DADOS:
+1. Instalar SQL Server
+2. Criar database "Cobimob"
+3. Executar scripts de migração
+4. Configurar usuário de aplicação
+5. Configurar conexão no .env
+
+📦 DEPLOY PRODUÇÃO:
+
+OPÇÕES RECOMENDADAS:
+- Backend: Docker + Azure App Service
+- Frontend: Vercel ou Netlify
+- Banco: Azure SQL Database
+- Arquivos: Azure Blob Storage
+
+DOCKER:
+```dockerfile
+# Dockerfile backend
+FROM python:3.11-slim
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+===================================================================
+                    12. PLANOS DE LOCAÇÃO
+===================================================================
+
+O sistema implementa planos estruturados de locação:
+
+🏢 LOCAÇÃO COMPLETO - OPÇÃO 1:
+- Primeiro aluguel: 100% de taxa
+- Demais aluguéis: 10% de taxa
+- Serviços completos incluídos
+
+🏢 LOCAÇÃO COMPLETO - OPÇÃO 2:
+- Todos os aluguéis: 16% de taxa
+- Distribuição uniforme
+- Serviços completos incluídos
+
+🏠 LOCAÇÃO BÁSICO - OPÇÃO 1:
+- Primeiro aluguel: 50% de taxa
+- Demais aluguéis: 5% de taxa
+- Serviços básicos
+
+🏠 LOCAÇÃO BÁSICO - OPÇÃO 2:
+- Todos os aluguéis: 8% de taxa
+- Distribuição uniforme
+- Serviços básicos
+
+CARACTERÍSTICAS DOS PLANOS:
+- Antecipação de encargos configurável
+- Sistema de retidos flexível
+- Cálculos automáticos
+- Personalização por contrato
+
+ANTECIPAÇÕES POSSÍVEIS:
+- Condomínio
+- Seguro fiança
+- Seguro incêndio
+- IPTU (conforme contrato)
+
+RETIDOS POSSÍVEIS:
+- FCI (Fundo de Combate à Inadimplência)
+- Condomínio
+- Seguros
+- Taxas administrativas
+
+===================================================================
+                    13. FLUXO DE DADOS
+===================================================================
+
+📊 FLUXO PRINCIPAL DE CADASTROS:
+
+1. CLIENTE (Proprietário):
+   - Dados pessoais/empresariais
+   - Endereço estruturado
+   - Dados bancários para recebimento
+   - Preferências de seguro
+   ↓
+2. INQUILINO:
+   - Identificação completa
+   - Dados financeiros
+   - Sistema de garantias (fiador)
+   - Moradores e pets
+   ↓
+3. IMÓVEL:
+   - Associação cliente/inquilino
+   - Características físicas
+   - Valores e utilidades
+   - Status e documentação
+   ↓
+4. CONTRATO:
+   - Ligação imóvel/inquilino
+   - Plano de locação escolhido
+   - Datas e reajustes
+   - Seguros e garantias
+   ↓
+5. PRESTAÇÃO DE CONTAS:
+   - Cálculos mensais automáticos
+   - Relatórios detalhados
+   - Histórico completo
+
+💰 FLUXO FINANCEIRO:
+
+ENTRADA → Aluguel do inquilino
+  ↓
+CÁLCULOS → Taxa de administração (conforme plano)
+  ↓
+DESCONTOS → Condomínio, IPTU, seguros (se antecipados)
+  ↓
+RETIDOS → FCI, taxas, reparos
+  ↓
+LÍQUIDO → Valor a ser repassado ao proprietário
+
+📈 FLUXO DE RELATÓRIOS:
+
+1. Sistema coleta dados do mês
+2. Aplica regras do plano de locação
+3. Calcula valores bruto/líquido
+4. Gera relatório estruturado
+5. Exporta Excel/PDF
+6. Registra histórico
+
+===================================================================
+                    14. SEGURANÇA E VALIDAÇÕES
+===================================================================
+
+🔒 VALIDAÇÕES BACKEND:
+
+DADOS PESSOAIS:
+- CPF: Validação de dígitos verificadores
+- CNPJ: Validação completa com pesos
+- Email: Formato RFC 5322
+- Telefone: Padrões brasileiros
+- CEP: Formato 00000-000
+
+REGRAS DE NEGÓCIO:
+- Unicidade CPF/CNPJ por tabela
+- Datas de contrato consistentes
+- Valores monetários positivos
+- Relacionamentos obrigatórios válidos
+
+BANCO DE DADOS:
+- Prepared statements (proteção SQL Injection)
+- Transações atomicas
+- Validação de constraints
+- Auditoria de operações
+
+🛡️ VALIDAÇÕES FRONTEND:
+
+TEMPO REAL:
+- Formatação automática CPF/CNPJ
+- Validação de email
+- Máscaras de input
+- Feedback visual imediato
+
+SUBMIT:
+- Validação completa antes envio
+- Confirmação de dados críticos
+- Tratamento de erros da API
+- Retry automático em falhas
+
+SEGURANÇA UI:
+- Sanitização de inputs
+- Proteção XSS
+- Validação de tipos TypeScript
+- Headers de segurança
+
+🔐 CONFIGURAÇÕES DE SEGURANÇA:
+
+CORS:
+- Origins específicos permitidos
+- Headers controlados
+- Methods limitados
+
+HEADERS HTTP:
+- Content-Type validation
+- CSRF protection (futuro)
+- Rate limiting (futuro)
+
+LOGS:
+- Registro de todas as operações
+- Identificação de usuário (futuro)
+- Monitoramento de erros
+- Alertas de segurança
+
+===================================================================
+                        NOTAS TÉCNICAS
+===================================================================
+
+PERFORMANCE:
+- Pool de conexões DB otimizado
+- Queries indexadas
+- Cache de dados frequentes (futuro)
+- Paginação em listagens grandes
+- Lazy loading de componentes
+
+MANUTENIBILIDADE:
+- Código TypeScript tipado
+- Repository pattern
+- Separation of concerns
+- Documentação inline
+- Testes automatizados
+
+ESCALABILIDADE:
+- Arquitetura modular
+- APIs stateless
+- Database connection pooling
+- Horizontal scaling ready
+
+PRÓXIMAS MELHORIAS:
+- Autenticação JWT
+- Sistema de permissões
+- Notificações push
+- Dashboard analytics  
+- Mobile app (React Native)
+- Integração contábil
+- Assinatura digital
+- Portal do inquilino
+
+===================================================================
+SUPORTE TÉCNICO: fernando@cobimob.com
+VERSÃO: 1.0.0 - Janeiro 2025
+===================================================================
