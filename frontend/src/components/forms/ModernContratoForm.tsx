@@ -84,17 +84,17 @@ export const ModernContratoForm: React.FC = () => {
   useEffect(() => {
     const carregarDados = async () => {
       try {
-        const [clientesRes, inquilinosRes, imoveisRes] = await Promise.all([
-          apiService.listarClientes(),
-          apiService.listarInquilinos(),
+        const [locadoresRes, locatariosRes, imoveisRes] = await Promise.all([
+          apiService.listarLocadores(),
+          apiService.listarLocatarios(),
           apiService.listarImoveis()
         ]);
 
-        if (clientesRes.success && clientesRes.data) {
-          setClientes(clientesRes.data);
+        if (locadoresRes.success && locadoresRes.data) {
+          setClientes(locadoresRes.data);
         }
-        if (inquilinosRes.success && inquilinosRes.data) {
-          setInquilinos(inquilinosRes.data);
+        if (locatariosRes.success && locatariosRes.data) {
+          setInquilinos(locatariosRes.data);
         }
         if (imoveisRes.success && imoveisRes.data) {
           setImoveis(imoveisRes.data);
@@ -201,7 +201,7 @@ export const ModernContratoForm: React.FC = () => {
           className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-600 to-red-600 px-8 py-6">
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-8 py-6">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-white/20 rounded-xl">
                 <FileText className="w-6 h-6 text-white" />
@@ -654,7 +654,7 @@ export const ModernContratoForm: React.FC = () => {
                   <Button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-orange-500/25 transition-all duration-300"
+                    className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-indigo-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="flex items-center space-x-2">

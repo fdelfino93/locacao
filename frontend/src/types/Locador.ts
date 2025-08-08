@@ -1,6 +1,6 @@
 import type { Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa } from './';
 
-export interface Cliente {
+export interface Locador {
   id?: number;
   nome: string;
   cpf_cnpj: string;
@@ -26,7 +26,7 @@ export interface Cliente {
   rg_conjuge?: string;
   endereco_conjuge?: string;
   telefone_conjuge?: string;
-  tipo_cliente: string;
+  tipo_locador: string;
   data_nascimento: string;
   observacoes?: string;
 }

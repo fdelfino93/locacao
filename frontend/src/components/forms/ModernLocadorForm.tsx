@@ -22,15 +22,15 @@ import {
   Globe,
   UserCheck
 } from 'lucide-react';
-import type { Cliente } from '../../types';
+import type { Locador } from '../../types';
 import { apiService } from '../../services/api';
 
-export const ModernClienteForm: React.FC = () => {
+export const ModernLocadorForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   
-  const [formData, setFormData] = useState<Cliente>({
+  const [formData, setFormData] = useState<Locador>({
     nome: '',
     cpf_cnpj: '',
     telefone: '',
@@ -53,18 +53,19 @@ export const ModernClienteForm: React.FC = () => {
     rg_conjuge: '',
     endereco_conjuge: '',
     telefone_conjuge: '',
-    tipo_cliente: '',
+    tipo_locador: '',
+    tipo_pessoa: 'PF',
     data_nascimento: ''
   });
 
-  const handleInputChange = (field: keyof Cliente, value: string | number) => {
+  const handleInputChange = (field: keyof Locador, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const handleCheckboxChange = (field: keyof Cliente, checked: boolean) => {
+  const handleCheckboxChange = (field: keyof Locador, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: checked ? 'Sim' : 'Não'
@@ -86,9 +87,9 @@ export const ModernClienteForm: React.FC = () => {
     setMessage(null);
 
     try {
-      const response = await apiService.criarCliente(formData);
+      const response = await apiService.criarLocador(formData);
       if (response.success) {
-        setMessage({type: 'success', text: response.message || 'Cliente cadastrado com sucesso!'});
+        setMessage({type: 'success', text: response.message || 'Locador cadastrado com sucesso!'});
         // Reset form
         setFormData({
           nome: '',
@@ -113,13 +114,14 @@ export const ModernClienteForm: React.FC = () => {
           rg_conjuge: '',
           endereco_conjuge: '',
           telefone_conjuge: '',
-          tipo_cliente: '',
+          tipo_locador: '',
+          tipo_pessoa: 'PF',
           data_nascimento: ''
         });
         setShowConjuge(false);
       }
     } catch (error) {
-      setMessage({type: 'error', text: 'Erro ao cadastrar cliente. Tente novamente.'});
+      setMessage({type: 'error', text: 'Erro ao cadastrar locador. Tente novamente.'});
       console.error('Erro:', error);
     } finally {
       setLoading(false);
@@ -141,7 +143,7 @@ export const ModernClienteForm: React.FC = () => {
               <div className="p-2 bg-white/20 rounded-xl">
                 <User className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-white">Cadastro de Cliente</h2>
+              <h2 className="text-3xl font-bold text-white">Cadastro de Locador</h2>
             </div>
           </div>
 
@@ -268,8 +270,8 @@ export const ModernClienteForm: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="tipo_cliente" className="text-gray-300">Tipo de Cliente</Label>
-                    <Select onValueChange={(value) => handleInputChange('tipo_cliente', value)}>
+                    <Label htmlFor="tipo_locador" className="text-gray-300">Tipo de Locador</Label>
+                    <Select onValueChange={(value) => handleInputChange('tipo_locador', value)}>
                       <SelectTrigger className="bg-white/5 border-white/10 text-white">
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
@@ -575,7 +577,7 @@ export const ModernClienteForm: React.FC = () => {
                     ) : (
                       <div className="flex items-center space-x-2">
                         <UserCheck className="w-5 h-5" />
-                        <span>Cadastrar Cliente</span>
+                        <span>Cadastrar Locador</span>
                       </div>
                     )}
                   </Button>

@@ -23,16 +23,20 @@ import {
   Building2,
   Upload,
   Home,
-  DollarSign
+  DollarSign,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
-import type { Inquilino, Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa, Fiador, Morador } from '../../types';
+import type { Locatario, Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa, Fiador, Morador } from '../../types';
 import { apiService } from '../../services/api';
 import { EnderecoForm } from './EnderecoForm';
 import { DadosBancariosForm } from './DadosBancariosForm';
 
-export const ModernInquilinoFormV2: React.FC = () => {
+export const ModernLocatarioFormV2: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
   const [showMoradores, setShowMoradores] = useState<boolean>(false);
@@ -95,7 +99,7 @@ export const ModernInquilinoFormV2: React.FC = () => {
 
   const [moradores, setMoradores] = useState<Morador[]>([]);
   
-  const [formData, setFormData] = useState<Inquilino>({
+  const [formData, setFormData] = useState<Locatario>({
     nome: '',
     cpf_cnpj: '',
     telefone: '',
@@ -108,9 +112,9 @@ export const ModernInquilinoFormV2: React.FC = () => {
     tipo_garantia: 'Nenhuma',
     tem_fiador: false,
     fiador: fiador,
-    responsavel_pgto_agua: 'Inquilino',
-    responsavel_pgto_luz: 'Inquilino',
-    responsavel_pgto_gas: 'Inquilino',
+    responsavel_pgto_agua: 'Locatario',
+    responsavel_pgto_luz: 'Locatario',
+    responsavel_pgto_gas: 'Locatario',
     rg: '',
     dados_empresa: '',
     representante: '',
@@ -137,10 +141,10 @@ export const ModernInquilinoFormV2: React.FC = () => {
 
   const estadosCivis = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
   const tiposGarantia = ['Nenhuma', 'Fiador', 'Caução', 'Seguro Fiança', 'Título de Capitalização'];
-  const responsavesPagamento = ['Inquilino', 'Proprietário', 'Condomínio'];
+  const responsavesPagamento = ['Locatario', 'Proprietário', 'Condomínio'];
   const portesAnimais = ['Pequeno (até 10kg)', 'Médio (10-25kg)', 'Grande (25-45kg)', 'Gigante (45kg+)'];
 
-  const handleInputChange = (field: keyof Inquilino, value: any) => {
+  const handleInputChange = (field: keyof Locatario, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -190,10 +194,10 @@ export const ModernInquilinoFormV2: React.FC = () => {
         existe_conjuge: showConjuge ? 1 : 0
       };
 
-      const response = await apiService.post('/inquilinos', dadosParaEnvio);
+      const response = await apiService.criarLocatario(dadosParaEnvio);
       
       if (response.success) {
-        setMessage({ type: 'success', text: response.message || 'Inquilino cadastrado com sucesso!' });
+        setMessage({ type: 'success', text: response.message || 'Locatario cadastrado com sucesso!' });
         // Reset form após sucesso
         // ... (código de reset similar ao cliente)
       } else {
@@ -220,43 +224,81 @@ export const ModernInquilinoFormV2: React.FC = () => {
   const temPets = formData.pet_inquilino === 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-tr from-slate-50 via-green-50 to-emerald-100 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-gray-900 to-black py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-3xl shadow-2xl p-8"
+          transition={{ duration: 0.6 }}
+          className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
         >
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full mb-4">
-              <Home className="w-6 h-6" />
-              <span className="font-semibold">Cadastro de Inquilino</span>
+          {/* Header */}
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-8 py-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl">
+                <Home className="w-6 h-6 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-white">Cadastro de Locatário</h2>
             </div>
-            <p className="text-gray-600">
-              Complete as informações para cadastrar um novo inquilino no sistema
-            </p>
           </div>
 
-          {message && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mb-6 p-4 rounded-lg ${
-                message.type === 'success' 
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}
-            >
-              {message.text}
-            </motion.div>
-          )}
+          <div className="p-8">
+            {/* Loading State */}
+            {loadingData && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center justify-center py-12"
+              >
+                <div className="flex items-center space-x-2 text-white">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Carregando dados...</span>
+                </div>
+              </motion.div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* API Error */}
+            {apiError && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 rounded-xl mb-6 border bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+              >
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5" />
+                  <span>{apiError}</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Success/Error Messages */}
+            {message && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`p-4 rounded-xl mb-6 border ${
+                  message.type === 'success' 
+                    ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  {message.type === 'success' ? (
+                    <UserCheck className="w-5 h-5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5" />
+                  )}
+                  <span>{message.text}</span>
+                </div>
+              </motion.div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
             {/* Tipo de Pessoa */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-green-600" />
-                Tipo de Inquilino
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-gray-300" />
+                Tipo de Locatario
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -297,8 +339,8 @@ export const ModernInquilinoFormV2: React.FC = () => {
 
             {/* Dados Pessoais/Empresariais */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <User className="w-5 h-5 text-gray-300" />
                 {isPJ ? 'Dados da Empresa' : 'Dados Pessoais'}
               </h3>
               
@@ -419,12 +461,12 @@ export const ModernInquilinoFormV2: React.FC = () => {
             <EnderecoForm 
               endereco={endereco}
               onChange={setEndereco}
-              prefixo="Inquilino"
+              prefixo="Locatario"
             />
 
             {/* Responsabilidades de Pagamento */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-yellow-600" />
                 Responsabilidades de Pagamento
               </h3>
@@ -603,7 +645,7 @@ export const ModernInquilinoFormV2: React.FC = () => {
             {/* Fiador */}
             {showFiador && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Shield className="w-5 h-5 text-purple-600" />
                   Dados do Fiador
                 </h3>
@@ -680,7 +722,7 @@ export const ModernInquilinoFormV2: React.FC = () => {
 
             {/* Observações */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                 <FileText className="w-5 h-5 text-gray-600" />
                 Observações
               </h3>
@@ -697,27 +739,38 @@ export const ModernInquilinoFormV2: React.FC = () => {
               </div>
             </div>
 
-            {/* Botão de Envio */}
-            <div className="flex justify-end pt-6">
-              <Button
-                type="submit"
-                disabled={loading}
-                className="min-w-[200px] bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+            {/* Submit Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="pt-6"
+            >
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
               >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Cadastrando...
-                  </>
-                ) : (
-                  <>
-                    <Home className="w-4 h-4 mr-2" />
-                    Cadastrar Inquilino
-                  </>
-                )}
-              </Button>
-            </div>
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-indigo-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Cadastrando...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <Home className="w-5 h-5" />
+                      <span>Cadastrar Locatário</span>
+                    </div>
+                  )}
+                </Button>
+              </motion.div>
+            </motion.div>
           </form>
+          </div>
         </motion.div>
       </div>
     </div>

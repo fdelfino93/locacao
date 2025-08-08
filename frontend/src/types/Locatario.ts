@@ -1,6 +1,6 @@
 import type { Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa, Fiador, Morador } from './';
 
-export interface Inquilino {
+export interface Locatario {
   nome: string;
   cpf_cnpj: string;
   telefone: string;
@@ -29,8 +29,8 @@ export interface Inquilino {
   responsavel_inq?: number | null;
   dependentes_inq?: number | null;
   qtd_dependentes_inq: number;
-  pet_inquilino?: number | null;
-  qtd_pet_inquilino: number;
+  pet_locatario?: number | null;
+  qtd_pet_locatario: number;
   porte_pet?: string;
   nome_conjuge?: string;
   cpf_conjuge?: string;

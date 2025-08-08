@@ -3,24 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Hero } from './components/sections/Hero';
 import { FormNavigation } from './components/sections/FormNavigation';
 import { MiniFormNavigation } from './components/sections/MiniFormNavigation';
-import { ModernClienteForm } from './components/forms/ModernClienteForm';
-import { ModernClienteFormV2 } from './components/forms/ModernClienteFormV2';
-import { ModernInquilinoForm } from './components/forms/ModernInquilinoForm';
-import { ModernInquilinoFormV2 } from './components/forms/ModernInquilinoFormV2';
+import { ModernLocadorFormV2 } from './components/forms/ModernLocadorFormV2';
+import { ModernLocatarioFormV2 } from './components/forms/ModernLocatarioFormV2';
 import { ModernImovelForm } from './components/forms/ModernImovelForm';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContas } from './components/sections/PrestacaoContas';
 
-type PageType = 'hero' | 'cliente' | 'inquilino' | 'imovel' | 'contrato' | 'prestacao-contas';
+type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas';
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<PageType>('cliente');
+  const [currentPage, setCurrentPage] = useState<PageType>('locador');
 
   const handleGetStarted = () => {
-    setCurrentPage('cliente');
+    setCurrentPage('locador');
   };
 
-  const handleFormChange = (form: 'cliente' | 'inquilino' | 'imovel' | 'contrato' | 'prestacao-contas') => {
+  const handleFormChange = (form: 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas') => {
     setCurrentPage(form);
   };
 
@@ -37,33 +35,33 @@ function App() {
           >
             <Hero onGetStarted={handleGetStarted} />
             <FormNavigation 
-              currentForm="cliente" 
+              currentForm="locador" 
               onFormChange={handleFormChange} 
             />
           </motion.div>
         );
-      case 'cliente':
+      case 'locador':
         return (
           <motion.div
-            key="cliente"
+            key="locador"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernClienteFormV2 />
+            <ModernLocadorFormV2 />
           </motion.div>
         );
-      case 'inquilino':
+      case 'locatario':
         return (
           <motion.div
-            key="inquilino"
+            key="locatario"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernInquilinoFormV2 />
+            <ModernLocatarioFormV2 />
           </motion.div>
         );
       case 'imovel':
@@ -132,7 +130,7 @@ function App() {
               {/* Form Navigation */}
               <div className="flex items-center space-x-4">
                 <MiniFormNavigation 
-                  currentForm={currentPage as 'cliente' | 'inquilino' | 'imovel' | 'contrato' | 'prestacao-contas'} 
+                  currentForm={currentPage as 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas'} 
                   onFormChange={handleFormChange} 
                 />
               </div>

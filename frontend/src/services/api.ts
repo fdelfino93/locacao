@@ -1,4 +1,4 @@
-import type { Cliente, Inquilino, Imovel, Contrato, ApiResponse } from '../types';
+import type { Locador, Locatario, Imovel, Contrato, ApiResponse } from '../types';
 
 const API_BASE_URL = '/api'; // usa proxy do vite
 
@@ -24,28 +24,28 @@ class ApiService {
     return response.json();
   }
 
-  // Métodos para Clientes
-  async criarCliente(cliente: Cliente): Promise<ApiResponse<any>> {
-    return this.request('/clientes', {
+  // Métodos para Locadores
+  async criarLocador(locador: Locador): Promise<ApiResponse<any>> {
+    return this.request('/locadores', {
       method: 'POST',
-      body: JSON.stringify(cliente),
+      body: JSON.stringify(locador),
     });
   }
 
-  async listarClientes(): Promise<ApiResponse<any[]>> {
-    return this.request('/clientes');
+  async listarLocadores(): Promise<ApiResponse<any[]>> {
+    return this.request('/locadores');
   }
 
-  // Métodos para Inquilinos
-  async criarInquilino(inquilino: Inquilino): Promise<ApiResponse<any>> {
-    return this.request('/inquilinos', {
+  // Métodos para Locatarios
+  async criarLocatario(locatario: Locatario): Promise<ApiResponse<any>> {
+    return this.request('/locatarios', {
       method: 'POST',
-      body: JSON.stringify(inquilino),
+      body: JSON.stringify(locatario),
     });
   }
 
-  async listarInquilinos(): Promise<ApiResponse<any[]>> {
-    return this.request('/inquilinos');
+  async listarLocatarios(): Promise<ApiResponse<any[]>> {
+    return this.request('/locatarios');
   }
 
   // Métodos para Imóveis

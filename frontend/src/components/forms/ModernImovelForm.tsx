@@ -64,26 +64,26 @@ export const ModernImovelForm: React.FC = () => {
         await apiService.healthCheck();
         
         // Carregar dados em paralelo
-        const [clientesResponse, inquilinosResponse] = await Promise.all([
-          apiService.listarClientes().catch(() => ({ success: false, data: [] })),
-          apiService.listarInquilinos().catch(() => ({ success: false, data: [] }))
+        const [locadoresResponse, locatariosResponse] = await Promise.all([
+          apiService.listarLocadores().catch(() => ({ success: false, data: [] })),
+          apiService.listarLocatarios().catch(() => ({ success: false, data: [] }))
         ]);
 
-        if (clientesResponse.success && clientesResponse.data) {
-          setClientes(clientesResponse.data);
+        if (locadoresResponse.success && locadoresResponse.data) {
+          setClientes(locadoresResponse.data);
         } else {
-          console.warn('Não foi possível carregar clientes');
+          console.warn('Não foi possível carregar locadores');
         }
 
-        if (inquilinosResponse.success && inquilinosResponse.data) {
-          setInquilinos(inquilinosResponse.data);
+        if (locatariosResponse.success && locatariosResponse.data) {
+          setInquilinos(locatariosResponse.data);
         } else {
-          console.warn('Não foi possível carregar inquilinos');
+          console.warn('Não foi possível carregar locatários');
         }
 
         // Se não conseguiu carregar nenhum dos dois
-        if ((!clientesResponse.success || !clientesResponse.data) && 
-            (!inquilinosResponse.success || !inquilinosResponse.data)) {
+        if ((!locadoresResponse.success || !locadoresResponse.data) && 
+            (!locatariosResponse.success || !locatariosResponse.data)) {
           setApiError('Alguns dados podem não estar disponíveis. Verifique se a API está rodando.');
         }
 

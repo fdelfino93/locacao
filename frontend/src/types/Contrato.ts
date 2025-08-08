@@ -2,7 +2,7 @@ import type { PlanoLocacao } from './';
 
 export interface Contrato {
   id_imovel: number;
-  id_inquilino: number;
+  id_locatario: number;
   data_inicio: string;
   data_fim: string;
   plano_locacao?: PlanoLocacao;

@@ -1,8 +1,8 @@
 import type { Endereco } from './';
 
 export interface Imovel {
-  id_cliente: number;
-  id_inquilino: number;
+  id_locador: number;
+  id_locatario: number;
   tipo: string;
   endereco?: Endereco;
   valor_aluguel: number;

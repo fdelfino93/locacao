@@ -5,15 +5,15 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
-import type { Cliente } from '../../types';
+import type { Locador } from '../../types';
 import { apiService } from '../../services/api';
 
-export const ClienteForm: React.FC = () => {
+export const LocadorForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   
-  const [formData, setFormData] = useState<Cliente>({
+  const [formData, setFormData] = useState<Locador>({
     nome: '',
     cpf_cnpj: '',
     telefone: '',
@@ -36,18 +36,18 @@ export const ClienteForm: React.FC = () => {
     rg_conjuge: '',
     endereco_conjuge: '',
     telefone_conjuge: '',
-    tipo_cliente: '',
+    tipo_locador: '',
     data_nascimento: ''
   });
 
-  const handleInputChange = (field: keyof Cliente, value: string | number) => {
+  const handleInputChange = (field: keyof Locador, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const handleCheckboxChange = (field: keyof Cliente, checked: boolean) => {
+  const handleCheckboxChange = (field: keyof Locador, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: checked ? 'Sim' : 'Não'
@@ -69,9 +69,9 @@ export const ClienteForm: React.FC = () => {
     setMessage(null);
 
     try {
-      const response = await apiService.criarCliente(formData);
+      const response = await apiService.criarLocador(formData);
       if (response.success) {
-        setMessage({type: 'success', text: response.message || 'Cliente cadastrado com sucesso!'});
+        setMessage({type: 'success', text: response.message || 'Locador cadastrado com sucesso!'});
         // Reset form
         setFormData({
           nome: '',
@@ -96,7 +96,7 @@ export const ClienteForm: React.FC = () => {
           rg_conjuge: '',
           endereco_conjuge: '',
           telefone_conjuge: '',
-          tipo_cliente: '',
+          tipo_locador: '',
           data_nascimento: ''
         });
         setShowConjuge(false);

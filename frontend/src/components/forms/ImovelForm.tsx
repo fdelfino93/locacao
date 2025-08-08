@@ -43,28 +43,28 @@ export const ImovelForm: React.FC = () => {
       try {
         console.log('Carregando dados de clientes e inquilinos...');
         
-        const [clientesResponse, inquilinosResponse] = await Promise.all([
-          apiService.listarClientes(),
-          apiService.listarInquilinos()
+        const [locadoresResponse, locatariosResponse] = await Promise.all([
+          apiService.listarLocadores(),
+          apiService.listarLocatarios()
         ]);
 
-        console.log('Resposta clientes:', clientesResponse);
-        console.log('Resposta inquilinos:', inquilinosResponse);
+        console.log('Resposta locadores:', locadoresResponse);
+        console.log('Resposta locatários:', locatariosResponse);
 
-        if (clientesResponse.success && clientesResponse.data) {
-          setClientes(clientesResponse.data);
-          console.log('Clientes carregados:', clientesResponse.data);
+        if (locadoresResponse.success && locadoresResponse.data) {
+          setClientes(locadoresResponse.data);
+          console.log('Locadores carregados:', locadoresResponse.data);
         }
 
-        if (inquilinosResponse.success && inquilinosResponse.data) {
-          setInquilinos(inquilinosResponse.data);
-          console.log('Inquilinos carregados:', inquilinosResponse.data);
+        if (locatariosResponse.success && locatariosResponse.data) {
+          setInquilinos(locatariosResponse.data);
+          console.log('Locatários carregados:', locatariosResponse.data);
         }
         
-        setMessage({type: 'success', text: `Carregados ${clientesResponse.data?.length || 0} clientes e ${inquilinosResponse.data?.length || 0} inquilinos.`});
+        setMessage({type: 'success', text: `Carregados ${locadoresResponse.data?.length || 0} locadores e ${locatariosResponse.data?.length || 0} locatários.`});
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        setMessage({type: 'error', text: 'Erro ao carregar clientes e inquilinos. Verifique se a API está rodando.'});
+        setMessage({type: 'error', text: 'Erro ao carregar locadores e locatários. Verifique se a API está rodando.'});
       } finally {
         setLoadingData(false);
       }

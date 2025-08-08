@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { Building2, User, Users, Calculator, FileText } from 'lucide-react';
 import { Button } from '../ui/button';
 
-type FormType = 'cliente' | 'inquilino' | 'imovel' | 'contrato' | 'prestacao_contas';
+type FormType = 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas';
 
 interface FormNavigationProps {
   currentForm: FormType;
@@ -15,15 +15,15 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
 }) => {
   const forms = [
     {
-      id: 'cliente' as FormType,
-      label: 'Cliente',
+      id: 'locador' as FormType,
+      label: 'Locador',
       icon: User,
       description: 'Proprietários e responsáveis',
       color: 'from-blue-500 to-blue-600',
     },
     {
-      id: 'inquilino' as FormType,
-      label: 'Inquilino',
+      id: 'locatario' as FormType,
+      label: 'Locatário',
       icon: Users,
       description: 'Locatários e famílias',
       color: 'from-purple-500 to-purple-600',
@@ -43,7 +43,7 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
       color: 'from-orange-500 to-orange-600',
     },
     {
-      id: 'prestacao_contas' as FormType,
+      id: 'prestacao-contas' as FormType,
       label: 'Prestação de Contas',
       icon: Calculator,
       description: 'Relatórios e prestações',
