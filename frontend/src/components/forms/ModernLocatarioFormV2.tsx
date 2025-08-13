@@ -6,6 +6,8 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import { FileUpload } from '../ui/file-upload';
 import { 
   User, 
   CreditCard, 
@@ -25,7 +27,9 @@ import {
   Home,
   DollarSign,
   AlertCircle,
-  Loader2
+  Loader2,
+  MessageSquare,
+  CheckSquare
 } from 'lucide-react';
 import type { Locatario, Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa, Fiador, Morador } from '../../types';
 import { apiService } from '../../services/api';
@@ -136,6 +140,13 @@ export const ModernLocatarioFormV2: React.FC = () => {
     rg_conjuge: '',
     endereco_conjuge: '',
     telefone_conjuge: '',
+    regime_bens: '',
+    existe_conjuge: null,
+    documento_pessoal: null,
+    comprovante_endereco: null,
+    forma_envio_boleto: [],
+    email_boleto: '',
+    whatsapp_boleto: '',
     observacoes: ''
   });
 
@@ -143,12 +154,22 @@ export const ModernLocatarioFormV2: React.FC = () => {
   const tiposGarantia = ['Nenhuma', 'Fiador', 'Caução', 'Seguro Fiança', 'Título de Capitalização'];
   const responsavesPagamento = ['Locatario', 'Proprietário', 'Condomínio'];
   const portesAnimais = ['Pequeno (até 10kg)', 'Médio (10-25kg)', 'Grande (25-45kg)', 'Gigante (45kg+)'];
+  const regimesBens = ['Comunhão Total de Bens', 'Comunhão Parcial de Bens', 'Separação Total de Bens', 'Outros'];
+  const formasEnvioBoleto = ['Dentro do Imóvel', 'E-mail', 'WhatsApp'];
 
   const handleInputChange = (field: keyof Locatario, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleFormaEnvioChange = (forma: string, checked: boolean) => {
+    const novasFormas = checked
+      ? [...(formData.forma_envio_boleto || []), forma]
+      : (formData.forma_envio_boleto || []).filter(f => f !== forma);
+    
+    handleInputChange('forma_envio_boleto', novasFormas);
   };
 
   const adicionarMorador = () => {
@@ -224,21 +245,21 @@ export const ModernLocatarioFormV2: React.FC = () => {
   const temPets = formData.pet_inquilino === 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-gray-900 to-black py-12">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+          className="card-glass rounded-3xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-8 py-6">
+          <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Home className="w-6 h-6 text-white" />
+              <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                <Home className="w-6 h-6 text-primary-foreground" />
               </div>
-              <h2 className="text-3xl font-bold text-white">Cadastro de Locatário</h2>
+              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Locatário</h1>
             </div>
           </div>
 
@@ -250,7 +271,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                 animate={{ opacity: 1 }}
                 className="flex items-center justify-center py-12"
               >
-                <div className="flex items-center space-x-2 text-white">
+                <div className="flex items-center space-x-2 text-foreground">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Carregando dados...</span>
                 </div>
@@ -262,7 +283,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-4 rounded-xl mb-6 border bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                className="p-4 rounded-xl mb-6 border status-warning"
               >
                 <div className="flex items-center space-x-2">
                   <AlertCircle className="w-5 h-5" />
@@ -278,8 +299,8 @@ export const ModernLocatarioFormV2: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className={`p-4 rounded-xl mb-6 border ${
                   message.type === 'success' 
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                    ? 'status-success' 
+                    : 'status-error'
                 }`}
               >
                 <div className="flex items-center space-x-2">
@@ -294,450 +315,636 @@ export const ModernLocatarioFormV2: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Tipo de Pessoa */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-gray-300" />
-                Tipo de Locatario
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Tipo de Pessoa *</Label>
-                  <Select value={formData.tipo_pessoa} onValueChange={(value: 'PF' | 'PJ') => {
-                    handleInputChange('tipo_pessoa', value);
-                    setShowRepresentante(value === 'PJ');
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PF">Pessoa Física</SelectItem>
-                      <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Tabs defaultValue="dados-basicos" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="dados-basicos">Dados Básicos</TabsTrigger>
+                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
+                  <TabsTrigger value="empresa" className={!isPJ ? 'opacity-50 cursor-not-allowed' : ''}>
+                    Empresa
+                  </TabsTrigger>
+                  <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
+                </TabsList>
 
-                <div>
-                  <Label>Tipo de Garantia</Label>
-                  <Select value={formData.tipo_garantia} onValueChange={(value) => {
-                    handleInputChange('tipo_garantia', value);
-                    setShowFiador(value === 'Fiador');
-                  }}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tiposGarantia.map(tipo => (
-                        <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Dados Pessoais/Empresariais */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <User className="w-5 h-5 text-gray-300" />
-                {isPJ ? 'Dados da Empresa' : 'Dados Pessoais'}
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="nome">{isPJ ? 'Razão Social' : 'Nome Completo'} *</Label>
-                  <InputWithIcon
-                    id="nome"
-                    type="text"
-                    value={formData.nome}
-                    onChange={(e) => handleInputChange('nome', e.target.value)}
-                    placeholder={isPJ ? "Nome da empresa" : "João Silva"}
-                    icon={isPJ ? Building : User}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cpf_cnpj">{isPJ ? 'CNPJ' : 'CPF'} *</Label>
-                  <InputWithIcon
-                    id="cpf_cnpj"
-                    type="text"
-                    value={formData.cpf_cnpj}
-                    onChange={(e) => handleInputChange('cpf_cnpj', formatarCPFCNPJ(e.target.value))}
-                    placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
-                    icon={CreditCard}
-                    maxLength={isPJ ? 18 : 14}
-                    required
-                  />
-                </div>
-              </div>
-
-              {!isPJ && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="rg">RG *</Label>
-                    <InputWithIcon
-                      id="rg"
-                      type="text"
-                      value={formData.rg}
-                      onChange={(e) => handleInputChange('rg', e.target.value)}
-                      placeholder="00.000.000-0"
-                      icon={CreditCard}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="nacionalidade">Nacionalidade</Label>
-                    <InputWithIcon
-                      id="nacionalidade"
-                      type="text"
-                      value={formData.nacionalidade}
-                      onChange={(e) => handleInputChange('nacionalidade', e.target.value)}
-                      placeholder="Brasileira"
-                      icon={Globe}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="estado_civil">Estado Civil</Label>
-                    <Select value={formData.estado_civil} onValueChange={(value) => handleInputChange('estado_civil', value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {estadosCivis.map(estado => (
-                          <SelectItem key={estado} value={estado}>{estado}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="profissao">Profissão</Label>
-                  <InputWithIcon
-                    id="profissao"
-                    type="text"
-                    value={formData.profissao}
-                    onChange={(e) => handleInputChange('profissao', e.target.value)}
-                    placeholder="Engenheiro"
-                    icon={Briefcase}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="telefone">Telefone *</Label>
-                  <InputWithIcon
-                    id="telefone"
-                    type="tel"
-                    value={formData.telefone}
-                    onChange={(e) => handleInputChange('telefone', e.target.value)}
-                    placeholder="(41) 99999-9999"
-                    icon={Phone}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <InputWithIcon
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  placeholder="inquilino@email.com"
-                  icon={Mail}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Endereço */}
-            <EnderecoForm 
-              endereco={endereco}
-              onChange={setEndereco}
-              prefixo="Locatario"
-            />
-
-            {/* Responsabilidades de Pagamento */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-yellow-600" />
-                Responsabilidades de Pagamento
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="responsavel_pgto_agua">Pagamento de Água</Label>
-                  <Select value={formData.responsavel_pgto_agua} onValueChange={(value) => handleInputChange('responsavel_pgto_agua', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {responsavesPagamento.map(resp => (
-                        <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="responsavel_pgto_luz">Pagamento de Luz</Label>
-                  <Select value={formData.responsavel_pgto_luz} onValueChange={(value) => handleInputChange('responsavel_pgto_luz', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {responsavesPagamento.map(resp => (
-                        <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="responsavel_pgto_gas">Pagamento de Gás</Label>
-                  <Select value={formData.responsavel_pgto_gas} onValueChange={(value) => handleInputChange('responsavel_pgto_gas', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {responsavesPagamento.map(resp => (
-                        <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Sistema de Moradores */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="tem_moradores" 
-                  checked={showMoradores}
-                  onCheckedChange={(checked) => {
-                    setShowMoradores(!!checked);
-                    handleInputChange('tem_moradores', !!checked);
-                  }}
-                />
-                <Label htmlFor="tem_moradores" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Possui moradores adicionais no imóvel
-                </Label>
-              </div>
-
-              {showMoradores && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="space-y-4 border-l-4 border-blue-200 pl-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-md font-medium text-gray-800 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-500" />
-                      Moradores Cadastrados ({moradores.length})
-                    </h4>
-                    <Button type="button" onClick={adicionarMorador} size="sm" variant="outline">
-                      <User className="w-4 h-4 mr-2" />
-                      Adicionar Morador
-                    </Button>
-                  </div>
-
-                  {moradores.map((morador, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">Morador {index + 1}</span>
-                        <Button 
-                          type="button" 
-                          onClick={() => removerMorador(index)} 
-                          size="sm" 
-                          variant="destructive"
-                        >
-                          Remover
-                        </Button>
+                {/* Aba 1: Dados Básicos */}
+                <TabsContent value="dados-basicos" className="space-y-8">
+                  {/* Tipo de Pessoa */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      <UserCheck className="w-5 h-5 text-blue-600" />
+                      Tipo de Locatário
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Tipo de Pessoa *</Label>
+                        <Select value={formData.tipo_pessoa} onValueChange={(value: 'PF' | 'PJ') => {
+                          handleInputChange('tipo_pessoa', value);
+                          setShowRepresentante(value === 'PJ');
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PF">Pessoa Física</SelectItem>
+                            <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                      <div>
+                        <Label>Tipo de Garantia</Label>
+                        <Select value={formData.tipo_garantia} onValueChange={(value) => {
+                          handleInputChange('tipo_garantia', value);
+                          setShowFiador(value === 'Fiador');
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tiposGarantia.map(tipo => (
+                              <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dados Pessoais/Empresariais */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      <User className="w-5 h-5 text-blue-600" />
+                      {isPJ ? 'Dados da Empresa' : 'Dados Pessoais'}
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="nome">{isPJ ? 'Razão Social' : 'Nome Completo'} *</Label>
                         <InputWithIcon
+                          id="nome"
                           type="text"
-                          value={morador.nome}
-                          onChange={(e) => atualizarMorador(index, 'nome', e.target.value)}
-                          placeholder="Nome completo"
-                          icon={User}
+                          value={formData.nome}
+                          onChange={(e) => handleInputChange('nome', e.target.value)}
+                          placeholder={isPJ ? "Nome da empresa" : "João Silva"}
+                          icon={isPJ ? Building : User}
+                          required
                         />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="cpf_cnpj">{isPJ ? 'CNPJ' : 'CPF'} *</Label>
                         <InputWithIcon
+                          id="cpf_cnpj"
                           type="text"
-                          value={morador.cpf || ''}
-                          onChange={(e) => atualizarMorador(index, 'cpf', e.target.value)}
-                          placeholder="CPF (opcional)"
+                          value={formData.cpf_cnpj}
+                          onChange={(e) => handleInputChange('cpf_cnpj', formatarCPFCNPJ(e.target.value))}
+                          placeholder={isPJ ? "00.000.000/0000-00" : "000.000.000-00"}
                           icon={CreditCard}
-                        />
-                        <InputWithIcon
-                          type="text"
-                          value={morador.parentesco || ''}
-                          onChange={(e) => atualizarMorador(index, 'parentesco', e.target.value)}
-                          placeholder="Parentesco"
-                          icon={Heart}
+                          maxLength={isPJ ? 18 : 14}
+                          required
                         />
                       </div>
                     </div>
-                  ))}
-                </motion.div>
-              )}
-            </div>
 
-            {/* Sistema de Pets */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="pet_inquilino" 
-                  checked={temPets}
-                  onCheckedChange={(checked) => handleInputChange('pet_inquilino', checked ? 1 : 0)}
-                />
-                <Label htmlFor="pet_inquilino" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Possui animais de estimação
-                </Label>
-              </div>
+                    {!isPJ && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="rg">RG *</Label>
+                          <InputWithIcon
+                            id="rg"
+                            type="text"
+                            value={formData.rg}
+                            onChange={(e) => handleInputChange('rg', e.target.value)}
+                            placeholder="00.000.000-0"
+                            icon={CreditCard}
+                            required
+                          />
+                        </div>
 
-              {temPets && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                >
-                  <div>
-                    <Label htmlFor="qtd_pet_inquilino">Quantidade de Pets</Label>
-                    <InputWithIcon
-                      id="qtd_pet_inquilino"
-                      type="number"
-                      value={formData.qtd_pet_inquilino.toString()}
-                      onChange={(e) => handleInputChange('qtd_pet_inquilino', parseInt(e.target.value) || 0)}
-                      placeholder="1"
-                      icon={Heart}
-                      min="1"
-                      max="10"
-                    />
+                        <div>
+                          <Label htmlFor="nacionalidade">Nacionalidade</Label>
+                          <InputWithIcon
+                            id="nacionalidade"
+                            type="text"
+                            value={formData.nacionalidade}
+                            onChange={(e) => handleInputChange('nacionalidade', e.target.value)}
+                            placeholder="Brasileira"
+                            icon={Globe}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="estado_civil">Estado Civil</Label>
+                          <Select value={formData.estado_civil} onValueChange={(value) => handleInputChange('estado_civil', value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {estadosCivis.map(estado => (
+                                <SelectItem key={estado} value={estado}>{estado}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="profissao">Profissão</Label>
+                        <InputWithIcon
+                          id="profissao"
+                          type="text"
+                          value={formData.profissao}
+                          onChange={(e) => handleInputChange('profissao', e.target.value)}
+                          placeholder="Engenheiro"
+                          icon={Briefcase}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="telefone">Telefone *</Label>
+                        <InputWithIcon
+                          id="telefone"
+                          type="tel"
+                          value={formData.telefone}
+                          onChange={(e) => handleInputChange('telefone', e.target.value)}
+                          placeholder="(41) 99999-9999"
+                          icon={Phone}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <InputWithIcon
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        placeholder="locatario@email.com"
+                        icon={Mail}
+                        required
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="porte_pet">Porte dos Animais</Label>
-                    <Select value={formData.porte_pet || ''} onValueChange={(value) => handleInputChange('porte_pet', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o porte" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {portesAnimais.map(porte => (
-                          <SelectItem key={porte} value={porte}>{porte}</SelectItem>
+                  {/* Endereço */}
+                  <EnderecoForm 
+                    endereco={endereco}
+                    onChange={setEndereco}
+                    prefixo="Locatário"
+                  />
+
+                  {/* Cônjuge */}
+                  {!isPJ && (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="tem_conjuge" 
+                          checked={showConjuge}
+                          onCheckedChange={(checked) => {
+                            setShowConjuge(!!checked);
+                            handleInputChange('existe_conjuge', checked ? 1 : 0);
+                          }}
+                        />
+                        <Label htmlFor="tem_conjuge" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          Possui cônjuge/companheiro(a)
+                        </Label>
+                      </div>
+
+                      {showConjuge && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="space-y-4 border-l-4 border-pink-200 pl-4"
+                        >
+                          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Heart className="w-4 h-4 text-pink-500" />
+                            Dados do Cônjuge
+                          </h3>
+                          
+                          <div>
+                            <Label htmlFor="regime_bens">Regime de Bens *</Label>
+                            <Select 
+                              value={formData.regime_bens || ''} 
+                              onValueChange={(value) => handleInputChange('regime_bens', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o regime de bens" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {regimesBens.map(regime => (
+                                  <SelectItem key={regime} value={regime}>{regime}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="nome_conjuge">Nome do Cônjuge</Label>
+                              <InputWithIcon
+                                id="nome_conjuge"
+                                type="text"
+                                value={formData.nome_conjuge}
+                                onChange={(e) => handleInputChange('nome_conjuge', e.target.value)}
+                                placeholder="Maria Silva"
+                                icon={User}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="cpf_conjuge">CPF do Cônjuge</Label>
+                              <InputWithIcon
+                                id="cpf_conjuge"
+                                type="text"
+                                value={formData.cpf_conjuge}
+                                onChange={(e) => handleInputChange('cpf_conjuge', formatarCPFCNPJ(e.target.value))}
+                                placeholder="000.000.000-00"
+                                icon={CreditCard}
+                                maxLength={14}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="rg_conjuge">RG do Cônjuge</Label>
+                              <InputWithIcon
+                                id="rg_conjuge"
+                                type="text"
+                                value={formData.rg_conjuge}
+                                onChange={(e) => handleInputChange('rg_conjuge', e.target.value)}
+                                placeholder="00.000.000-0"
+                                icon={CreditCard}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="telefone_conjuge">Telefone</Label>
+                              <InputWithIcon
+                                id="telefone_conjuge"
+                                type="tel"
+                                value={formData.telefone_conjuge}
+                                onChange={(e) => handleInputChange('telefone_conjuge', e.target.value)}
+                                placeholder="(41) 99999-9999"
+                                icon={Phone}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="endereco_conjuge">Endereço</Label>
+                              <InputWithIcon
+                                id="endereco_conjuge"
+                                type="text"
+                                value={formData.endereco_conjuge}
+                                onChange={(e) => handleInputChange('endereco_conjuge', e.target.value)}
+                                placeholder="Rua, Número, Bairro"
+                                icon={Building2}
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fiador */}
+                  {showFiador && (
+                    <div className="space-y-4">
+                      <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-secondary" />
+                        Dados do Fiador
+                      </h2>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="fiador_nome">Nome do Fiador *</Label>
+                          <InputWithIcon
+                            id="fiador_nome"
+                            type="text"
+                            value={fiador.nome}
+                            onChange={(e) => setFiador(prev => ({ ...prev, nome: e.target.value }))}
+                            placeholder="João Silva"
+                            icon={User}
+                            required={showFiador}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_cpf">CPF do Fiador *</Label>
+                          <InputWithIcon
+                            id="fiador_cpf"
+                            type="text"
+                            value={fiador.cpf_cnpj}
+                            onChange={(e) => setFiador(prev => ({ ...prev, cpf_cnpj: formatarCPFCNPJ(e.target.value) }))}
+                            placeholder="000.000.000-00"
+                            icon={CreditCard}
+                            maxLength={14}
+                            required={showFiador}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="fiador_telefone">Telefone</Label>
+                          <InputWithIcon
+                            id="fiador_telefone"
+                            type="tel"
+                            value={fiador.telefone || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, telefone: e.target.value }))}
+                            placeholder="(41) 99999-9999"
+                            icon={Phone}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_renda">Renda Mensal</Label>
+                          <InputWithIcon
+                            id="fiador_renda"
+                            type="number"
+                            value={fiador.renda_mensal?.toString() || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, renda_mensal: parseFloat(e.target.value) || 0 }))}
+                            placeholder="5000.00"
+                            icon={DollarSign}
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_profissao">Profissão</Label>
+                          <InputWithIcon
+                            id="fiador_profissao"
+                            type="text"
+                            value={fiador.profissao || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, profissao: e.target.value }))}
+                            placeholder="Engenheiro"
+                            icon={Briefcase}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Aba 2: Documentos */}
+                <TabsContent value="documentos" className="space-y-8">
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-indigo-600" />
+                      Documentos do Locatário
+                    </h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Faça upload dos documentos necessários. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FileUpload
+                        label="Documento Pessoal (RG/CPF)"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        maxSize={5}
+                        onFileSelect={(file) => handleInputChange('documento_pessoal', file)}
+                        currentFile={formData.documento_pessoal}
+                        required
+                      />
+
+                      <FileUpload
+                        label="Comprovante de Endereço"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        maxSize={5}
+                        onFileSelect={(file) => handleInputChange('comprovante_endereco', file)}
+                        currentFile={formData.comprovante_endereco}
+                        required
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Aba 3: Empresa (apenas para PJ) */}
+                <TabsContent value="empresa" className="space-y-8">
+                  {isPJ ? (
+                    <>
+                      {/* Representante Legal */}
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-600" />
+                          Representante Legal *
+                        </h2>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Obrigatório para Pessoa Jurídica
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="rep_nome">Nome do Representante *</Label>
+                            <InputWithIcon
+                              id="rep_nome"
+                              type="text"
+                              value={representanteLegal.nome}
+                              onChange={(e) => setRepresentanteLegal(prev => ({ ...prev, nome: e.target.value }))}
+                              placeholder="João Silva"
+                              icon={User}
+                              required={isPJ}
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="rep_cpf">CPF do Representante *</Label>
+                            <InputWithIcon
+                              id="rep_cpf"
+                              type="text"
+                              value={representanteLegal.cpf}
+                              onChange={(e) => setRepresentanteLegal(prev => ({ ...prev, cpf: formatarCPFCNPJ(e.target.value) }))}
+                              placeholder="000.000.000-00"
+                              icon={CreditCard}
+                              maxLength={14}
+                              required={isPJ}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="rep_rg">RG *</Label>
+                            <InputWithIcon
+                              id="rep_rg"
+                              type="text"
+                              value={representanteLegal.rg}
+                              onChange={(e) => setRepresentanteLegal(prev => ({ ...prev, rg: e.target.value }))}
+                              placeholder="00.000.000-0"
+                              icon={CreditCard}
+                              required={isPJ}
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="rep_telefone">Telefone</Label>
+                            <InputWithIcon
+                              id="rep_telefone"
+                              type="tel"
+                              value={representanteLegal.telefone || ''}
+                              onChange={(e) => setRepresentanteLegal(prev => ({ ...prev, telefone: e.target.value }))}
+                              placeholder="(41) 99999-9999"
+                              icon={Phone}
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="rep_email">Email</Label>
+                            <InputWithIcon
+                              id="rep_email"
+                              type="email"
+                              value={representanteLegal.email || ''}
+                              onChange={(e) => setRepresentanteLegal(prev => ({ ...prev, email: e.target.value }))}
+                              placeholder="representante@email.com"
+                              icon={Mail}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Documentos da Empresa */}
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-indigo-600" />
+                          Documentos da Empresa
+                        </h2>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Faça upload dos documentos da empresa. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <FileUpload
+                            label="Contrato Social"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            maxSize={5}
+                            onFileSelect={(file) => setDocumentosEmpresa(prev => ({ ...prev, contrato_social: file?.name || '' }))}
+                            required
+                          />
+
+                          <FileUpload
+                            label="Cartão CNPJ"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            maxSize={5}
+                            onFileSelect={(file) => setDocumentosEmpresa(prev => ({ ...prev, cartao_cnpj: file?.name || '' }))}
+                            required
+                          />
+
+                          <FileUpload
+                            label="Comprovante de Renda"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            maxSize={5}
+                            onFileSelect={(file) => setDocumentosEmpresa(prev => ({ ...prev, comprovante_renda: file?.name || '' }))}
+                          />
+
+                          <FileUpload
+                            label="Comprovante de Endereço da Empresa"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            maxSize={5}
+                            onFileSelect={(file) => setDocumentosEmpresa(prev => ({ ...prev, comprovante_endereco: file?.name || '' }))}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Building className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-base font-medium text-muted-foreground mb-2">
+                        Seção disponível apenas para Pessoa Jurídica
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Altere o tipo de pessoa para "Pessoa Jurídica" para acessar esta seção.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Aba 4: Configurações */}
+                <TabsContent value="configuracoes" className="space-y-8">
+                  {/* Envio de Boleto */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-orange-600" />
+                      Envio de Boleto
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      <Label className="text-sm font-medium">Como deseja receber o boleto? (múltipla escolha)</Label>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {formasEnvioBoleto.map(forma => (
+                          <div key={forma} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`boleto_${forma.toLowerCase().replace(/\s+/g, '_')}`}
+                              checked={(formData.forma_envio_boleto || []).includes(forma)}
+                              onCheckedChange={(checked) => handleFormaEnvioChange(forma, !!checked)}
+                            />
+                            <Label 
+                              htmlFor={`boleto_${forma.toLowerCase().replace(/\s+/g, '_')}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              {forma}
+                            </Label>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </motion.div>
-              )}
-            </div>
+                      </div>
 
-            {/* Fiador */}
-            {showFiador && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-purple-600" />
-                  Dados do Fiador
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="fiador_nome">Nome do Fiador *</Label>
-                    <InputWithIcon
-                      id="fiador_nome"
-                      type="text"
-                      value={fiador.nome}
-                      onChange={(e) => setFiador(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="João Silva"
-                      icon={User}
-                      required={showFiador}
-                    />
-                  </div>
+                      {/* Campos condicionais */}
+                      {(formData.forma_envio_boleto || []).includes('E-mail') && (
+                        <div>
+                          <Label htmlFor="email_boleto">E-mail para envio do boleto</Label>
+                          <InputWithIcon
+                            id="email_boleto"
+                            type="email"
+                            value={formData.email_boleto || ''}
+                            onChange={(e) => handleInputChange('email_boleto', e.target.value)}
+                            placeholder="email@exemplo.com"
+                            icon={Mail}
+                            required
+                          />
+                        </div>
+                      )}
 
-                  <div>
-                    <Label htmlFor="fiador_cpf">CPF do Fiador *</Label>
-                    <InputWithIcon
-                      id="fiador_cpf"
-                      type="text"
-                      value={fiador.cpf_cnpj}
-                      onChange={(e) => setFiador(prev => ({ ...prev, cpf_cnpj: formatarCPFCNPJ(e.target.value) }))}
-                      placeholder="000.000.000-00"
-                      icon={CreditCard}
-                      maxLength={14}
-                      required={showFiador}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="fiador_telefone">Telefone</Label>
-                    <InputWithIcon
-                      id="fiador_telefone"
-                      type="tel"
-                      value={fiador.telefone || ''}
-                      onChange={(e) => setFiador(prev => ({ ...prev, telefone: e.target.value }))}
-                      placeholder="(41) 99999-9999"
-                      icon={Phone}
-                    />
+                      {(formData.forma_envio_boleto || []).includes('WhatsApp') && (
+                        <div>
+                          <Label htmlFor="whatsapp_boleto">WhatsApp para envio do boleto</Label>
+                          <InputWithIcon
+                            id="whatsapp_boleto"
+                            type="tel"
+                            value={formData.whatsapp_boleto || ''}
+                            onChange={(e) => handleInputChange('whatsapp_boleto', e.target.value)}
+                            placeholder="(41) 99999-9999"
+                            icon={MessageSquare}
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="fiador_renda">Renda Mensal</Label>
-                    <InputWithIcon
-                      id="fiador_renda"
-                      type="number"
-                      value={fiador.renda_mensal?.toString() || ''}
-                      onChange={(e) => setFiador(prev => ({ ...prev, renda_mensal: parseFloat(e.target.value) || 0 }))}
-                      placeholder="5000.00"
-                      icon={DollarSign}
-                      step="0.01"
-                    />
+                  {/* Observações */}
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-muted-foreground" />
+                      Observações
+                    </h2>
+                    
+                    <div>
+                      <Label htmlFor="observacoes">Observações Gerais</Label>
+                      <Textarea
+                        id="observacoes"
+                        value={formData.observacoes}
+                        onChange={(e) => handleInputChange('observacoes', e.target.value)}
+                        placeholder="Informações adicionais sobre o locatário..."
+                        rows={4}
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <Label htmlFor="fiador_profissao">Profissão</Label>
-                    <InputWithIcon
-                      id="fiador_profissao"
-                      type="text"
-                      value={fiador.profissao || ''}
-                      onChange={(e) => setFiador(prev => ({ ...prev, profissao: e.target.value }))}
-                      placeholder="Engenheiro"
-                      icon={Briefcase}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Observações */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-gray-600" />
-                Observações
-              </h3>
-              
-              <div>
-                <Label htmlFor="observacoes">Observações Gerais</Label>
-                <Textarea
-                  id="observacoes"
-                  value={formData.observacoes}
-                  onChange={(e) => handleInputChange('observacoes', e.target.value)}
-                  placeholder="Informações adicionais sobre o inquilino..."
-                  rows={4}
-                />
-              </div>
-            </div>
+                </TabsContent>
+              </Tabs>
 
             {/* Submit Button */}
             <motion.div
@@ -753,11 +960,11 @@ export const ModernLocatarioFormV2: React.FC = () => {
                 <Button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-indigo-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                       <span>Cadastrando...</span>
                     </div>
                   ) : (

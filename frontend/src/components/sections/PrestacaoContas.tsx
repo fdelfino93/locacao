@@ -199,21 +199,21 @@ function PrestacaoContasPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-gray-900 to-black py-12">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+          className="card-glass rounded-3xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-8 py-6">
+          <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Calculator className="w-6 h-6 text-white" />
+              <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                <Calculator className="w-6 h-6 text-primary-foreground" />
               </div>
-              <h2 className="text-3xl font-bold text-white">Prestação de Contas</h2>
+              <h1 className="text-2xl font-bold text-primary-foreground">Prestação de Contas</h1>
             </div>
           </div>
 
@@ -225,7 +225,7 @@ function PrestacaoContasPage() {
                 animate={{ opacity: 1 }}
                 className="flex items-center justify-center py-12"
               >
-                <div className="flex items-center space-x-2 text-white">
+                <div className="flex items-center space-x-2 text-foreground">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Carregando dados da prestação de contas...</span>
                 </div>
@@ -240,14 +240,14 @@ function PrestacaoContasPage() {
                 transition={{ duration: 0.6, delay: 0.1 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                   <User className="w-5 h-5" />
                   <span>Filtros</span>
-                </h3>
+                </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Cliente</Label>
+                    <Label className="text-muted-foreground">Cliente</Label>
                     <Select
                       onValueChange={(value) => {
                         const cliente = clientes.find((c) => c.id?.toString() === value);
@@ -255,12 +255,12 @@ function PrestacaoContasPage() {
                       }}
                       value={clienteSelecionado?.id?.toString() || ""}
                     >
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectTrigger className="bg-muted/50 border-border text-foreground">
                         <SelectValue placeholder="Selecione o cliente" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectContent className="bg-card border-border">
                         {clientes.map((cliente) => (
-                          <SelectItem key={cliente.id} value={cliente.id?.toString() || ''} className="text-white hover:bg-gray-700">
+                          <SelectItem key={cliente.id} value={cliente.id?.toString() || ''} className="text-foreground hover:bg-accent">
                             {cliente.nome}
                           </SelectItem>
                         ))}
@@ -269,16 +269,16 @@ function PrestacaoContasPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Mês</Label>
+                    <Label className="text-muted-foreground">Mês</Label>
                     <Select onValueChange={setMes} value={mes}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectTrigger className="bg-muted/50 border-border text-foreground">
                         <SelectValue placeholder="Selecione o mês" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectContent className="bg-card border-border">
                         {Array.from({ length: 12 }, (_, i) => {
                           const m = (i + 1).toString().padStart(2, "0");
                           return (
-                            <SelectItem key={m} value={m} className="text-white hover:bg-gray-700">
+                            <SelectItem key={m} value={m} className="text-foreground hover:bg-accent">
                               {m}
                             </SelectItem>
                           );
@@ -288,14 +288,14 @@ function PrestacaoContasPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-300">Ano</Label>
+                    <Label className="text-muted-foreground">Ano</Label>
                     <Select onValueChange={setAno} value={ano}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                      <SelectTrigger className="bg-muted/50 border-border text-foreground">
                         <SelectValue placeholder="Selecione o ano" />
                       </SelectTrigger>
-                      <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectContent className="bg-card border-border">
                         {[2023, 2024, 2025].map((a) => (
-                          <SelectItem key={a} value={a.toString()} className="text-white hover:bg-gray-700">
+                          <SelectItem key={a} value={a.toString()} className="text-foreground hover:bg-accent">
                             {a}
                           </SelectItem>
                         ))}
@@ -308,7 +308,11 @@ function PrestacaoContasPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <Button onClick={buscarPrestacao} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
+                  <Button 
+                    type="button" 
+                    onClick={buscarPrestacao} 
+                    className="btn-gradient"
+                  >
                     <FileText className="w-4 h-4 mr-2" />
                     Buscar Prestação
                   </Button>
@@ -324,14 +328,14 @@ function PrestacaoContasPage() {
                     transition={{ duration: 0.6, delay: 0.2 }}
                     className="space-y-6"
                   >
-                    <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                       <DollarSign className="w-5 h-5" />
                       <span>Dados Financeiros</span>
-                    </h3>
+                    </h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       <div className="space-y-2">
-                        <Label htmlFor="valorPago" className="text-gray-300">Valor Pago (R$)</Label>
+                        <Label htmlFor="valorPago" className="text-muted-foreground">Valor Pago (R$)</Label>
                         <InputWithIcon
                           id="valorPago"
                           type="number"
@@ -340,12 +344,12 @@ function PrestacaoContasPage() {
                           value={valorPago}
                           onChange={(e) => setValorPago(Number(e.target.value))}
                           placeholder="0.00"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="valorVencido" className="text-gray-300">Valor Vencido (R$)</Label>
+                        <Label htmlFor="valorVencido" className="text-muted-foreground">Valor Vencido (R$)</Label>
                         <InputWithIcon
                           id="valorVencido"
                           type="number"
@@ -354,12 +358,12 @@ function PrestacaoContasPage() {
                           value={valorVencido}
                           onChange={(e) => setValorVencido(Number(e.target.value))}
                           placeholder="0.00"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="encargos" className="text-gray-300">Encargos (R$)</Label>
+                        <Label htmlFor="encargos" className="text-muted-foreground">Encargos (R$)</Label>
                         <InputWithIcon
                           id="encargos"
                           type="number"
@@ -368,12 +372,12 @@ function PrestacaoContasPage() {
                           value={encargos}
                           onChange={(e) => setEncargos(Number(e.target.value))}
                           placeholder="0.00"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                       
                       <div className="space-y-2">
-                        <Label htmlFor="deducoes" className="text-gray-300">Deduções (R$)</Label>
+                        <Label htmlFor="deducoes" className="text-muted-foreground">Deduções (R$)</Label>
                         <InputWithIcon
                           id="deducoes"
                           type="number"
@@ -382,22 +386,22 @@ function PrestacaoContasPage() {
                           value={deducoes}
                           onChange={(e) => setDeducoes(Number(e.target.value))}
                           placeholder="0.00"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="status" className="text-gray-300">Status</Label>
+                      <Label htmlFor="status" className="text-muted-foreground">Status</Label>
                       <Select value={status} onValueChange={(value: any) => setStatus(value)}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
-                          <SelectItem value="pago" className="text-white hover:bg-gray-700">Pago</SelectItem>
-                          <SelectItem value="pendente" className="text-white hover:bg-gray-700">Pendente</SelectItem>
-                          <SelectItem value="atrasado" className="text-white hover:bg-gray-700">Atrasado</SelectItem>
-                          <SelectItem value="vencido" className="text-white hover:bg-gray-700">Vencido</SelectItem>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="pago" className="text-foreground hover:bg-accent">Pago</SelectItem>
+                          <SelectItem value="pendente" className="text-foreground hover:bg-accent">Pendente</SelectItem>
+                          <SelectItem value="atrasado" className="text-foreground hover:bg-accent">Atrasado</SelectItem>
+                          <SelectItem value="vencido" className="text-foreground hover:bg-accent">Vencido</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -410,29 +414,29 @@ function PrestacaoContasPage() {
                     transition={{ duration: 0.6, delay: 0.3 }}
                     className="space-y-6"
                   >
-                    <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                       <Calculator className="w-5 h-5" />
                       <span>Resumo Financeiro</span>
-                    </h3>
+                    </h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="p-6 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                        <p className="font-medium text-blue-300">Total Bruto</p>
-                        <p className="text-2xl font-bold text-blue-100">R$ {(valorPago + valorVencido + encargos).toFixed(2)}</p>
+                      <div className="p-6 bg-primary/10 rounded-xl border border-primary/20">
+                        <p className="font-medium text-primary">Total Bruto</p>
+                        <p className="text-2xl font-bold text-foreground">R$ {(valorPago + valorVencido + encargos).toFixed(2)}</p>
                       </div>
                       
-                      <div className="p-6 bg-green-500/10 rounded-xl border border-green-500/20">
-                        <p className="font-medium text-green-300">Total Líquido</p>
-                        <p className="text-2xl font-bold text-green-100">R$ {(valorPago + valorVencido + encargos - deducoes).toFixed(2)}</p>
+                      <div className="p-6 bg-secondary/10 rounded-xl border border-secondary/20">
+                        <p className="font-medium text-secondary">Total Líquido</p>
+                        <p className="text-2xl font-bold text-foreground">R$ {(valorPago + valorVencido + encargos - deducoes).toFixed(2)}</p>
                       </div>
                       
-                      <div className="p-6 bg-white/5 rounded-xl border border-white/10">
-                        <p className="font-medium text-gray-300">Status</p>
+                      <div className="p-6 bg-muted/50 rounded-xl border border-border">
+                        <p className="font-medium text-muted-foreground">Status</p>
                         <p className={`text-lg font-semibold ${
-                          status === 'pago' ? 'text-green-400' :
-                          status === 'pendente' ? 'text-yellow-400' :
-                          status === 'atrasado' ? 'text-orange-400' :
-                          'text-red-400'
+                          status === 'pago' ? 'text-green-500 dark:text-green-400' :
+                          status === 'pendente' ? 'text-yellow-500 dark:text-yellow-400' :
+                          status === 'atrasado' ? 'text-orange-500 dark:text-orange-400' :
+                          'text-red-500 dark:text-red-400'
                         }`}>
                           {status.charAt(0).toUpperCase() + status.slice(1)}
                         </p>
@@ -448,18 +452,24 @@ function PrestacaoContasPage() {
                     className="space-y-6"
                   >
                     <div className="flex justify-between items-center">
-                      <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                      <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                         <FileText className="w-5 h-5" />
                         <span>Lançamentos</span>
-                      </h3>
-                      <Button onClick={adicionarLancamento} size="sm" variant="outline" className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+                      </h2>
+                      <Button 
+                        type="button" 
+                        onClick={adicionarLancamento} 
+                        size="sm" 
+                        variant="outline" 
+                        className="btn-outline"
+                      >
                         <Plus className="w-4 h-4 mr-2" />
                         Adicionar
                       </Button>
                     </div>
                     
                     {lancamentos.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400 bg-white/5 rounded-xl border border-white/10">
+                      <div className="p-8 text-center text-muted-foreground bg-muted/50 rounded-xl border border-border">
                         Nenhum lançamento adicionado
                       </div>
                     ) : (
@@ -472,36 +482,36 @@ function PrestacaoContasPage() {
                             className="grid grid-cols-1 md:grid-cols-5 gap-4 p-6 bg-white/5 rounded-xl border border-white/10"
                           >
                             <div className="space-y-2">
-                              <Label className="text-gray-300">Tipo</Label>
+                              <Label className="text-muted-foreground">Tipo</Label>
                               <Select 
                                 value={lancamento.tipo} 
                                 onValueChange={(value: any) => atualizarLancamento(index, 'tipo', value)}
                               >
-                                <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                <SelectTrigger className="bg-muted/50 border-border text-foreground">
                                   <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="bg-gray-800 border-gray-700">
-                                  <SelectItem value="receita" className="text-white hover:bg-gray-700">Receita</SelectItem>
-                                  <SelectItem value="despesa" className="text-white hover:bg-gray-700">Despesa</SelectItem>
-                                  <SelectItem value="taxa" className="text-white hover:bg-gray-700">Taxa</SelectItem>
-                                  <SelectItem value="desconto" className="text-white hover:bg-gray-700">Desconto</SelectItem>
+                                <SelectContent className="bg-card border-border">
+                                  <SelectItem value="receita" className="text-foreground hover:bg-accent">Receita</SelectItem>
+                                  <SelectItem value="despesa" className="text-foreground hover:bg-accent">Despesa</SelectItem>
+                                  <SelectItem value="taxa" className="text-foreground hover:bg-accent">Taxa</SelectItem>
+                                  <SelectItem value="desconto" className="text-foreground hover:bg-accent">Desconto</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             
                             <div className="space-y-2">
-                              <Label className="text-gray-300">Descrição</Label>
+                              <Label className="text-muted-foreground">Descrição</Label>
                               <InputWithIcon
                                 icon={FileText}
                                 value={lancamento.descricao}
                                 onChange={(e) => atualizarLancamento(index, 'descricao', e.target.value)}
                                 placeholder="Descrição"
-                                className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                               />
                             </div>
                             
                             <div className="space-y-2">
-                              <Label className="text-gray-300">Valor (R$)</Label>
+                              <Label className="text-muted-foreground">Valor (R$)</Label>
                               <InputWithIcon
                                 icon={DollarSign}
                                 type="number"
@@ -509,27 +519,28 @@ function PrestacaoContasPage() {
                                 value={lancamento.valor}
                                 onChange={(e) => atualizarLancamento(index, 'valor', Number(e.target.value))}
                                 placeholder="0.00"
-                                className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                               />
                             </div>
                             
                             <div className="space-y-2">
-                              <Label className="text-gray-300">Data</Label>
+                              <Label className="text-muted-foreground">Data</Label>
                               <InputWithIcon
                                 icon={Calendar}
                                 type="date"
                                 value={lancamento.data_lancamento || ''}
                                 onChange={(e) => atualizarLancamento(index, 'data_lancamento', e.target.value)}
-                                className="bg-white/5 border-white/10 text-white"
+                                className="bg-muted/50 border-border text-foreground"
                               />
                             </div>
                             
                             <div className="flex items-end">
                               <Button 
+                                type="button"
                                 onClick={() => removerLancamento(index)} 
                                 variant="destructive"
                                 size="sm"
-                                className="bg-red-600 hover:bg-red-700"
+                                className="btn bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -547,10 +558,10 @@ function PrestacaoContasPage() {
                     transition={{ duration: 0.6, delay: 0.5 }}
                     className="space-y-6"
                   >
-                    <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                    <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                       <FileText className="w-5 h-5" />
                       <span>Observações Manuais</span>
-                    </h3>
+                    </h2>
                     
                     <div className="space-y-2">
                       <Textarea
@@ -558,7 +569,7 @@ function PrestacaoContasPage() {
                         onChange={(e) => setObservacoes(e.target.value)}
                         placeholder="Adicione observações ou ajustes manuais..."
                         rows={4}
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                   </motion.div>
@@ -576,8 +587,9 @@ function PrestacaoContasPage() {
                         whileTap={{ scale: 0.98 }}
                       >
                         <Button 
+                          type="button"
                           onClick={salvarPrestacao}
-                          className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-6 px-8 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-indigo-500/25 transition-all duration-300"
+                          className="btn-gradient py-6 px-8 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300"
                         >
                           <Calculator className="w-5 h-5 mr-2" />
                           Salvar Prestação de Contas
@@ -588,9 +600,10 @@ function PrestacaoContasPage() {
                         whileTap={{ scale: 0.98 }}
                       >
                         <Button
+                          type="button"
                           onClick={exportarExcel}
                           variant="outline"
-                          className="bg-white/5 border-white/10 text-white hover:bg-white/10 py-6 px-8 text-lg font-semibold rounded-xl"
+                          className="btn-outline py-6 px-8 text-lg font-semibold rounded-xl"
                         >
                           <Download className="w-5 h-5 mr-2" />
                           Excel
@@ -601,9 +614,10 @@ function PrestacaoContasPage() {
                         whileTap={{ scale: 0.98 }}
                       >
                         <Button
+                          type="button"
                           onClick={exportarPdf}
                           variant="outline"
-                          className="bg-white/5 border-white/10 text-white hover:bg-white/10 py-6 px-8 text-lg font-semibold rounded-xl"
+                          className="btn-outline py-6 px-8 text-lg font-semibold rounded-xl"
                         >
                           <Download className="w-5 h-5 mr-2" />
                           PDF

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Tema - Cobimob Sistema Corrigido</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            DEFAULT: '#137D76',
+                            foreground: '#FFFFFF'
+                        },
+                        secondary: {
+                            DEFAULT: '#431E75',
+                            foreground: '#FFFFFF'
+                        },
+                        background: {
+                            DEFAULT: '#FFFFFF',
+                            dark: 'hsl(222, 84%, 4.9%)'
+                        },
+                        foreground: {
+                            DEFAULT: 'hsl(222, 84%, 4.9%)',
+                            dark: 'hsl(210, 40%, 98%)'
+                        },
+                        muted: {
+                            DEFAULT: 'hsl(210, 40%, 96%)',
+                            dark: 'hsl(217, 32%, 12%)',
+                            foreground: {
+                                DEFAULT: 'hsl(215, 16%, 47%)',
+                                dark: 'hsl(215, 20%, 70%)'
+                            }
+                        },
+                        card: {
+                            DEFAULT: '#FFFFFF',
+                            dark: 'hsl(217, 32%, 8%)'
+                        },
+                        border: {
+                            DEFAULT: 'hsl(214, 32%, 91%)',
+                            dark: 'hsl(217, 32%, 20%)'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .theme-transition {
+            transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+        }
+        
+        .btn-gradient {
+            background: linear-gradient(to right, #137D76, #431E75);
+            color: white;
+        }
+        
+        .btn-gradient:hover {
+            background: linear-gradient(to right, #0f6b65, #361960);
+        }
+        
+        .text-gradient {
+            background: linear-gradient(to right, #137D76, #431E75);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        
+        /* Light theme styles */
+        :root {
+            --bg-primary: #FFFFFF;
+            --text-primary: hsl(222, 84%, 4.9%);
+            --bg-muted: hsl(210, 40%, 96%);
+            --text-muted: hsl(215, 16%, 47%);
+            --bg-card: #FFFFFF;
+            --border-color: hsl(214, 32%, 91%);
+        }
+        
+        /* Dark theme styles */
+        .dark {
+            --bg-primary: hsl(222, 84%, 4.9%);
+            --text-primary: hsl(210, 40%, 98%);
+            --bg-muted: hsl(217, 32%, 12%);
+            --text-muted: hsl(215, 20%, 70%);
+            --bg-card: hsl(217, 32%, 8%);
+            --border-color: hsl(217, 32%, 20%);
+        }
+        
+        .semantic-bg { background-color: var(--bg-primary); }
+        .semantic-text { color: var(--text-primary); }
+        .semantic-muted-bg { background-color: var(--bg-muted); }
+        .semantic-muted-text { color: var(--text-muted); }
+        .semantic-card { background-color: var(--bg-card); }
+        .semantic-border { border-color: var(--border-color); }
+    </style>
+</head>
+<body class="min-h-screen semantic-bg semantic-text theme-transition font-sans">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 semantic-card backdrop-blur-2xl border-b semantic-border theme-transition">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between py-4">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3 semantic-text cursor-pointer group">
+                    <div class="text-2xl">🏡</div>
+                    <span class="text-xl font-bold text-gradient">Cobimob</span>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggle" class="relative h-11 w-11 rounded-xl semantic-card border semantic-border hover:shadow-lg flex items-center justify-center group overflow-hidden theme-transition">
+                    <span id="sunIcon" class="text-yellow-500">☀️</span>
+                    <span id="moonIcon" class="text-blue-500 hidden">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="pt-20 p-8">
+        <div class="max-w-6xl mx-auto space-y-8">
+            <!-- Header -->
+            <div class="text-center mb-12">
+                <h1 class="text-4xl font-bold semantic-text mb-4">
+                    <span class="text-gradient">Sistema de Tema Corrigido</span>
+                </h1>
+                <p class="text-xl semantic-muted-text">
+                    Demonstração do sistema de tema funcionando corretamente em todas as páginas
+                </p>
+            </div>
+
+            <!-- Test Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Card 1: Tema Responsivo -->
+                <div class="semantic-card border semantic-border rounded-xl p-6 shadow-lg theme-transition">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-xl">✓</span>
+                        </div>
+                        <h3 class="text-lg font-semibold semantic-text">Tema Responsivo</h3>
+                    </div>
+                    <p class="semantic-muted-text text-sm mb-4">
+                        Agora todos os componentes respondem corretamente ao alternar entre tema claro e escuro.
+                    </p>
+                    <ul class="space-y-2 text-sm semantic-muted-text">
+                        <li>• Cores semânticas em todos os componentes</li>
+                        <li>• Contraste adequado em ambos os temas</li>
+                        <li>• Transições suaves entre temas</li>
+                    </ul>
+                </div>
+
+                <!-- Card 2: Problemas Corrigidos -->
+                <div class="semantic-card border semantic-border rounded-xl p-6 shadow-lg theme-transition">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-xl">🔧</span>
+                        </div>
+                        <h3 class="text-lg font-semibold semantic-text">Problemas Corrigidos</h3>
+                    </div>
+                    <p class="semantic-muted-text text-sm mb-4">
+                        Identificamos e corrigimos todos os problemas de cores hard-coded.
+                    </p>
+                    <ul class="space-y-2 text-sm semantic-muted-text">
+                        <li>• <span class="line-through">text-white</span> → text-foreground</li>
+                        <li>• <span class="line-through">text-gray-800</span> → text-foreground</li>
+                        <li>• <span class="line-through">bg-gray-*</span> → bg-card/muted</li>
+                    </ul>
+                </div>
+
+                <!-- Card 3: Melhorias Implementadas -->
+                <div class="semantic-card border semantic-border rounded-xl p-6 shadow-lg theme-transition">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-xl">⚡</span>
+                        </div>
+                        <h3 class="text-lg font-semibold semantic-text">Melhorias Implementadas</h3>
+                    </div>
+                    <p class="semantic-muted-text text-sm mb-4">
+                        Sistema de design consistente e moderno implementado.
+                    </p>
+                    <ul class="space-y-2 text-sm semantic-muted-text">
+                        <li>• Melhor contraste no modo escuro</li>
+                        <li>• Botões com classes semânticas</li>
+                        <li>• Sistema de cores unificado</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Form Demo -->
+            <div class="semantic-card border semantic-border rounded-xl p-8 shadow-lg theme-transition">
+                <h3 class="text-2xl font-bold semantic-text mb-6 text-center">Demonstração de Formulário</h3>
+                <form class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium semantic-text mb-2">Nome Completo</label>
+                            <input type="text" placeholder="Digite o nome completo" class="w-full px-4 py-3 rounded-lg border semantic-border semantic-card semantic-text placeholder:semantic-muted-text focus:ring-2 focus:ring-primary focus:border-transparent theme-transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium semantic-text mb-2">Email</label>
+                            <input type="email" placeholder="exemplo@email.com" class="w-full px-4 py-3 rounded-lg border semantic-border semantic-card semantic-text placeholder:semantic-muted-text focus:ring-2 focus:ring-primary focus:border-transparent theme-transition">
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" class="px-6 py-3 rounded-lg border semantic-border semantic-card semantic-text hover:semantic-muted-bg theme-transition">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="btn-gradient px-8 py-3 rounded-lg font-medium theme-transition hover:shadow-lg">
+                            Salvar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Status Messages -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>✓</span>
+                        <span class="font-medium">Sucesso: Tema funcionando!</span>
+                    </div>
+                </div>
+                
+                <div class="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>⚠️</span>
+                        <span class="font-medium">Aviso: Teste o toggle!</span>
+                    </div>
+                </div>
+                
+                <div class="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>ℹ️</span>
+                        <span class="font-medium">Info: Design consistente</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const html = document.documentElement;
+
+        // Initialize theme
+        let currentTheme = localStorage.getItem('cobimob-theme') || 'light';
+        updateTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            updateTheme(currentTheme);
+            localStorage.setItem('cobimob-theme', currentTheme);
+        });
+
+        function updateTheme(theme) {
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                html.classList.remove('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

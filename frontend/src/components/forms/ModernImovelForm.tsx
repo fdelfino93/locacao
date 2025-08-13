@@ -29,6 +29,7 @@ export const ModernImovelForm: React.FC = () => {
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [inquilinos, setInquilinos] = useState<any[]>([]);
+  const [clientesSelecionados, setClientesSelecionados] = useState<any[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Imovel>({
@@ -153,21 +154,21 @@ export const ModernImovelForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-gray-900 to-black py-12">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden"
+          className="card-glass rounded-3xl shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-8 py-6">
+          <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
             <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Building2 className="w-6 h-6 text-white" />
+              <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                <Building2 className="w-6 h-6 text-primary-foreground" />
               </div>
-              <h2 className="text-3xl font-bold text-white">Cadastro de Imóvel</h2>
+              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Imóvel</h1>
             </div>
           </div>
 
@@ -179,7 +180,7 @@ export const ModernImovelForm: React.FC = () => {
                 animate={{ opacity: 1 }}
                 className="flex items-center justify-center py-12"
               >
-                <div className="flex items-center space-x-2 text-white">
+                <div className="flex items-center space-x-2 text-foreground">
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span>Carregando dados...</span>
                 </div>
@@ -191,7 +192,7 @@ export const ModernImovelForm: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-4 rounded-xl mb-6 border bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                className="p-4 rounded-xl mb-6 border status-warning"
               >
                 <div className="flex items-center space-x-2">
                   <AlertCircle className="w-5 h-5" />
@@ -207,8 +208,8 @@ export const ModernImovelForm: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className={`p-4 rounded-xl mb-6 border ${
                   message.type === 'success' 
-                    ? 'bg-green-500/10 text-green-400 border-green-500/20' 
-                    : 'bg-red-500/10 text-red-400 border-red-500/20'
+                    ? 'status-success' 
+                    : 'status-error'
                 }`}
               >
                 <div className="flex items-center space-x-2">
@@ -231,47 +232,97 @@ export const ModernImovelForm: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.1 }}
                   className="space-y-6"
                 >
-                  <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                     <Users className="w-5 h-5" />
                     <span>Responsáveis</span>
-                  </h3>
+                  </h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="id_cliente" className="text-gray-300">Cliente Responsável</Label>
-                      <Select onValueChange={(value) => handleInputChange('id_cliente', parseInt(value))}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                          <SelectValue placeholder={clientes.length > 0 ? "Selecione um cliente..." : "Nenhum cliente disponível"} />
+                      <Label htmlFor="id_cliente" className="text-muted-foreground">Clientes Proprietários</Label>
+                      <Select onValueChange={(value) => {
+                        const clienteId = parseInt(value);
+                        const cliente = clientes.find(c => c.id === clienteId);
+                        if (cliente && !clientesSelecionados.some(c => c.id === clienteId)) {
+                          const novosClientes = [...clientesSelecionados, cliente];
+                          setClientesSelecionados(novosClientes);
+                          // Definir o primeiro cliente como principal para compatibilidade
+                          if (novosClientes.length === 1) {
+                            handleInputChange('id_cliente', clienteId);
+                          }
+                        }
+                      }}>
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                          <SelectValue placeholder={clientes.length > 0 ? "Selecione clientes..." : "Nenhum cliente disponível"} />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
-                          {clientes.map((cliente) => (
-                            <SelectItem key={cliente.id} value={cliente.id.toString()} className="text-white hover:bg-gray-700">
+                        <SelectContent className="bg-card border-border">
+                          {clientes
+                            .filter(cliente => !clientesSelecionados.some(c => c.id === cliente.id))
+                            .map((cliente) => (
+                            <SelectItem key={cliente.id} value={cliente.id.toString()} className="text-foreground hover:bg-accent">
                               {cliente.nome} - {cliente.cpf_cnpj}
                             </SelectItem>
                           ))}
-                          {clientes.length === 0 && (
-                            <SelectItem value="0" disabled className="text-gray-500">
-                              Cadastre um cliente primeiro
+                          {clientes.filter(c => !clientesSelecionados.some(cs => cs.id === c.id)).length === 0 && (
+                            <SelectItem value="0" disabled className="text-muted-foreground">
+                              {clientes.length === 0 ? "Cadastre um cliente primeiro" : "Todos os clientes já foram selecionados"}
                             </SelectItem>
                           )}
                         </SelectContent>
                       </Select>
+                      
+                      {/* Lista de clientes selecionados */}
+                      {clientesSelecionados.length > 0 && (
+                        <div className="space-y-2 mt-4">
+                          <Label className="text-sm font-medium text-muted-foreground">Clientes Selecionados:</Label>
+                          <div className="space-y-2">
+                            {clientesSelecionados.map((cliente, index) => (
+                              <div key={cliente.id} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="flex-1">
+                                  <p className="font-medium text-blue-800 dark:text-blue-200">
+                                    {cliente.nome} {index === 0 && <span className="text-xs">(Principal)</span>}
+                                  </p>
+                                  <p className="text-sm text-blue-600 dark:text-blue-400">{cliente.cpf_cnpj}</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    const novosClientes = clientesSelecionados.filter(c => c.id !== cliente.id);
+                                    setClientesSelecionados(novosClientes);
+                                    // Se remover o principal, definir o próximo como principal
+                                    if (index === 0 && novosClientes.length > 0) {
+                                      handleInputChange('id_cliente', novosClientes[0].id);
+                                    } else if (novosClientes.length === 0) {
+                                      handleInputChange('id_cliente', 0);
+                                    }
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="id_inquilino" className="text-gray-300">Inquilino Responsável</Label>
+                      <Label htmlFor="id_inquilino" className="text-muted-foreground">Inquilino Responsável</Label>
                       <Select onValueChange={(value) => handleInputChange('id_inquilino', parseInt(value))}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
                           <SelectValue placeholder={inquilinos.length > 0 ? "Selecione um inquilino..." : "Nenhum inquilino disponível"} />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
+                        <SelectContent className="bg-card border-border">
                           {inquilinos.map((inquilino) => (
-                            <SelectItem key={inquilino.id} value={inquilino.id.toString()} className="text-white hover:bg-gray-700">
+                            <SelectItem key={inquilino.id} value={inquilino.id.toString()} className="text-foreground hover:bg-accent">
                               {inquilino.nome}
                             </SelectItem>
                           ))}
                           {inquilinos.length === 0 && (
-                            <SelectItem value="0" disabled className="text-gray-500">
+                            <SelectItem value="0" disabled className="text-muted-foreground">
                               Cadastre um inquilino primeiro
                             </SelectItem>
                           )}
@@ -288,77 +339,77 @@ export const ModernImovelForm: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.2 }}
                   className="space-y-6"
                 >
-                  <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                     <Home className="w-5 h-5" />
                     <span>Dados do Imóvel</span>
-                  </h3>
+                  </h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="tipo" className="text-gray-300">Tipo do Imóvel</Label>
+                      <Label htmlFor="tipo" className="text-muted-foreground">Tipo do Imóvel</Label>
                       <Select onValueChange={(value) => handleInputChange('tipo', value)}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
-                          <SelectItem value="Apartamento" className="text-white hover:bg-gray-700">Apartamento</SelectItem>
-                          <SelectItem value="Casa" className="text-white hover:bg-gray-700">Casa</SelectItem>
-                          <SelectItem value="Sala Comercial" className="text-white hover:bg-gray-700">Sala Comercial</SelectItem>
-                          <SelectItem value="Galpão" className="text-white hover:bg-gray-700">Galpão</SelectItem>
-                          <SelectItem value="Outro" className="text-white hover:bg-gray-700">Outro</SelectItem>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="Apartamento" className="text-foreground hover:bg-accent">Apartamento</SelectItem>
+                          <SelectItem value="Casa" className="text-foreground hover:bg-accent">Casa</SelectItem>
+                          <SelectItem value="Sala Comercial" className="text-foreground hover:bg-accent">Sala Comercial</SelectItem>
+                          <SelectItem value="Galpão" className="text-foreground hover:bg-accent">Galpão</SelectItem>
+                          <SelectItem value="Outro" className="text-foreground hover:bg-accent">Outro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="status" className="text-gray-300">Status</Label>
+                      <Label htmlFor="status" className="text-muted-foreground">Status</Label>
                       <Select onValueChange={(value) => handleInputChange('status', value)}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
                           <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-800 border-gray-700">
-                          <SelectItem value="Disponível" className="text-white hover:bg-gray-700">Disponível</SelectItem>
-                          <SelectItem value="Ocupado" className="text-white hover:bg-gray-700">Ocupado</SelectItem>
-                          <SelectItem value="Em manutenção" className="text-white hover:bg-gray-700">Em manutenção</SelectItem>
-                          <SelectItem value="Inativo" className="text-white hover:bg-gray-700">Inativo</SelectItem>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="Disponível" className="text-foreground hover:bg-accent">Disponível</SelectItem>
+                          <SelectItem value="Ocupado" className="text-foreground hover:bg-accent">Ocupado</SelectItem>
+                          <SelectItem value="Em manutenção" className="text-foreground hover:bg-accent">Em manutenção</SelectItem>
+                          <SelectItem value="Inativo" className="text-foreground hover:bg-accent">Inativo</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="matricula_imovel" className="text-gray-300">Matrícula do Imóvel</Label>
+                      <Label htmlFor="matricula_imovel" className="text-muted-foreground">Matrícula do Imóvel</Label>
                       <InputWithIcon
                         id="matricula_imovel"
                         icon={FileText}
                         value={formData.matricula_imovel}
                         onChange={(e) => handleInputChange('matricula_imovel', e.target.value)}
                         placeholder="Número da matrícula"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="area_imovel" className="text-gray-300">Área do Imóvel</Label>
+                      <Label htmlFor="area_imovel" className="text-muted-foreground">Área do Imóvel</Label>
                       <InputWithIcon
                         id="area_imovel"
                         icon={Home}
                         value={formData.area_imovel}
                         onChange={(e) => handleInputChange('area_imovel', e.target.value)}
                         placeholder="Ex: 80m² total / 65m² privativa"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="endereco" className="text-gray-300">Endereço</Label>
+                    <Label htmlFor="endereco" className="text-muted-foreground">Endereço</Label>
                     <InputWithIcon
                       id="endereco"
                       icon={MapPin}
                       value={formData.endereco}
                       onChange={(e) => handleInputChange('endereco', e.target.value)}
                       placeholder="Rua, número, bairro, cidade - CEP"
-                      className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                      className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       required
                     />
                   </div>
@@ -370,7 +421,7 @@ export const ModernImovelForm: React.FC = () => {
                       onCheckedChange={(checked) => handleInputChange('permite_pets', !!checked)}
                       className="border-white/20"
                     />
-                    <Label htmlFor="permite_pets" className="text-gray-300 cursor-pointer">Permite Animais de Estimação?</Label>
+                    <Label htmlFor="permite_pets" className="text-muted-foreground cursor-pointer">Permite Animais de Estimação?</Label>
                   </div>
                 </motion.div>
 
@@ -381,14 +432,14 @@ export const ModernImovelForm: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.3 }}
                   className="space-y-6"
                 >
-                  <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                     <DollarSign className="w-5 h-5" />
                     <span>Valores</span>
-                  </h3>
+                  </h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="valor_aluguel" className="text-gray-300">Valor do Aluguel</Label>
+                      <Label htmlFor="valor_aluguel" className="text-muted-foreground">Valor do Aluguel</Label>
                       <InputWithIcon
                         id="valor_aluguel"
                         type="number"
@@ -397,13 +448,13 @@ export const ModernImovelForm: React.FC = () => {
                         value={formData.valor_aluguel}
                         onChange={(e) => handleInputChange('valor_aluguel', parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="iptu" className="text-gray-300">Valor do IPTU</Label>
+                      <Label htmlFor="iptu" className="text-muted-foreground">Valor do IPTU</Label>
                       <InputWithIcon
                         id="iptu"
                         type="number"
@@ -412,12 +463,12 @@ export const ModernImovelForm: React.FC = () => {
                         value={formData.iptu}
                         onChange={(e) => handleInputChange('iptu', parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="condominio" className="text-gray-300">Valor do Condomínio</Label>
+                      <Label htmlFor="condominio" className="text-muted-foreground">Valor do Condomínio</Label>
                       <InputWithIcon
                         id="condominio"
                         type="number"
@@ -426,12 +477,12 @@ export const ModernImovelForm: React.FC = () => {
                         value={formData.condominio}
                         onChange={(e) => handleInputChange('condominio', parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="taxa_incendio" className="text-gray-300">Taxa de Incêndio</Label>
+                      <Label htmlFor="taxa_incendio" className="text-muted-foreground">Taxa de Incêndio</Label>
                       <InputWithIcon
                         id="taxa_incendio"
                         type="number"
@@ -440,7 +491,7 @@ export const ModernImovelForm: React.FC = () => {
                         value={formData.taxa_incendio}
                         onChange={(e) => handleInputChange('taxa_incendio', parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                   </div>
@@ -453,43 +504,43 @@ export const ModernImovelForm: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.4 }}
                   className="space-y-6"
                 >
-                  <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                     <FileText className="w-5 h-5" />
                     <span>Informações Adicionais</span>
-                  </h3>
+                  </h2>
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="dados_imovel" className="text-gray-300">Descrição do Imóvel</Label>
+                      <Label htmlFor="dados_imovel" className="text-muted-foreground">Descrição do Imóvel</Label>
                       <Textarea
                         id="dados_imovel"
                         value={formData.dados_imovel}
                         onChange={(e) => handleInputChange('dados_imovel', e.target.value)}
                         placeholder="Ex: 2 dormitórios, 1 suíte, copa, cozinha, área de serviço..."
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="info_iptu" className="text-gray-300">Informações sobre IPTU</Label>
+                        <Label htmlFor="info_iptu" className="text-muted-foreground">Informações sobre IPTU</Label>
                         <Textarea
                           id="info_iptu"
                           value={formData.info_iptu}
                           onChange={(e) => handleInputChange('info_iptu', e.target.value)}
                           placeholder="Detalhes sobre pagamento do IPTU"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="observacoes_condominio" className="text-gray-300">Observações do Condomínio</Label>
+                        <Label htmlFor="observacoes_condominio" className="text-muted-foreground">Observações do Condomínio</Label>
                         <Textarea
                           id="observacoes_condominio"
                           value={formData.observacoes_condominio}
                           onChange={(e) => handleInputChange('observacoes_condominio', e.target.value)}
                           placeholder="Regras, horários, observações"
-                          className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                          className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                     </div>
@@ -503,33 +554,33 @@ export const ModernImovelForm: React.FC = () => {
                   transition={{ duration: 0.6, delay: 0.5 }}
                   className="space-y-6"
                 >
-                  <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-foreground flex items-center space-x-2">
                     <Zap className="w-5 h-5" />
                     <span>Utilidades</span>
-                  </h3>
+                  </h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="copel_unidade_consumidora" className="text-gray-300">Copel - Unidade Consumidora</Label>
+                      <Label htmlFor="copel_unidade_consumidora" className="text-muted-foreground">Copel - Unidade Consumidora</Label>
                       <InputWithIcon
                         id="copel_unidade_consumidora"
                         icon={Zap}
                         value={formData.copel_unidade_consumidora}
                         onChange={(e) => handleInputChange('copel_unidade_consumidora', e.target.value)}
                         placeholder="Número da unidade"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="sanepar_matricula" className="text-gray-300">Sanepar - Matrícula</Label>
+                      <Label htmlFor="sanepar_matricula" className="text-muted-foreground">Sanepar - Matrícula</Label>
                       <InputWithIcon
                         id="sanepar_matricula"
                         icon={Droplets}
                         value={formData.sanepar_matricula}
                         onChange={(e) => handleInputChange('sanepar_matricula', e.target.value)}
                         placeholder="Matrícula da água"
-                        className="bg-white/5 border-white/10 text-white placeholder:text-gray-400"
+                        className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                   </div>
@@ -542,7 +593,7 @@ export const ModernImovelForm: React.FC = () => {
                         onCheckedChange={(checked) => handleInputChange('tem_gas', !!checked)}
                         className="border-white/20"
                       />
-                      <Label htmlFor="tem_gas" className="text-gray-300 cursor-pointer">Tem Gás Encanado?</Label>
+                      <Label htmlFor="tem_gas" className="text-muted-foreground cursor-pointer">Tem Gás Encanado?</Label>
                     </div>
 
                     {formData.tem_gas && (
@@ -553,7 +604,7 @@ export const ModernImovelForm: React.FC = () => {
                         transition={{ duration: 0.3 }}
                         className="space-y-2"
                       >
-                        <Label htmlFor="info_gas" className="text-gray-300">Informações sobre Gás</Label>
+                        <Label htmlFor="info_gas" className="text-muted-foreground">Informações sobre Gás</Label>
                         <div className="relative">
                           <Flame className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                           <Textarea
@@ -561,7 +612,7 @@ export const ModernImovelForm: React.FC = () => {
                             value={formData.info_gas}
                             onChange={(e) => handleInputChange('info_gas', e.target.value)}
                             placeholder="Detalhes sobre instalação de gás"
-                            className="bg-white/5 border-white/10 text-white placeholder:text-gray-400 pl-10"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground pl-10"
                           />
                         </div>
                       </motion.div>
@@ -574,7 +625,7 @@ export const ModernImovelForm: React.FC = () => {
                         onCheckedChange={(checked) => handleInputChange('boleto_condominio', !!checked)}
                         className="border-white/20"
                       />
-                      <Label htmlFor="boleto_condominio" className="text-gray-300 cursor-pointer">Boleto do Condomínio Incluso?</Label>
+                      <Label htmlFor="boleto_condominio" className="text-muted-foreground cursor-pointer">Boleto do Condomínio Incluso?</Label>
                     </div>
                   </div>
                 </motion.div>
@@ -593,11 +644,11 @@ export const ModernImovelForm: React.FC = () => {
                     <Button 
                       type="submit" 
                       disabled={loading || clientes.length === 0 || inquilinos.length === 0}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-indigo-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <div className="flex items-center space-x-2">
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                           <span>Cadastrando...</span>
                         </div>
                       ) : clientes.length === 0 || inquilinos.length === 0 ? (

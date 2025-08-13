@@ -28,6 +28,8 @@ export interface Locador {
   telefone_conjuge?: string;
   tipo_locador: string;
   data_nascimento: string;
+  regime_bens?: string;
+  tipo_conta?: string;
   observacoes?: string;
 }
 

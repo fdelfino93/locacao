@@ -57,7 +57,7 @@ export const ObservacaoForm: React.FC<ObservacaoFormProps> = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-blue-600" />
-            <h3 className="text-lg font-semibold text-gray-900">{titulo}</h3>
+            <h3 className="text-lg font-semibold text-foreground">{titulo}</h3>
           </div>
           <Button
             onClick={handleClose}

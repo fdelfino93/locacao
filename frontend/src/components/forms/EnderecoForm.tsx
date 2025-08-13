@@ -91,7 +91,7 @@ export const EnderecoForm: React.FC<EnderecoFormProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
         <MapPin className="w-5 h-5 text-blue-600" />
         {prefixo ? `${prefixo} - ` : ''}Endereço
       </h3>

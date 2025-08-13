@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Tema - Cobimob</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-green': '#137D76',
+                        'brand-purple': '#431E75',
+                        'brand-rose': '#DFADE4',
+                    },
+                    backgroundImage: {
+                        'gradient-brand': 'linear-gradient(135deg, #137D76 0%, #431E75 50%, #DFADE4 100%)',
+                    },
+                    animation: {
+                        'gradient': 'gradient 6s ease infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes gradient {
+            0%, 100% {
+                background-size: 200% 200%;
+                background-position: left center;
+            }
+            50% {
+                background-size: 200% 200%;
+                background-position: right center;
+            }
+        }
+        * {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-brand dark:from-zinc-900 dark:via-gray-900 dark:to-black dark:bg-gradient-to-tr animate-gradient">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header with Theme Toggle -->
+        <header class="flex justify-between items-center mb-8 bg-black/80 dark:bg-black/80 light:bg-white/80 backdrop-blur-xl border border-white/10 dark:border-white/10 light:border-gray-200 rounded-lg p-4">
+            <h1 class="text-2xl font-bold text-white dark:text-white light:text-gray-900">
+                🏡 <span class="bg-gradient-to-r from-brand-green to-brand-purple bg-clip-text text-transparent">Cobimob</span>
+            </h1>
+            <button id="themeToggle" class="h-10 w-10 rounded-full bg-white/10 dark:bg-black/10 backdrop-blur-sm border border-white/20 dark:border-gray-800 hover:bg-white/20 dark:hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                <span id="sunIcon" class="text-brand-green">☀️</span>
+                <span id="moonIcon" class="text-brand-rose hidden">🌙</span>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="text-center">
+            <h2 class="text-4xl md:text-6xl font-bold text-white dark:text-white light:text-gray-900 mb-6">
+                Sistema de Locações
+            </h2>
+            <p class="text-xl text-gray-300 dark:text-gray-300 light:text-gray-700 mb-8">
+                Teste do sistema de <span class="text-brand-rose">temas claro e escuro</span>
+            </p>
+
+            <!-- Feature Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-white/10 dark:bg-white/10 light:bg-black/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 dark:border-white/20 light:border-gray-200">
+                    <div class="w-12 h-12 bg-gradient-to-r from-brand-green to-brand-purple rounded-xl flex items-center justify-center mb-4 mx-auto">
+                        <span class="text-white text-2xl">🏠</span>
+                    </div>
+                    <h3 class="text-white dark:text-white light:text-gray-900 font-semibold text-lg mb-2">Imóveis</h3>
+                    <p class="text-gray-400 dark:text-gray-400 light:text-gray-600">Gestão completa de propriedades</p>
+                </div>
+
+                <div class="bg-white/10 dark:bg-white/10 light:bg-black/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 dark:border-white/20 light:border-gray-200">
+                    <div class="w-12 h-12 bg-gradient-to-r from-brand-purple to-brand-rose rounded-xl flex items-center justify-center mb-4 mx-auto">
+                        <span class="text-white text-2xl">👥</span>
+                    </div>
+                    <h3 class="text-white dark:text-white light:text-gray-900 font-semibold text-lg mb-2">Clientes</h3>
+                    <p class="text-gray-400 dark:text-gray-400 light:text-gray-600">Cadastro de locadores e locatários</p>
+                </div>
+
+                <div class="bg-white/10 dark:bg-white/10 light:bg-black/5 backdrop-blur-lg rounded-2xl p-6 border border-white/20 dark:border-white/20 light:border-gray-200">
+                    <div class="w-12 h-12 bg-gradient-to-r from-brand-rose to-brand-green rounded-xl flex items-center justify-center mb-4 mx-auto">
+                        <span class="text-white text-2xl">📊</span>
+                    </div>
+                    <h3 class="text-white dark:text-white light:text-gray-900 font-semibold text-lg mb-2">Relatórios</h3>
+                    <p class="text-gray-400 dark:text-gray-400 light:text-gray-600">Prestação de contas e análises</p>
+                </div>
+            </div>
+
+            <!-- CTA Button -->
+            <button class="bg-gradient-to-r from-brand-green to-brand-purple hover:from-brand-purple hover:to-brand-rose text-white px-8 py-4 text-lg font-semibold rounded-lg shadow-2xl transition-all duration-300 hover:shadow-brand-green/25">
+                Começar Agora
+            </button>
+        </main>
+    </div>
+
+    <script>
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const html = document.documentElement;
+
+        // Initialize theme
+        let currentTheme = localStorage.getItem('theme') || 'dark';
+        updateTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            updateTheme(currentTheme);
+            localStorage.setItem('theme', currentTheme);
+        });
+
+        function updateTheme(theme) {
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                html.classList.remove('light');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                html.classList.remove('dark');
+                html.classList.add('light');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -43,7 +43,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
   };
 
   const isPIX = dadosBancarios.tipo_recebimento === 'PIX';
-  const isContaBancaria = ['Conta Corrente', 'Conta Poupança'].includes(dadosBancarios.tipo_recebimento);
+  const isTED = dadosBancarios.tipo_recebimento === 'TED';
 
   const formatarCPF = (cpf: string) => {
     const numeros = cpf.replace(/\D/g, '');
@@ -71,7 +71,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
         <CreditCard className="w-5 h-5 text-green-600" />
         {prefixo ? `${prefixo} - ` : ''}Dados Bancários
       </h3>
@@ -89,8 +89,6 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
           <SelectContent>
             <SelectItem value="PIX">PIX</SelectItem>
             <SelectItem value="TED">TED</SelectItem>
-            <SelectItem value="Conta Corrente">Conta Corrente</SelectItem>
-            <SelectItem value="Conta Poupança">Conta Poupança</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -116,8 +114,8 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
         </div>
       )}
 
-      {/* Campos Conta Bancária */}
-      {isContaBancaria && (
+      {/* Campos TED */}
+      {isTED && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Banco */}
@@ -151,9 +149,8 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Corrente">Conta Corrente</SelectItem>
-                  <SelectItem value="Poupança">Conta Poupança</SelectItem>
-                  <SelectItem value="Conta Digital">Conta Digital</SelectItem>
+                  <SelectItem value="Conta Corrente">Conta Corrente</SelectItem>
+                  <SelectItem value="Conta Poupança">Conta Poupança</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -170,7 +167,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                 onChange={(e) => handleChange('agencia', e.target.value)}
                 placeholder="0000"
                 icon={Building2}
-                required={isContaBancaria}
+                required={isTED}
               />
             </div>
 
@@ -184,7 +181,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                 onChange={(e) => handleChange('conta', e.target.value)}
                 placeholder="00000-0"
                 icon={Hash}
-                required={isContaBancaria}
+                required={isTED}
               />
             </div>
           </div>
@@ -200,7 +197,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                 onChange={(e) => handleChange('titular', e.target.value)}
                 placeholder="Nome completo"
                 icon={User}
-                required={isContaBancaria}
+                required={isTED}
               />
             </div>
 
@@ -218,7 +215,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                 placeholder="000.000.000-00"
                 icon={Hash}
                 maxLength={14}
-                required={isContaBancaria}
+                required={isTED}
               />
             </div>
           </div>
@@ -237,7 +234,7 @@ export const DadosBancariosForm: React.FC<DadosBancariosFormProps> = ({
                 <li>• Sem taxas para pessoa física</li>
               </ul>
             )}
-            {isContaBancaria && (
+            {isTED && (
               <ul className="mt-2 space-y-1">
                 <li>• Verifique se os dados estão corretos</li>
                 <li>• Transferências podem ter taxas dependendo do banco</li>

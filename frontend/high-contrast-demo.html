@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobimob - Sistema com Alta Contraste e Design Limpo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        // Light theme colors - High contrast
+                        background: '#ffffff',
+                        foreground: '#0a0a0b', // Almost black for maximum readability
+                        muted: {
+                            DEFAULT: '#fafafa',
+                            foreground: '#4a4a4a' // Much darker for better readability
+                        },
+                        card: '#ffffff',
+                        border: '#e4e4e7',
+                        primary: {
+                            DEFAULT: '#006B64', // Deeper green for better contrast
+                            foreground: '#ffffff'
+                        },
+                        secondary: {
+                            DEFAULT: '#2D1259', // Deeper purple for better contrast
+                            foreground: '#ffffff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            /* Light theme - High contrast and clean */
+            --bg: #ffffff;
+            --fg: #0a0a0b;
+            --muted-bg: #fafafa;
+            --muted-fg: #4a4a4a;
+            --border: #e4e4e7;
+            --primary: #006B64;
+            --secondary: #2D1259;
+        }
+        
+        .dark {
+            /* Dark theme - High contrast and sophisticated */
+            --bg: #0f0f13;
+            --fg: #fafafa;
+            --muted-bg: #1a1a1f;
+            --muted-fg: #bfbfbf;
+            --border: #2a2a30;
+            --primary: #00b3a6;
+            --secondary: #8b5cf6;
+        }
+        
+        .semantic-bg { background-color: var(--bg); }
+        .semantic-fg { color: var(--fg); }
+        .semantic-muted-bg { background-color: var(--muted-bg); }
+        .semantic-muted-fg { color: var(--muted-fg); }
+        .semantic-border { border-color: var(--border); }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background-color: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--muted-bg);
+        }
+        
+        .card {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+        
+        .input-field {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--fg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+        
+        .input-field::placeholder {
+            color: var(--muted-fg);
+        }
+        
+        .theme-transition {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .text-gradient {
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+        
+        .status-success {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .dark .status-success {
+            background-color: rgba(21, 128, 61, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+        
+        .status-error {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .dark .status-error {
+            background-color: rgba(185, 28, 28, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        
+        .status-info {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #2563eb;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        
+        .dark .status-info {
+            background-color: rgba(37, 99, 235, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body class="min-h-screen semantic-bg semantic-fg theme-transition font-sans">
+    <!-- Navigation Clean -->
+    <nav class="sticky top-0 z-50 semantic-bg border-b semantic-border backdrop-blur-sm theme-transition">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-14">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <div class="text-lg">🏡</div>
+                    <span class="text-lg text-gradient">Cobimob</span>
+                </div>
+
+                <!-- Navigation -->
+                <div class="hidden md:flex items-center space-x-1">
+                    <button class="px-3 py-1.5 text-sm font-medium text-white rounded-md" style="background-color: var(--primary);">
+                        Locador
+                    </button>
+                    <button class="px-3 py-1.5 text-sm font-medium semantic-muted-fg hover:semantic-bg rounded-md transition-colors">
+                        Locatário
+                    </button>
+                    <button class="px-3 py-1.5 text-sm font-medium semantic-muted-fg hover:semantic-bg rounded-md transition-colors">
+                        Imóvel
+                    </button>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggle" class="p-2 rounded-md semantic-muted-bg semantic-fg hover:opacity-80 transition-all">
+                    <span id="sunIcon">☀️</span>
+                    <span id="moonIcon" class="hidden">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="py-8">
+        <div class="max-w-4xl mx-auto px-4 space-y-8">
+            <!-- Header -->
+            <div class="text-center space-y-4">
+                <h1 class="text-3xl font-bold semantic-fg">
+                    <span class="text-gradient">Sistema Otimizado</span>
+                </h1>
+                <p class="text-lg semantic-muted-fg max-w-2xl mx-auto">
+                    Nova paleta de cores com alto contraste e design limpo para melhor experiência do usuário
+                </p>
+            </div>
+
+            <!-- Demonstração de Contraste -->
+            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <!-- Card 1: Alto Contraste -->
+                <div class="card p-6 theme-transition">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 rounded-md" style="background-color: var(--primary);">
+                            <span class="text-white">✓</span>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold semantic-fg">Alto Contraste</h3>
+                            <p class="text-sm semantic-muted-fg mt-1">
+                                Textos agora têm contraste mínimo de 4.5:1 para melhor legibilidade
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Design Limpo -->
+                <div class="card p-6 theme-transition">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 rounded-md" style="background-color: var(--secondary);">
+                            <span class="text-white">🎨</span>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold semantic-fg">Design Limpo</h3>
+                            <p class="text-sm semantic-muted-fg mt-1">
+                                Removida poluição visual, shadows excessivas e animações desnecessárias
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Cores Otimizadas -->
+                <div class="card p-6 theme-transition">
+                    <div class="flex items-start space-x-3">
+                        <div class="p-2 rounded-md semantic-muted-bg">
+                            <span class="semantic-fg">🎯</span>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold semantic-fg">Cores Otimizadas</h3>
+                            <p class="text-sm semantic-muted-fg mt-1">
+                                Paleta de cores seguindo padrões WCAG para acessibilidade
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulário de Demonstração -->
+            <div class="card p-6 theme-transition">
+                <h2 class="text-xl font-semibold semantic-fg mb-4">Formulário Exemplo</h2>
+                <form class="space-y-4">
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium semantic-fg mb-1">Nome Completo</label>
+                            <input type="text" placeholder="Digite seu nome" class="input-field theme-transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium semantic-fg mb-1">Email</label>
+                            <input type="email" placeholder="seu@email.com" class="input-field theme-transition">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium semantic-fg mb-1">Observações</label>
+                        <textarea placeholder="Comentários opcionais..." rows="3" class="input-field theme-transition resize-none"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-2">
+                        <button type="button" class="btn-outline">Cancelar</button>
+                        <button type="submit" class="btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Status Messages -->
+            <div class="space-y-3">
+                <div class="status-success theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>✅</span>
+                        <span class="font-medium">Sucesso: Dados salvos com alto contraste!</span>
+                    </div>
+                </div>
+                
+                <div class="status-info theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>ℹ️</span>
+                        <span class="font-medium">Info: Design otimizado para melhor experiência</span>
+                    </div>
+                </div>
+                
+                <div class="status-error theme-transition">
+                    <div class="flex items-center space-x-2">
+                        <span>❌</span>
+                        <span class="font-medium">Erro: Exemplo de mensagem de erro bem visível</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comparação de Paletas -->
+            <div class="card p-6 theme-transition">
+                <h3 class="text-lg font-semibold semantic-fg mb-4">Comparação da Nova Paleta</h3>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <h4 class="font-medium semantic-fg mb-2">Tema Claro</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background-color: var(--primary);"></div>
+                                <span class="semantic-muted-fg">Verde principal: #006B64</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background-color: var(--secondary);"></div>
+                                <span class="semantic-muted-fg">Roxo secundário: #2D1259</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background-color: var(--fg);"></div>
+                                <span class="semantic-muted-fg">Texto: Preto quase puro</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-medium semantic-fg mb-2">Tema Escuro</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background: #00b3a6;"></div>
+                                <span class="semantic-muted-fg">Verde brilhante: #00b3a6</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background: #8b5cf6;"></div>
+                                <span class="semantic-muted-fg">Roxo vibrante: #8b5cf6</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-4 h-4 rounded border" style="background: #fafafa;"></div>
+                                <span class="semantic-muted-fg">Texto: Branco quase puro</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const html = document.documentElement;
+
+        // Initialize theme
+        let currentTheme = localStorage.getItem('cobimob-theme') || 'light';
+        updateTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            updateTheme(currentTheme);
+            localStorage.setItem('cobimob-theme', currentTheme);
+        });
+
+        function updateTheme(theme) {
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                html.classList.remove('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

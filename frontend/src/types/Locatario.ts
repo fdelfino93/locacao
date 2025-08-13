@@ -29,13 +29,22 @@ export interface Locatario {
   responsavel_inq?: number | null;
   dependentes_inq?: number | null;
   qtd_dependentes_inq: number;
-  pet_locatario?: number | null;
-  qtd_pet_locatario: number;
+  pet_inquilino?: number | null;
+  qtd_pet_inquilino: number;
   porte_pet?: string;
   nome_conjuge?: string;
   cpf_conjuge?: string;
   rg_conjuge?: string;
   endereco_conjuge?: string;
   telefone_conjuge?: string;
+  regime_bens?: string;
+  existe_conjuge?: number | null;
+  // Documentos
+  documento_pessoal?: File | string | null;
+  comprovante_endereco?: File | string | null;
+  // Envio de boleto
+  forma_envio_boleto?: string[];
+  email_boleto?: string;
+  whatsapp_boleto?: string;
   observacoes?: string;
 }

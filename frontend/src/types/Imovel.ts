@@ -1,10 +1,34 @@
-import type { Endereco } from './';
+import type { Endereco } from './Endereco';
+
+export interface InformacoesIPTU {
+  titular: string;
+  inscricao_imobiliaria: string;
+  indicacao_fiscal: string;
+}
+
+export interface DadosGeraisImovel {
+  quartos: number;
+  suites: number;
+  banheiros: number;
+  salas: number;
+  cozinha: number;
+  tem_garagem: boolean;
+  qtd_garagem?: number;
+  tem_sacada: boolean;
+  qtd_sacada?: number;
+  tem_churrasqueira: boolean;
+  qtd_churrasqueira?: number;
+  mobiliado: 'sim' | 'nao' | 'parcialmente';
+  permite_pets: boolean;
+}
 
 export interface Imovel {
-  id_locador: number;
-  id_locatario: number;
+  id_cliente: number;
+  id_inquilino: number;
   tipo: string;
-  endereco?: Endereco;
+  endereco: Endereco;
+  informacoes_iptu: InformacoesIPTU;
+  dados_gerais: DadosGeraisImovel;
   valor_aluguel: number;
   iptu: number;
   condominio: number;
@@ -13,7 +37,6 @@ export interface Imovel {
   matricula_imovel: string;
   area_imovel: string;
   dados_imovel: string;
-  permite_pets: boolean;
   info_iptu: string;
   observacoes_condominio: string;
   copel_unidade_consumidora: string;

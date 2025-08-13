@@ -30,7 +30,7 @@ app = FastAPI(title="Cobimob API", version="1.0.0")
 # Configurar CORS para permitir requisições do frontend React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:3000", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],  # URLs comuns do React/Vite dev server
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],  # URLs comuns do React/Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

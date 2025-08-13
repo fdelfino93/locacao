@@ -1,10 +1,10 @@
 export interface DadosBancarios {
-  tipo_recebimento: 'PIX' | 'TED' | 'Conta Corrente' | 'Conta Poupança';
+  tipo_recebimento: 'PIX' | 'TED';
   chave_pix?: string;
   banco?: string;
   agencia?: string;
   conta?: string;
-  tipo_conta?: 'Corrente' | 'Poupança' | 'Conta Digital';
+  tipo_conta?: 'Conta Corrente' | 'Conta Poupança';
   titular?: string;
   cpf_titular?: string;
 }

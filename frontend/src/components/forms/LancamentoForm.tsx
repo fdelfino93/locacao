@@ -105,7 +105,7 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
             ) : (
               <Minus className="w-5 h-5 text-red-600" />
             )}
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-foreground">
               {tipoOperacao === 'lancamento' ? 'Adicionar Lançamento Líquido' : 'Adicionar Desconto/Dedução'}
             </h3>
           </div>
@@ -162,7 +162,7 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
             <Button
               onClick={handleSave}
               disabled={loading || !tipo || !valor}
-              className={tipoOperacao === 'lancamento' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+              className={tipoOperacao === 'lancamento' ? 'btn-primary' : 'btn bg-destructive text-destructive-foreground hover:bg-destructive/90'}
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>

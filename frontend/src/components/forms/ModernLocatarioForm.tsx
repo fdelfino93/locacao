@@ -168,7 +168,7 @@ export const ModernInquilinoForm: React.FC = () => {
               <div className="p-2 bg-white/20 rounded-xl">
                 <Users className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-3xl font-bold text-white">Cadastro de Inquilino</h2>
+              <h1 className="text-2xl font-bold text-white">Cadastro de Inquilino</h1>
             </div>
           </div>
 
@@ -202,10 +202,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.1 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <User className="w-5 h-5" />
                   <span>Dados Pessoais</span>
-                </h3>
+                </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -291,10 +291,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <Phone className="w-5 h-5" />
                   <span>Informações de Contato</span>
-                </h3>
+                </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -345,10 +345,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <Shield className="w-5 h-5" />
                   <span>Garantia e Responsabilidades</span>
-                </h3>
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -427,10 +427,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <FileText className="w-5 h-5" />
                   <span>Dados Adicionais</span>
-                </h3>
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -476,10 +476,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <Baby className="w-5 h-5" />
                   <span>Dependentes</span>
-                </h3>
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -525,10 +525,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.6 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <Dog className="w-5 h-5" />
                   <span>Animais de Estimação</span>
-                </h3>
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -589,10 +589,10 @@ export const ModernInquilinoForm: React.FC = () => {
                 transition={{ duration: 0.6, delay: 0.7 }}
                 className="space-y-6"
               >
-                <h3 className="text-xl font-semibold text-white flex items-center space-x-2">
+                <h2 className="text-xl font-semibold text-white flex items-center space-x-2">
                   <Users className="w-5 h-5" />
                   <span>Informações do Cônjuge</span>
-                </h3>
+                </h2>
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -616,7 +616,7 @@ export const ModernInquilinoForm: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="space-y-4 p-6 bg-white/5 rounded-2xl border border-white/10"
                     >
-                      <h4 className="text-lg font-medium text-white">Dados do Cônjuge</h4>
+                      <h3 className="text-lg font-semibold text-white">Dados do Cônjuge</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="nome_conjuge" className="text-gray-300">Nome do Cônjuge</Label>

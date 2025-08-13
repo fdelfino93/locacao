@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cobimob - Sistema Otimizado Final</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            /* Light theme - High contrast and clean */
+            --bg: #ffffff;
+            --fg: #0a0a0b;
+            --muted-bg: #fafafa;
+            --muted-fg: #4a4a4a;
+            --border: #e4e4e7;
+            --primary: #006B64;
+            --secondary: #2D1259;
+            --card: #ffffff;
+        }
+        
+        .dark {
+            /* Dark theme - High contrast and sophisticated */
+            --bg: #0f0f13;
+            --fg: #fafafa;
+            --muted-bg: #1a1a1f;
+            --muted-fg: #bfbfbf;
+            --border: #2a2a30;
+            --primary: #00b3a6;
+            --secondary: #8b5cf6;
+            --card: #16161b;
+        }
+        
+        /* Semantic classes */
+        .bg-base { background-color: var(--bg); }
+        .text-base { color: var(--fg); }
+        .bg-muted { background-color: var(--muted-bg); }
+        .text-muted { color: var(--muted-fg); }
+        .border-color { border-color: var(--border); }
+        .bg-card { background-color: var(--card); }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background-color: var(--bg);
+            color: var(--fg);
+            border: 1px solid var(--border);
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--muted-bg);
+        }
+        
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        
+        .input-field {
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--fg);
+            padding: 10px 12px;
+            border-radius: 6px;
+            width: 100%;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+        
+        .input-field::placeholder {
+            color: var(--muted-fg);
+        }
+        
+        .theme-transition {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+        
+        .nav-item {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .nav-item.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .nav-item:not(.active) {
+            color: var(--muted-fg);
+        }
+        
+        .nav-item:not(.active):hover {
+            background-color: var(--muted-bg);
+            color: var(--fg);
+        }
+        
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-success {
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+        
+        .dark .status-success {
+            background-color: rgba(21, 128, 61, 0.15);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #86efac;
+        }
+        
+        .status-error {
+            background-color: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+        
+        .dark .status-error {
+            background-color: rgba(185, 28, 28, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        
+        .status-info {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #2563eb;
+        }
+        
+        .dark .status-info {
+            background-color: rgba(37, 99, 235, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        .icon-primary { background-color: var(--primary); color: white; }
+        .icon-secondary { background-color: var(--secondary); color: white; }
+        .icon-muted { background-color: var(--muted-bg); color: var(--fg); }
+    </style>
+</head>
+<body class="min-h-screen bg-base text-base theme-transition font-sans">
+    <!-- Header Navigation -->
+    <nav class="sticky top-0 z-50 bg-base border-b border-color backdrop-blur-sm theme-transition">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-2xl">🏡</span>
+                    <span class="text-xl text-gradient">Cobimob</span>
+                </div>
+
+                <!-- Navigation -->
+                <div class="hidden md:flex items-center space-x-2">
+                    <div class="nav-item active">
+                        <span>👤</span>
+                        <span>Locador</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>👥</span>
+                        <span>Locatário</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>🏠</span>
+                        <span>Imóvel</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📄</span>
+                        <span>Contrato</span>
+                    </div>
+                    <div class="nav-item">
+                        <span>📊</span>
+                        <span>Prestação</span>
+                    </div>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggle" class="p-2 bg-muted border-color rounded-md hover:opacity-80 transition-all">
+                    <span id="sunIcon" class="text-xl">☀️</span>
+                    <span id="moonIcon" class="text-xl hidden">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="py-12">
+        <div class="max-w-6xl mx-auto px-4 space-y-12">
+            <!-- Hero Section -->
+            <section class="text-center space-y-6">
+                <div class="space-y-4">
+                    <h1 class="text-4xl md:text-5xl font-bold text-base">
+                        <span class="text-gradient">Sistema Cobimob</span>
+                    </h1>
+                    <p class="text-lg text-muted max-w-2xl mx-auto">
+                        Plataforma otimizada com alto contraste, design limpo e experiência de usuário aprimorada
+                    </p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button class="btn-primary">
+                        Começar Agora
+                        <span>→</span>
+                    </button>
+                    <button class="btn-outline">
+                        Ver Demonstração
+                    </button>
+                </div>
+            </section>
+
+            <!-- Features Grid -->
+            <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div class="card p-6 text-center">
+                    <div class="feature-icon icon-primary mx-auto">🏠</div>
+                    <h3 class="font-semibold text-base mb-2">Imóveis</h3>
+                    <p class="text-sm text-muted">Gestão completa de propriedades</p>
+                </div>
+                
+                <div class="card p-6 text-center">
+                    <div class="feature-icon icon-secondary mx-auto">👥</div>
+                    <h3 class="font-semibold text-base mb-2">Clientes</h3>
+                    <p class="text-sm text-muted">Cadastro detalhado e organizado</p>
+                </div>
+                
+                <div class="card p-6 text-center">
+                    <div class="feature-icon icon-primary mx-auto">📄</div>
+                    <h3 class="font-semibold text-base mb-2">Contratos</h3>
+                    <p class="text-sm text-muted">Documentação profissional</p>
+                </div>
+                
+                <div class="card p-6 text-center">
+                    <div class="feature-icon icon-secondary mx-auto">📊</div>
+                    <h3 class="font-semibold text-base mb-2">Relatórios</h3>
+                    <p class="text-sm text-muted">Análises e métricas avançadas</p>
+                </div>
+            </section>
+
+            <!-- Form Example -->
+            <section class="card p-8">
+                <h2 class="text-2xl font-semibold text-base mb-6">Cadastro de Locador</h2>
+                <form class="space-y-6">
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-base mb-2">Nome Completo *</label>
+                            <input type="text" placeholder="Digite o nome completo" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-base mb-2">CPF/CNPJ *</label>
+                            <input type="text" placeholder="000.000.000-00" class="input-field">
+                        </div>
+                    </div>
+                    
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-base mb-2">Telefone *</label>
+                            <input type="tel" placeholder="(11) 99999-9999" class="input-field">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-base mb-2">Email *</label>
+                            <input type="email" placeholder="email@exemplo.com" class="input-field">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-base mb-2">Observações</label>
+                        <textarea placeholder="Informações adicionais..." rows="3" class="input-field resize-none"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4 pt-4">
+                        <button type="button" class="btn-outline">Cancelar</button>
+                        <button type="submit" class="btn-primary">Salvar Locador</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Status Messages -->
+            <section class="space-y-4">
+                <div class="status status-success theme-transition">
+                    <span>✅</span>
+                    <span>Sucesso: Locador cadastrado com alta legibilidade!</span>
+                </div>
+                
+                <div class="status status-info theme-transition">
+                    <span>ℹ️</span>
+                    <span>Info: Sistema otimizado seguindo padrões WCAG de acessibilidade</span>
+                </div>
+                
+                <div class="status status-error theme-transition">
+                    <span>❌</span>
+                    <span>Erro: Campo obrigatório não preenchido (exemplo bem visível)</span>
+                </div>
+            </section>
+
+            <!-- Improvements Summary -->
+            <section class="card p-8">
+                <h2 class="text-2xl font-semibold text-base mb-6">Melhorias Implementadas</h2>
+                <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-base flex items-center gap-2">
+                            <span class="feature-icon icon-primary" style="width: 24px; height: 24px; font-size: 12px;">✓</span>
+                            Alto Contraste
+                        </h3>
+                        <ul class="text-sm text-muted space-y-1">
+                            <li>• Contraste mínimo 4.5:1</li>
+                            <li>• Textos mais legíveis</li>
+                            <li>• Cores otimizadas WCAG</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-base flex items-center gap-2">
+                            <span class="feature-icon icon-secondary" style="width: 24px; height: 24px; font-size: 12px;">🎨</span>
+                            Design Limpo
+                        </h3>
+                        <ul class="text-sm text-muted space-y-1">
+                            <li>• Poluição visual reduzida</li>
+                            <li>• Shadows sutis</li>
+                            <li>• Animações simplificadas</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-base flex items-center gap-2">
+                            <span class="feature-icon icon-muted" style="width: 24px; height: 24px; font-size: 12px;">⚡</span>
+                            UX Aprimorado
+                        </h3>
+                        <ul class="text-sm text-muted space-y-1">
+                            <li>• Transições mais rápidas</li>
+                            <li>• Botões consistentes</li>
+                            <li>• Feedback visual claro</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="mt-8 p-4 bg-muted rounded-lg">
+                    <h4 class="font-medium text-base mb-2">Paleta de Cores Otimizada</h4>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <p class="text-sm font-medium text-base mb-2">Tema Claro</p>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #006B64;"></div>
+                                <span>Verde: #006B64 (mais escuro)</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #2D1259;"></div>
+                                <span>Roxo: #2D1259 (mais escuro)</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #0a0a0b;"></div>
+                                <span>Texto: Preto quase puro</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-base mb-2">Tema Escuro</p>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #00b3a6;"></div>
+                                <span>Verde: #00b3a6 (mais brilhante)</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #8b5cf6;"></div>
+                                <span>Roxo: #8b5cf6 (mais brilhante)</span>
+                            </div>
+                            <div class="flex items-center space-x-2 text-sm text-muted">
+                                <div class="w-4 h-4 rounded border" style="background-color: #fafafa;"></div>
+                                <span>Texto: Branco quase puro</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('themeToggle');
+        const sunIcon = document.getElementById('sunIcon');
+        const moonIcon = document.getElementById('moonIcon');
+        const html = document.documentElement;
+
+        // Initialize theme
+        let currentTheme = localStorage.getItem('cobimob-theme') || 'light';
+        updateTheme(currentTheme);
+
+        themeToggle.addEventListener('click', () => {
+            currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            updateTheme(currentTheme);
+            localStorage.setItem('cobimob-theme', currentTheme);
+        });
+
+        function updateTheme(theme) {
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            } else {
+                html.classList.remove('dark');
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
