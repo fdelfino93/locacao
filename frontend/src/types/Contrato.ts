@@ -1,5 +1,46 @@
 import type { PlanoLocacao } from './';
 
+export interface ContratoLocador {
+  id?: number;
+  locador_id: number;
+  locador_nome?: string;
+  locador_documento?: string;
+  conta_bancaria_id: number;
+  conta_tipo_recebimento?: string;
+  conta_chave_pix?: string;
+  conta_banco?: string;
+  conta_agencia?: string;
+  conta_conta?: string;
+  conta_tipo_conta?: string;
+  conta_titular?: string;
+  conta_cpf_titular?: string;
+  porcentagem: number;
+  data_criacao?: string;
+}
+
+export interface ContaBancariaLocador {
+  id: number;
+  tipo_recebimento: string;
+  chave_pix?: string;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  tipo_conta?: string;
+  titular?: string;
+  cpf_titular?: string;
+  principal: boolean;
+  ativo: boolean;
+  descricao: string;
+}
+
+export interface LocadorOption {
+  id: number;
+  nome: string;
+  cpf_cnpj: string;
+  telefone?: string;
+  email?: string;
+}
+
 export interface Contrato {
   id_imovel: number;
   id_inquilino: number;
@@ -90,4 +131,7 @@ export interface Contrato {
     idade?: number;
     vacinacao_em_dia: boolean;
   }>;
+  
+  // Locadores associados ao contrato
+  locadores?: ContratoLocador[];
 }

@@ -20,8 +20,19 @@
       "Bash(timeout 8 npm run dev)",
       "Bash(timeout 5 npm run dev)",
       "Bash(timeout:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(dir:*)",
+      "Bash(taskkill:*)",
+      "Bash(__NEW_LINE__ echo \"1. Métricas:\")",
+      "Bash(__NEW_LINE__ echo \"2. Ocupação:\")",
+      "Bash(__NEW_LINE__ echo \"3. Vencimentos:\")",
+      "Bash(__NEW_LINE__ echo \"4. Alertas:\")",
+      "Bash(__NEW_LINE__ echo \"1. M\\u00e9tricas:\")",
+      "Bash(__NEW_LINE__ echo \"2. Ocupa\\u00e7\\u00e3o:\")",
+      "Bash(__NEW_LINE__ echo \"5. Dashboard completo:\")",
+      "Bash(find:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

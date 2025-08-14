@@ -1,5 +1,56 @@
 import type { Locador, Locatario, Imovel, Contrato, ApiResponse } from '../types';
 
+// Tipos específicos para Dashboard
+export interface DashboardMetricas {
+  total_contratos: number;
+  contratos_ativos: number;
+  receita_mensal: number;
+  crescimento_percentual: number;
+  total_clientes: number;
+  novos_clientes_mes: number;
+}
+
+export interface DashboardOcupacao {
+  taxa_ocupacao: number;
+  unidades_ocupadas: number;
+  unidades_totais: number;
+  unidades_disponiveis: number;
+  ocupacao_por_tipo: Array<{
+    tipo: string;
+    total: number;
+    ocupadas: number;
+    percentual: number;
+  }>;
+}
+
+export interface DashboardVencimento {
+  id: number;
+  cliente_nome: string;
+  contrato_numero: string;
+  data_vencimento: string;
+  valor: number;
+  dias_para_vencer: number;
+  status: string;
+}
+
+export interface DashboardAlerta {
+  id: number;
+  tipo: string;
+  titulo: string;
+  descricao: string;
+  severidade: 'CRITICO' | 'ALTO' | 'MEDIO' | 'BAIXO';
+  data_criacao: string;
+  ativo: boolean;
+}
+
+export interface DashboardCompleto {
+  metricas: DashboardMetricas;
+  ocupacao: DashboardOcupacao;
+  vencimentos: DashboardVencimento[];
+  alertas: DashboardAlerta[];
+  timestamp: string;
+}
+
 const API_BASE_URL = '/api'; // usa proxy do vite
 
 class ApiService {
@@ -70,6 +121,37 @@ class ApiService {
 
   async listarContratos(): Promise<ApiResponse<any[]>> {
     return this.request('/contratos');
+  }
+
+  // Métodos do Dashboard
+  async obterMetricasDashboard(): Promise<DashboardMetricas> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/metricas`);
+    if (!response.ok) throw new Error('Erro ao buscar métricas');
+    return response.json();
+  }
+
+  async obterOcupacaoDashboard(): Promise<DashboardOcupacao> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/ocupacao`);
+    if (!response.ok) throw new Error('Erro ao buscar ocupação');
+    return response.json();
+  }
+
+  async obterVencimentosDashboard(dias: number = 30): Promise<DashboardVencimento[]> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/vencimentos?dias=${dias}`);
+    if (!response.ok) throw new Error('Erro ao buscar vencimentos');
+    return response.json();
+  }
+
+  async obterAlertasDashboard(ativosApenas: boolean = true): Promise<DashboardAlerta[]> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/alertas?ativos_apenas=${ativosApenas}`);
+    if (!response.ok) throw new Error('Erro ao buscar alertas');
+    return response.json();
+  }
+
+  async obterDashboardCompleto(): Promise<DashboardCompleto> {
+    const response = await fetch(`${API_BASE_URL}/dashboard`);
+    if (!response.ok) throw new Error('Erro ao buscar dashboard');
+    return response.json();
   }
 
   // Método público para requests customizados  

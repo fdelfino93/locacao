@@ -34,6 +34,7 @@ import type { Locador, Endereco, DadosBancarios, RepresentanteLegal, DocumentosE
 import { apiService } from '../../services/api';
 import { EnderecoForm } from './EnderecoForm';
 import { DadosBancariosForm } from './DadosBancariosForm';
+import { MultipleBankAccountsForm } from './MultipleBankAccountsForm';
 
 const estadosCivis = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
 const tiposGarantia = ['Nenhuma', 'Fiador', 'Caução', 'Seguro Fiança', 'Título de Capitalização'];
@@ -70,6 +71,8 @@ export const ModernLocadorFormV2: React.FC = () => {
     titular: '',
     cpf_titular: ''
   });
+
+  const [contasBancarias, setContasBancarias] = useState<DadosBancarios[]>([]);
 
   const [representanteLegal, setRepresentanteLegal] = useState<RepresentanteLegal>({
     nome: '',
@@ -159,11 +162,12 @@ export const ModernLocadorFormV2: React.FC = () => {
     setMessage(null);
 
     try {
-      // Preparar dados para envio (manter compatibilidade com API atual)
+      // Preparar dados para envio
       const dadosParaEnvio = {
         ...formData,
         endereco: endereco,
         dados_bancarios: dadosBancarios,
+        contas_bancarias: contasBancarias, // Múltiplas contas bancárias
         representante_legal: showRepresentante ? representanteLegal : undefined,
         documentos_empresa: showRepresentante ? documentosEmpresa : undefined,
         existe_conjuge: showConjuge ? 1 : 0
@@ -733,17 +737,11 @@ export const ModernLocadorFormV2: React.FC = () => {
 
               {/* Aba 4: Dados Bancários */}
               <TabsContent value="configuracoes" className="space-y-8">
-                {/* Forma de Recebimento */}
+                {/* Múltiplas Contas Bancárias */}
                 <div className="space-y-4">
-                  <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-orange-600" />
-                    Dados Bancários
-                  </h2>
-                  
-                  {/* Dados Bancários */}
-                  <DadosBancariosForm 
-                    dadosBancarios={dadosBancarios}
-                    onChange={setDadosBancarios}
+                  <MultipleBankAccountsForm 
+                    contas={contasBancarias}
+                    onChange={setContasBancarias}
                   />
                 </div>
 

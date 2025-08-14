@@ -7,4 +7,5 @@ export interface DadosBancarios {
   tipo_conta?: 'Conta Corrente' | 'Conta Poupança';
   titular?: string;
   cpf_titular?: string;
+  principal?: boolean; // Para identificar conta principal
 }

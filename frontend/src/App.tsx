@@ -8,10 +8,12 @@ import { ModernLocatarioFormV2 } from './components/forms/ModernLocatarioFormV2'
 import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContas } from './components/sections/PrestacaoContas';
+import Dashboard from './components/dashboard/Dashboard';
+import SearchModule from './components/search/SearchModule';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
-type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas';
+type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -20,7 +22,7 @@ function App() {
     setCurrentPage('locador');
   };
 
-  const handleFormChange = (form: 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas') => {
+  const handleFormChange = (form: 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca') => {
     setCurrentPage(form);
   };
 
@@ -100,6 +102,30 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <PrestacaoContas />
+          </motion.div>
+        );
+      case 'dashboard':
+        return (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Dashboard />
+          </motion.div>
+        );
+      case 'busca':
+        return (
+          <motion.div
+            key="busca"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SearchModule />
           </motion.div>
         );
       default:

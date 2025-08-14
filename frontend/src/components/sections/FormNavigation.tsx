@@ -1,8 +1,8 @@
 import { motion } from 'framer-motion';
-import { Building2, User, Users, Calculator, FileText } from 'lucide-react';
+import { Building2, User, Users, Calculator, FileText, BarChart3, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 
-type FormType = 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas';
+type FormType = 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca';
 
 interface FormNavigationProps {
   currentForm: FormType;
@@ -49,6 +49,20 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
       description: 'Relatórios e prestações',
       color: 'from-secondary to-primary',
     },
+    {
+      id: 'dashboard' as FormType,
+      label: 'Dashboard',
+      icon: BarChart3,
+      description: 'Métricas e visualizações',
+      color: 'from-purple-500 to-pink-500',
+    },
+    {
+      id: 'busca' as FormType,
+      label: 'Busca Global',
+      icon: Search,
+      description: 'Buscar em todo sistema',
+      color: 'from-green-500 to-blue-500',
+    },
   ];
 
   return (
@@ -71,7 +85,7 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
         </motion.div>
 
         {/* Form Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {forms.map((form, index) => (
             <motion.div
               key={form.id}

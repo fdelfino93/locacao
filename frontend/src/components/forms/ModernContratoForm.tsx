@@ -24,9 +24,10 @@ import {
   Heart,
   Banknote
 } from 'lucide-react';
-import type { Contrato } from '../../types';
+import type { Contrato, ContratoLocador } from '../../types';
 import { apiService } from '../../services/api';
 import { useFormSectionsData } from '../../hooks/useFormData';
+import { ContractLandlordsForm } from './ContractLandlordsForm';
 
 interface Cliente {
   id: number;
@@ -63,6 +64,9 @@ export const ModernContratoForm: React.FC = () => {
     idade?: number;
     vacinacao_em_dia: boolean;
   }>>([]);
+  
+  // Estados para locadores do contrato
+  const [locadores, setLocadores] = useState<ContratoLocador[]>([]);
 
   const [formData, setFormData] = useState<Contrato>({
     id_imovel: 0,
@@ -129,8 +133,8 @@ export const ModernContratoForm: React.FC = () => {
   });
 
   // ✅ Hook para detectar dados preenchidos em cada seção
-  const sectionsData = useFormSectionsData(formData, {
-    partes: ['id_imovel', 'id_inquilino'],
+  const sectionsData = useFormSectionsData({...formData, locadores}, {
+    partes: ['id_imovel', 'id_inquilino', 'locadores'],
     valores: ['valor_aluguel', 'valor_iptu', 'valor_condominio', 'taxa_administracao', 'fundo_conservacao'],
     animais: ['quantidade_pets', 'pets'],
     clausulas: ['clausulas_adicionais', 'tipo_garantia', 'info_garantias', 'retidos']
@@ -411,57 +415,15 @@ export const ModernContratoForm: React.FC = () => {
                       Partes do Contrato
                     </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label>Clientes (Proprietários)</Label>
-                        <Select onValueChange={handleClienteChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione clientes..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clientes
-                              .filter(cliente => !clientesSelecionados.some(c => c.id === cliente.id))
-                              .map(cliente => (
-                              <SelectItem key={cliente.id} value={cliente.id.toString()}>
-                                {cliente.nome}
-                              </SelectItem>
-                            ))}
-                            {clientes.filter(c => !clientesSelecionados.some(cs => cs.id === c.id)).length === 0 && (
-                              <SelectItem value="0" disabled>
-                                {clientes.length === 0 ? "Nenhum cliente disponível" : "Todos os clientes já foram selecionados"}
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                        
-                        {/* Lista de clientes selecionados */}
-                        {clientesSelecionados.length > 0 && (
-                          <div className="space-y-2 mt-4">
-                            <Label className="text-sm font-medium">Clientes Selecionados:</Label>
-                            <div className="space-y-2">
-                              {clientesSelecionados.map((cliente, index) => (
-                                <div key={cliente.id} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                                  <div className="flex-1">
-                                    <p className="font-medium text-blue-800 dark:text-blue-200">
-                                      {cliente.nome} {index === 0 && <span className="text-xs">(Principal)</span>}
-                                    </p>
-                                    <p className="text-sm text-blue-600 dark:text-blue-400">{cliente.cpf_cnpj}</p>
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    onClick={() => removerCliente(cliente.id)}
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                                  >
-                                    ×
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    {/* Seção de Locadores (Proprietários) */}
+                    <div className="md:col-span-3 mb-8">
+                      <ContractLandlordsForm 
+                        locadores={locadores}
+                        onChange={setLocadores}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                       <div>
                         <Label>Inquilino (Locatário)</Label>
