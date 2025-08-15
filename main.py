@@ -44,6 +44,9 @@ from locacao.repositories.search_repository import (
     obter_detalhes_completos_contrato,
     obter_historico_completo_contrato
 )
+
+# Importar APIs avançadas
+from apis.advanced_search_api import router as advanced_search_router
 from locacao.repositories.timeline_repository import (
     inserir_evento_contrato,
     buscar_timeline_contrato,
@@ -64,16 +67,19 @@ from locacao.repositories.dashboard_repository import (
 
 load_dotenv()
 
-app = FastAPI(title="Cobimob API", version="1.0.0")
+app = FastAPI(title="Cobimob API", version="1.0.0", description="Sistema de Locações Avançado com Busca Inteligente")
 
 # Configurar CORS para permitir requisições do frontend React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],  # URLs comuns do React/Vite dev server
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003", "http://127.0.0.1:3004", "http://127.0.0.1:5173", "http://127.0.0.1:5174"],  # URLs comuns do React/Vite dev server
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Registrar as APIs avançadas
+app.include_router(advanced_search_router)
 
 # Modelos Pydantic para validação dos dados
 class LocadorCreate(BaseModel):
@@ -613,12 +619,27 @@ async def busca_global(
     q: str = Query(..., description="Termo de busca"),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    tipos: Optional[str] = Query(None, description="Tipos separados por vírgula: locadores,locatarios,imoveis,contratos")
+    tipos: Optional[str] = Query(None, description="Tipos separados por vírgula: locadores,locatarios,imoveis,contratos"),
+    incluir_inativos: bool = Query(False, description="Incluir registros inativos"),
+    incluir_historico: bool = Query(False, description="Incluir histórico detalhado"),
+    cidade: Optional[str] = Query(None, description="Filtrar por cidade"),
+    valor_min: Optional[float] = Query(None, description="Valor mínimo"),
+    valor_max: Optional[float] = Query(None, description="Valor máximo")
 ):
-    """Busca unificada em todas as entidades"""
+    """Busca unificada em todas as entidades com filtros avançados"""
     try:
         incluir_tipos = tipos.split(',') if tipos else None
-        resultados = busca_global_unificada(q, limit, offset, incluir_tipos)
+        
+        # Preparar filtros adicionais
+        filtros_extras = {
+            'incluir_inativos': incluir_inativos,
+            'incluir_historico': incluir_historico,
+            'cidade': cidade,
+            'valor_min': valor_min,
+            'valor_max': valor_max
+        }
+        
+        resultados = busca_global_unificada(q, limit, offset, incluir_tipos, filtros_extras)
         return {"success": True, "data": resultados}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na busca global: {str(e)}")
@@ -946,4 +967,4 @@ async def obter_alertas(ativos_apenas: bool = Query(True)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)

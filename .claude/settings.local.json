@@ -30,7 +30,10 @@
       "Bash(__NEW_LINE__ echo \"1. M\\u00e9tricas:\")",
       "Bash(__NEW_LINE__ echo \"2. Ocupa\\u00e7\\u00e3o:\")",
       "Bash(__NEW_LINE__ echo \"5. Dashboard completo:\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(start http://localhost:3003)",
+      "Bash(start http://localhost:3004)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

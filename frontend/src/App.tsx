@@ -9,7 +9,7 @@ import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContas } from './components/sections/PrestacaoContas';
 import Dashboard from './components/dashboard/Dashboard';
-import SearchModule from './components/search/SearchModule';
+import EnhancedSearchModule from './components/search/EnhancedSearchModule';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
@@ -125,7 +125,7 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <SearchModule />
+            <EnhancedSearchModule />
           </motion.div>
         );
       default:
