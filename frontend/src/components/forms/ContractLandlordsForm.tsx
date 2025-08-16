@@ -17,6 +17,7 @@ import {
   Heart
 } from 'lucide-react';
 import type { ContratoLocador, ContaBancariaLocador, LocadorOption } from '../../types';
+import { apiService } from '../../services/api';
 
 interface ContractLandlordsFormProps {
   locadores: ContratoLocador[];
@@ -45,10 +46,11 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   const carregarLocadoresAtivos = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8000/api/locadores/ativos');
-      if (response.ok) {
-        const data = await response.json();
-        setLocadoresOptions(data);
+      const response = await apiService.listarLocadores();
+      if (response.success && response.data) {
+        setLocadoresOptions(response.data);
+      } else {
+        console.error('Erro na resposta do apiService:', response);
       }
     } catch (error) {
       console.error('Erro ao carregar locadores:', error);
@@ -59,16 +61,27 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
 
   const carregarContasBancarias = async (locadorId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/locadores/${locadorId}/contas`);
+      const response = await fetch(`http://localhost:8001/api/locadores/${locadorId}/contas`);
       if (response.ok) {
         const data = await response.json();
         setContasBancarias(prev => ({
           ...prev,
           [locadorId]: data
         }));
+      } else if (response.status === 404) {
+        // Locador sem contas bancárias cadastradas
+        setContasBancarias(prev => ({
+          ...prev,
+          [locadorId]: []
+        }));
       }
     } catch (error) {
       console.error('Erro ao carregar contas bancárias:', error);
+      // Em caso de erro, definir array vazio para não quebrar a interface
+      setContasBancarias(prev => ({
+        ...prev,
+        [locadorId]: []
+      }));
     }
   };
 
@@ -304,7 +317,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         </h3>
                         {locadorOption && (
                           <p className="text-sm text-muted-foreground">
-                            {locadorOption.nome} - {locadorOption.cpf_cnpj}
+                            {locadorOption.nome} {locadorOption.cpf_cnpj ? `- ${locadorOption.cpf_cnpj}` : ''}
                           </p>
                         )}
                       </div>
@@ -330,19 +343,21 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                     <div>
                       <Label>Locador *</Label>
                       <Select 
-                        value={locador.locador_id.toString()}
+                        value={locador.locador_id > 0 ? locador.locador_id.toString() : undefined}
                         onValueChange={(value) => atualizarLocador(index, 'locador_id', parseInt(value))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-muted/50 border-border text-foreground">
                           <SelectValue placeholder="Selecione o locador" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-card border-border">
                           {loading ? (
                             <SelectItem value="0" disabled>Carregando...</SelectItem>
+                          ) : locadoresOptions.length === 0 ? (
+                            <SelectItem value="0" disabled>Nenhum locador encontrado</SelectItem>
                           ) : (
                             locadoresOptions.map((locadorOpt) => (
-                              <SelectItem key={locadorOpt.id} value={locadorOpt.id.toString()}>
-                                {locadorOpt.nome} - {locadorOpt.cpf_cnpj}
+                              <SelectItem key={locadorOpt.id} value={locadorOpt.id.toString()} className="text-foreground hover:bg-accent">
+                                {locadorOpt.nome} {locadorOpt.cpf_cnpj ? `- ${locadorOpt.cpf_cnpj}` : ''}
                               </SelectItem>
                             ))
                           )}

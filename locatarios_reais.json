@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "nome": "Fernanda Carolini",
+    "cpf_cnpj": "6885582913",
+    "telefone": "41995234464",
+    "email": "fernandacarolini@hotmail.com",
+    "endereco": "PF",
+    "ativo": true
+  },
+  {
+    "id": 2,
+    "nome": "Inquilino Teste Migration",
+    "cpf_cnpj": "98765432100",
+    "telefone": "(41)88888-8888",
+    "email": "inquilino@teste.com",
+    "endereco": "PF",
+    "ativo": true
+  },
+  {
+    "id": 3,
+    "nome": "Teste Locatario Sistema",
+    "cpf_cnpj": "98765432109",
+    "telefone": "(41) 88888-8888",
+    "email": "teste@locatario.com",
+    "endereco": "PF",
+    "ativo": true
+  },
+  {
+    "id": 4,
+    "nome": "Teste Locatario",
+    "cpf_cnpj": "987.654.321-00",
+    "telefone": "(11) 88888-8888",
+    "email": "locatario@test.com",
+    "endereco": "PF",
+    "ativo": true
+  }
+]

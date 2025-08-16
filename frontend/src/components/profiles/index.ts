@@ -1,0 +1,1 @@
+export { PerfilCompletoLocador } from './PerfilCompletoLocador';

@@ -47,6 +47,8 @@ from locacao.repositories.search_repository import (
 
 # Importar APIs avançadas
 from apis.advanced_search_api import router as advanced_search_router
+from apis.perfil_locador_api import router as perfil_locador_router
+from apis.enhanced_search_api import router as enhanced_search_router
 from locacao.repositories.timeline_repository import (
     inserir_evento_contrato,
     buscar_timeline_contrato,
@@ -80,6 +82,8 @@ app.add_middleware(
 
 # Registrar as APIs avançadas
 app.include_router(advanced_search_router)
+app.include_router(perfil_locador_router)
+app.include_router(enhanced_search_router)
 
 # Modelos Pydantic para validação dos dados
 class LocadorCreate(BaseModel):

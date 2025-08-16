@@ -1,0 +1,137 @@
+{
+  "locadores": [
+    {
+      "id": 21,
+      "nome": "Fernando",
+      "cpf_cnpj": "8696386965",
+      "telefone": "41984395029",
+      "email": "fernando.delfino@hotmail.com",
+      "endereco": "Rua Martim Afonso, 1168",
+      "ativo": null
+    },
+    {
+      "id": 22,
+      "nome": "Fernanda Carol",
+      "cpf_cnpj": "",
+      "telefone": "41984552414",
+      "email": "nanda10067@hotmail.com",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 23,
+      "nome": "Brian Thiago",
+      "cpf_cnpj": "",
+      "telefone": "5123487548",
+      "email": "",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 24,
+      "nome": "FERNANDO DELFINO",
+      "cpf_cnpj": "",
+      "telefone": "41988962566",
+      "email": "fer@exe.com",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 26,
+      "nome": "Cliente Teste V2",
+      "cpf_cnpj": "12345678901",
+      "telefone": "(41) 99999-9999",
+      "email": "teste@email.com",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 27,
+      "nome": "Cliente Teste V2",
+      "cpf_cnpj": "12345678901",
+      "telefone": "(41) 99999-9999",
+      "email": "teste@email.com",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 28,
+      "nome": "Cliente Teste Final",
+      "cpf_cnpj": "98765432100",
+      "telefone": "(41) 88888-8888",
+      "email": "teste.final@email.com",
+      "endereco": "",
+      "ativo": null
+    },
+    {
+      "id": 29,
+      "nome": "Cliente Teste Migration",
+      "cpf_cnpj": "12345678901",
+      "telefone": "(41)99999-9999",
+      "email": "teste@email.com",
+      "endereco": "",
+      "ativo": null
+    }
+  ],
+  "locatarios": [],
+  "imoveis": [
+    {
+      "id": 3,
+      "endereco": "Rua Martin Afonso, 1168",
+      "endereco_completo": "Rua Martin Afonso, 1168",
+      "tipo": "Apartamento",
+      "valor_aluguel": 1000.0,
+      "status": "Ativo",
+      "quartos": 0,
+      "banheiros": 0,
+      "vagas_garagem": 0,
+      "area_total": 0,
+      "id_locador": 21,
+      "locador": {
+        "nome": "Fernando"
+      }
+    },
+    {
+      "id": 5,
+      "endereco": "Imóvel #5",
+      "endereco_completo": "Imóvel #5",
+      "tipo": "Apartamento",
+      "valor_aluguel": 1500.0,
+      "status": "Disponivel",
+      "quartos": 2,
+      "banheiros": 1,
+      "vagas_garagem": 1,
+      "area_total": 0,
+      "id_locador": 21,
+      "locador": {
+        "nome": "Fernando"
+      }
+    }
+  ],
+  "contratos": [
+    {
+      "id": 1,
+      "data_inicio": "2025-02-14",
+      "data_fim": "2025-12-18",
+      "valor_aluguel": 0,
+      "id_imovel": 3,
+      "id_locatario": 3,
+      "imovel_endereco": "Rua Martin Afonso, 1168",
+      "locador": "Fernando",
+      "locatario": "Locatário #3",
+      "status": "ATIVO"
+    },
+    {
+      "id": 2,
+      "data_inicio": "2025-08-06",
+      "data_fim": "2026-08-06",
+      "valor_aluguel": 2500.0,
+      "id_imovel": 3,
+      "id_locatario": 3,
+      "imovel_endereco": "Rua Martin Afonso, 1168",
+      "locador": "Fernando",
+      "locatario": "Locatário #3",
+      "status": "ATIVO"
+    }
+  ]
+}
