@@ -38,7 +38,9 @@
       "Bash(start http://localhost:3005)",
       "Bash(start http://localhost:3005/contratos)",
       "Bash(start http://localhost:3005/contratos?refresh=1)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(npm run:*)",
+      "Bash(del \"C:\\Users\\matheus\\Documents\\Locacao\\locacao\\frontend\\src\\components\\forms\\ImovelForm.tsx\")"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

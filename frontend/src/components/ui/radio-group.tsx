@@ -29,11 +29,11 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
         <label 
           key={option.value}
           className={cn(
-            "flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all duration-300",
+            "flex items-center space-x-2 cursor-pointer px-3 py-2 rounded-md border transition-all duration-300",
             "hover:border-primary/50 hover:bg-primary/5",
             value === option.value 
               ? "border-primary bg-primary/10 text-primary" 
-              : "border-border bg-card text-foreground",
+              : "border-border bg-muted/50 text-foreground",
             disabled && "opacity-50 cursor-not-allowed"
           )}
         >
