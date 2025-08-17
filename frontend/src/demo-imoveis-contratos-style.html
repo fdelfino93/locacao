@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo Imóveis - Estilo Contratos</title>
+    <style>
+        /* Reset CSS */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, hsl(var(--background)), hsl(var(--muted)));
+            min-height: 100vh;
+            --background: 0 0% 100%;
+            --foreground: 0 0% 10%;
+            --muted: 0 0% 96%;
+            --card: 0 0% 100%;
+            --border: 0 0% 90%;
+            --primary: 217 91% 60%;
+        }
+
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: 3rem 1rem;
+        }
+
+        /* Header Principal */
+        .header {
+            background: linear-gradient(135deg, hsl(var(--primary)), hsl(259 94% 51%));
+            color: white;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        /* Sistema de Abas */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid hsl(var(--border));
+            padding-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: #6b7280;
+            font-weight: 600;
+            border-radius: 0.5rem 0.5rem 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab:hover {
+            color: hsl(var(--foreground));
+            background: hsl(var(--muted));
+        }
+
+        .tab.active {
+            color: hsl(var(--primary));
+            background: hsl(var(--card));
+            border-bottom: 2px solid hsl(var(--primary));
+        }
+
+        /* Cards das Seções */
+        .section-card {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Headers das Seções com Gradientes */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .icon-container {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .icon-container:hover {
+            transform: scale(1.05) rotate(5deg);
+        }
+
+        /* Gradientes Específicos por Seção */
+        .responsaveis .icon-container {
+            background: linear-gradient(to right, rgb(34, 197, 94), rgb(16, 185, 129)); /* green-500 to emerald-500 */
+        }
+
+        .endereco .icon-container {
+            background: linear-gradient(to right, rgb(59, 130, 246), rgb(99, 102, 241)); /* blue-500 to indigo-500 */
+        }
+
+        .encargos .icon-container {
+            background: linear-gradient(to right, rgb(59, 130, 246), rgb(6, 182, 212)); /* blue-500 to cyan-500 */
+        }
+
+        .valores .icon-container {
+            background: linear-gradient(to right, rgb(34, 197, 94), rgb(16, 185, 129)); /* green-500 to emerald-500 */
+        }
+
+        .documentos .icon-container {
+            background: linear-gradient(to right, rgb(249, 115, 22), rgb(239, 68, 68)); /* orange-500 to red-500 */
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: hsl(var(--foreground));
+            margin: 0;
+        }
+
+        .section-description {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        /* Sub-seções com Fundos Coloridos */
+        .subsection {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .subsection:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .responsaveis .subsection {
+            background: linear-gradient(to right, rgb(240, 253, 244), rgb(236, 253, 245)); /* green-50 to emerald-50 */
+            border-color: rgb(187, 247, 208); /* green-200 */
+        }
+
+        .endereco .subsection {
+            background: linear-gradient(to right, rgb(239, 246, 255), rgb(238, 242, 255)); /* blue-50 to indigo-50 */
+            border-color: rgb(191, 219, 254); /* blue-200 */
+        }
+
+        .encargos .subsection {
+            background: linear-gradient(to right, rgb(255, 237, 213), rgb(254, 215, 215)); /* orange-50 to red-50 */
+            border-color: rgb(254, 215, 170); /* orange-200 */
+        }
+
+        .valores .subsection {
+            background: linear-gradient(to right, rgb(250, 245, 255), rgb(245, 243, 255)); /* purple-50 to violet-50 */
+            border-color: rgb(221, 214, 254); /* purple-200 */
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        /* Inputs */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: hsl(var(--foreground));
+        }
+
+        .input {
+            padding: 0.75rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.5rem;
+            background: hsl(var(--card));
+            color: hsl(var(--foreground));
+            transition: all 0.3s ease;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: hsl(var(--primary));
+            box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+        }
+
+        /* Botões */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(to right, rgb(34, 197, 94), rgb(16, 185, 129));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(to right, rgb(21, 128, 61), rgb(5, 150, 105));
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        /* Responsividade */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .tab {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.75rem;
+            }
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Principal -->
+        <div class="header">
+            <h1>🏠 Cadastro de Imóveis</h1>
+            <p>Módulo com paleta de cores do sistema Contratos - Aba "Valores e Encargos"</p>
+        </div>
+
+        <!-- Sistema de Abas -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('responsaveis')">👥 Responsáveis</button>
+            <button class="tab" onclick="showTab('endereco')">📍 Endereço</button>
+            <button class="tab" onclick="showTab('encargos')">💳 Encargos</button>
+            <button class="tab" onclick="showTab('valores')">💰 Valores</button>
+            <button class="tab" onclick="showTab('documentos')">📄 Documentos</button>
+        </div>
+
+        <!-- Conteúdo das Abas -->
+        
+        <!-- Aba Responsáveis -->
+        <div id="responsaveis" class="tab-content active responsaveis">
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="icon-container">👥</div>
+                    <div>
+                        <h3 class="section-title">Responsáveis do Imóvel</h3>
+                        <p class="section-description">Defina os proprietários responsáveis pelo imóvel</p>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h4 style="color: rgb(34, 197, 94); margin-bottom: 1rem; font-size: 1rem;">Proprietários</h4>
+                    <div class="grid">
+                        <div class="input-group">
+                            <label class="label">Proprietário Principal</label>
+                            <input type="text" class="input" placeholder="Nome do proprietário" value="João Silva">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">CPF/CNPJ</label>
+                            <input type="text" class="input" placeholder="000.000.000-00" value="123.456.789-00">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba Endereço -->
+        <div id="endereco" class="tab-content endereco">
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="icon-container">📍</div>
+                    <div>
+                        <h3 class="section-title">Localização e Endereço</h3>
+                        <p class="section-description">Informações de endereço e localização do imóvel</p>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h4 style="color: rgb(37, 99, 235); margin-bottom: 1rem; font-size: 1rem;">Endereço Completo</h4>
+                    <div class="grid">
+                        <div class="input-group">
+                            <label class="label">Rua/Logradouro</label>
+                            <input type="text" class="input" placeholder="Ex: Rua das Flores" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Número</label>
+                            <input type="text" class="input" placeholder="Ex: 123" value="123">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Bairro</label>
+                            <input type="text" class="input" placeholder="Ex: Centro" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Cidade</label>
+                            <input type="text" class="input" placeholder="Ex: Curitiba" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba Encargos -->
+        <div id="encargos" class="tab-content encargos">
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="icon-container">💳</div>
+                    <div>
+                        <h3 class="section-title">Encargos e Impostos</h3>
+                        <p class="section-description">Informações sobre IPTU e outros encargos</p>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h4 style="color: rgb(234, 88, 12); margin-bottom: 1rem; font-size: 1rem;">Informações do IPTU</h4>
+                    <div class="grid">
+                        <div class="input-group">
+                            <label class="label">Titular do IPTU</label>
+                            <input type="text" class="input" placeholder="Nome do titular" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Inscrição Imobiliária</label>
+                            <input type="text" class="input" placeholder="Número da inscrição" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba Valores -->
+        <div id="valores" class="tab-content valores">
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="icon-container">💰</div>
+                    <div>
+                        <h3 class="section-title">Valores e Características</h3>
+                        <p class="section-description">Valores de locação e características do imóvel</p>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h4 style="color: rgb(147, 51, 234); margin-bottom: 1rem; font-size: 1rem;">Valores Mensais</h4>
+                    <div class="grid">
+                        <div class="input-group">
+                            <label class="label">Valor do Aluguel (R$)</label>
+                            <input type="number" class="input" placeholder="Ex: 1500.00" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Valor do Condomínio (R$)</label>
+                            <input type="number" class="input" placeholder="Ex: 200.00" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Quartos</label>
+                            <input type="number" class="input" placeholder="Ex: 3" value="">
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Banheiros</label>
+                            <input type="number" class="input" placeholder="Ex: 2" value="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba Documentos -->
+        <div id="documentos" class="tab-content documentos">
+            <div class="section-card">
+                <div class="section-header">
+                    <div class="icon-container">📄</div>
+                    <div>
+                        <h3 class="section-title">Documentos do Imóvel</h3>
+                        <p class="section-description">Faça upload dos documentos referentes ao imóvel</p>
+                    </div>
+                </div>
+                
+                <div class="subsection">
+                    <h4 style="color: rgb(249, 115, 22); margin-bottom: 1rem; font-size: 1rem;">Documentos Obrigatórios</h4>
+                    <div style="display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="input-group">
+                            <label class="label">Matrícula do Imóvel</label>
+                            <button class="btn btn-primary">⬆️ Selecionar Arquivo</button>
+                        </div>
+                        <div class="input-group">
+                            <label class="label">Escritura ou Contrato de Compra</label>
+                            <button class="btn btn-primary">⬆️ Selecionar Arquivo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botões de Ação -->
+        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+            <button class="btn" style="background: #6b7280; color: white;">Limpar Formulário</button>
+            <button class="btn btn-primary">Cadastrar Imóvel</button>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Esconder todos os conteúdos
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remover active de todas as abas
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Mostrar o conteúdo selecionado
+            document.getElementById(tabName).classList.add('active');
+
+            // Ativar a aba clicada
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>

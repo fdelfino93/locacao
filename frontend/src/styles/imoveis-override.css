@@ -1,0 +1,369 @@
+/* Aplicação da paleta de cores exata do módulo Contratos no módulo Imóveis */
+/* Baseado na análise completa dos gradientes usados em ModernContratoForm.tsx */
+/* Segue a paleta de "Utilidades Públicas" conforme solicitado pelo usuário */
+
+/* ===== ESTRUTURA PRINCIPAL ===== */
+.imoveis-page {
+  /* Manter as mesmas variáveis CSS do sistema */
+}
+
+/* ===== HEADER PRINCIPAL ===== */
+.imoveis-page .text-primary-foreground {
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* ===== SEÇÕES COM GRADIENTES EXATOS DOS CONTRATOS ===== */
+
+/* Seção Responsáveis - Usa gradiente from-blue-500 to-purple-500 (Partes do Contrato) */
+.imoveis-page .bg-gradient-to-r.from-blue-500.to-purple-500 {
+  background: linear-gradient(to right, rgb(59 130 246), rgb(168 85 247)) !important; /* blue-500 to purple-500 */
+}
+
+/* Seção Endereço - Usa gradiente from-purple-500 to-indigo-500 (Datas e Reajustes) */
+.imoveis-page .bg-gradient-to-r.from-purple-500.to-indigo-500 {
+  background: linear-gradient(to right, rgb(168 85 247), rgb(99 102 241)) !important; /* purple-500 to indigo-500 */
+}
+
+/* Seção Encargos/Utilidades - Usa gradiente from-cyan-500 to-blue-500 (UTILIDADES PÚBLICAS) */
+.imoveis-page .bg-gradient-to-r.from-cyan-500.to-blue-500 {
+  background: linear-gradient(to right, rgb(6 182 212), rgb(59 130 246)) !important; /* cyan-500 to blue-500 */
+}
+
+/* Seção Valores - Usa gradiente from-green-500 to-emerald-500 (Valores Mensais) */
+.imoveis-page .bg-gradient-to-r.from-green-500.to-emerald-500 {
+  background: linear-gradient(to right, rgb(34 197 94), rgb(16 185 129)) !important; /* green-500 to emerald-500 */
+}
+
+/* Seção Documentos - Usa gradiente from-orange-500 to-amber-500 (Plano) */
+.imoveis-page .bg-gradient-to-r.from-orange-500.to-amber-500 {
+  background: linear-gradient(to right, rgb(249 115 22), rgb(245 158 11)) !important; /* orange-500 to amber-500 */
+}
+
+/* ===== SUB-SEÇÕES COLORIDAS - SEGUINDO PADRÃO DOS CONTRATOS ===== */
+
+/* Responsáveis - Fundo azul claro (blue-50 to purple-50) */
+.imoveis-page .bg-gradient-to-r.from-blue-50.to-purple-50 {
+  background: linear-gradient(to right, rgb(239 246 255), rgb(250 245 255)) !important; /* blue-50 to purple-50 */
+}
+.imoveis-page .dark\:from-blue-900\/20.dark\:to-purple-900\/20 {
+  background: linear-gradient(to right, rgb(30 58 138 / 0.2), rgb(88 28 135 / 0.2)) !important; /* blue-900/20 to purple-900/20 */
+}
+.imoveis-page .border-blue-200 {
+  border-color: rgb(191 219 254) !important; /* blue-200 */
+}
+.imoveis-page .dark\:border-blue-800 {
+  border-color: rgb(30 64 175) !important; /* blue-800 */
+}
+
+/* Endereço - Fundo roxo claro (purple-50 to indigo-50) */
+.imoveis-page .bg-gradient-to-r.from-purple-50.to-indigo-50 {
+  background: linear-gradient(to right, rgb(250 245 255), rgb(238 242 255)) !important; /* purple-50 to indigo-50 */
+}
+.imoveis-page .dark\:from-purple-900\/20.dark\:to-indigo-900\/20 {
+  background: linear-gradient(to right, rgb(88 28 135 / 0.2), rgb(67 56 202 / 0.2)) !important; /* purple-900/20 to indigo-900/20 */
+}
+.imoveis-page .border-purple-200 {
+  border-color: rgb(221 214 254) !important; /* purple-200 */
+}
+.imoveis-page .dark\:border-purple-800 {
+  border-color: rgb(107 33 168) !important; /* purple-800 */
+}
+
+/* Encargos/Utilidades - Fundo ciano claro (cyan-50 to blue-50) - UTILIDADES PÚBLICAS */
+.imoveis-page .bg-gradient-to-r.from-cyan-50.to-blue-50 {
+  background: linear-gradient(to right, rgb(236 254 255), rgb(239 246 255)) !important; /* cyan-50 to blue-50 */
+}
+.imoveis-page .dark\:from-cyan-900\/20.dark\:to-blue-900\/20 {
+  background: linear-gradient(to right, rgb(22 78 99 / 0.2), rgb(30 58 138 / 0.2)) !important; /* cyan-900/20 to blue-900/20 */
+}
+.imoveis-page .border-cyan-200 {
+  border-color: rgb(165 243 252) !important; /* cyan-200 */
+}
+.imoveis-page .dark\:border-cyan-800 {
+  border-color: rgb(21 94 117) !important; /* cyan-800 */
+}
+
+/* Valores - Fundo verde claro (green-50 to emerald-50) */
+.imoveis-page .bg-gradient-to-r.from-green-50.to-emerald-50 {
+  background: linear-gradient(to right, rgb(240 253 244), rgb(236 253 245)) !important; /* green-50 to emerald-50 */
+}
+.imoveis-page .dark\:from-green-900\/20.dark\:to-emerald-900\/20 {
+  background: linear-gradient(to right, rgb(20 83 45 / 0.2), rgb(6 78 59 / 0.2)) !important; /* green-900/20 to emerald-900/20 */
+}
+.imoveis-page .border-green-200 {
+  border-color: rgb(187 247 208) !important; /* green-200 */
+}
+.imoveis-page .dark\:border-green-800 {
+  border-color: rgb(22 101 52) !important; /* green-800 */
+}
+
+/* Documentos - Fundo laranja claro (orange-50 to amber-50) */
+.imoveis-page .bg-gradient-to-r.from-orange-50.to-amber-50 {
+  background: linear-gradient(to right, rgb(255 247 237), rgb(254 243 199)) !important; /* orange-50 to amber-50 */
+}
+.imoveis-page .dark\:from-orange-900\/20.dark\:to-amber-900\/20 {
+  background: linear-gradient(to right, rgb(154 52 18 / 0.2), rgb(146 64 14 / 0.2)) !important; /* orange-900/20 to amber-900/20 */
+}
+.imoveis-page .border-orange-200 {
+  border-color: rgb(254 215 170) !important; /* orange-200 */
+}
+.imoveis-page .dark\:border-orange-800 {
+  border-color: rgb(154 52 18) !important; /* orange-800 */
+}
+
+/* ===== ÍCONES COLORIDOS POR SEÇÃO - SEGUINDO PADRÃO DOS CONTRATOS ===== */
+
+/* Responsáveis - Azul (blue-600) */
+.imoveis-page .text-blue-600 {
+  color: rgb(37 99 235) !important; /* blue-600 */
+}
+
+/* Endereço - Roxo (purple-600) */
+.imoveis-page .text-purple-600 {
+  color: rgb(147 51 234) !important; /* purple-600 */
+}
+
+/* Encargos/Utilidades - Ciano (cyan-600) - UTILIDADES PÚBLICAS */
+.imoveis-page .text-cyan-600 {
+  color: rgb(8 145 178) !important; /* cyan-600 */
+}
+
+/* Valores - Verde (green-600) */
+.imoveis-page .text-green-600 {
+  color: rgb(22 163 74) !important; /* green-600 */
+}
+
+/* Documentos - Laranja (orange-600) */
+.imoveis-page .text-orange-600 {
+  color: rgb(234 88 12) !important; /* orange-600 */
+}
+
+/* ===== ELEMENTOS ESPECIAIS E CORREÇÕES DE TEMA ESCURO ===== */
+
+/* Indicadores de status especiais */
+.imoveis-page .border-green-200.bg-gradient-to-r.from-green-50.to-emerald-50 {
+  background: linear-gradient(to right, rgb(240 253 244), rgb(236 253 245)) !important;
+  border-color: rgb(187 247 208) !important;
+}
+
+.imoveis-page .border-yellow-200.bg-gradient-to-r.from-yellow-50.to-amber-50 {
+  background: linear-gradient(to right, rgb(254 249 195), rgb(254 243 199)) !important;
+  border-color: rgb(254 240 138) !important;
+}
+
+.imoveis-page .border-red-200.bg-gradient-to-r.from-red-50.to-rose-50 {
+  background: linear-gradient(to right, rgb(254 242 242), rgb(255 241 242)) !important;
+  border-color: rgb(254 202 202) !important;
+}
+
+/* ===== CORREÇÕES ESPECÍFICAS PARA TEMA ESCURO ===== */
+/* Corrige o problema de seções em branco no tema escuro */
+
+/* Garantir que cards não fiquem invisíveis no tema escuro */
+.dark .imoveis-page .card-interactive {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* Cards seguem sempre o tema, nunca cores fixas */
+.imoveis-page .card-interactive {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* Card glass também segue o tema */
+.imoveis-page .card-glass {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground)) !important;
+}
+
+/* Headers de seção no tema escuro */
+.dark .imoveis-page .text-foreground {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Muted text no tema escuro */
+.dark .imoveis-page .text-muted-foreground {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Backgrounds de input no tema escuro */
+.dark .imoveis-page input,
+.dark .imoveis-page select,
+.dark .imoveis-page textarea {
+  background-color: hsl(var(--background)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Labels no tema escuro */
+.dark .imoveis-page label {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Garantir visibilidade dos tabs content no tema escuro */
+.dark .imoveis-page [data-state="active"] {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ===== OVERRIDE DE ÍCONES COLORIDOS PARA SEGUIR TEMA ===== */
+
+/* Ícones dentro de sub-seções seguem tema mas mantêm tonalidade */
+.imoveis-page .text-cyan-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-cyan-900 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-cyan-100 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-blue-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-green-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-orange-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-emerald-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-purple-600 {
+  color: hsl(var(--foreground)) !important;
+}
+
+.imoveis-page .text-gray-600 {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Corrigir possíveis problemas de visibilidade */
+.dark .imoveis-page .bg-white {
+  background-color: hsl(var(--card)) !important;
+}
+
+.dark .imoveis-page .text-black {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ===== CHECKBOXES E ELEMENTOS INTERATIVOS ===== */
+
+/* Checkbox especial estilo Contratos */
+.imoveis-page .flex.items-center.space-x-3.p-4.rounded-xl.bg-blue-50 {
+  background: rgb(239 246 255) !important; /* blue-50 */
+  border-color: rgb(191 219 254) !important; /* blue-200 */
+}
+
+.imoveis-page .dark\:bg-blue-950 {
+  background: rgb(23 37 84) !important; /* blue-950 */
+}
+
+.imoveis-page .dark\:border-blue-800 {
+  border-color: rgb(30 64 175) !important; /* blue-800 */
+}
+
+/* ===== INPUTS E CAMPOS ===== */
+
+/* Manter estilo padrão do sistema mas com bordas temáticas em foco */
+.imoveis-page input:focus,
+.imoveis-page select:focus,
+.imoveis-page textarea:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
+}
+
+/* ===== BOTÕES ===== */
+
+/* Botões principais seguem tema */
+.imoveis-page .btn-primary,
+.imoveis-page button[type="submit"] {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+.imoveis-page .btn-primary:hover,
+.imoveis-page button[type="submit"]:hover {
+  background: hsl(var(--primary) / 0.9) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.3) !important;
+}
+
+/* Botões outline seguem tema */
+.imoveis-page button[variant="outline"] {
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.imoveis-page button[variant="outline"]:hover {
+  background: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* ===== ANIMAÇÕES E TRANSIÇÕES ===== */
+
+/* Manter as animações originais do sistema */
+.imoveis-page .transition-all {
+  transition: all 0.3s ease !important;
+}
+
+.imoveis-page .hover\:shadow-xl:hover {
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+}
+
+.imoveis-page .hover\:shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+/* ===== TYPOGRAPHY ===== */
+
+/* Manter hierarquia de texto do sistema */
+.imoveis-page .text-xl {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+}
+
+.imoveis-page .text-lg {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+}
+
+.imoveis-page .text-sm {
+  font-size: 0.875rem !important;
+}
+
+.imoveis-page .text-xs {
+  font-size: 0.75rem !important;
+}
+
+/* ===== GRID E LAYOUT ===== */
+
+/* Manter sistema de grid responsivo */
+.imoveis-page .grid-cols-1.md\:grid-cols-2.lg\:grid-cols-3 {
+  gap: 1.5rem !important;
+}
+
+.imoveis-page .space-y-6 > * + * {
+  margin-top: 1.5rem !important;
+}
+
+.imoveis-page .space-y-4 > * + * {
+  margin-top: 1rem !important;
+}
+
+.imoveis-page .space-y-2 > * + * {
+  margin-top: 0.5rem !important;
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../../styles/imoveis-override.css';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/button';
 import { InputWithIcon } from '../ui/input-with-icon';
@@ -8,6 +9,7 @@ import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { RadioGroup, type RadioOption } from '../ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
+import { FileUpload } from '../ui/file-upload';
 import { 
   Building2, 
   MapPin, 
@@ -383,7 +385,7 @@ export const ModernImovelFormV2: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
+    <div className="imoveis-page min-h-screen bg-gradient-to-br from-background to-muted py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="card-glass rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
@@ -430,9 +432,9 @@ export const ModernImovelFormV2: React.FC = () => {
               >
                 <div className="flex items-center space-x-2">
                   {message.type === 'success' ? (
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <CheckCircle className="w-5 h-5 text-foreground" />
                   ) : (
-                    <AlertCircle className="w-5 h-5 text-blue-600" />
+                    <AlertCircle className="w-5 h-5 text-foreground" />
                   )}
                   <span>{message.text}</span>
                 </div>
@@ -452,19 +454,60 @@ export const ModernImovelFormV2: React.FC = () => {
 
                   {/* Aba 1: Responsáveis */}
                   <TabsContent value="responsaveis" className="space-y-8">
-                    {/* Seção de Proprietários */}
+                    {/* Header da Seção */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
+                      className="text-center space-y-4"
+                    >
+                      <div className="flex items-center justify-center">
+                        <div
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-purple-500"
+                        >
+                          <Users className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Responsáveis do Imóvel
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Defina os proprietários responsáveis pelo imóvel
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    {/* Seção de Proprietários */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
                       className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
                     >
+                      <div className="flex items-center gap-3 mb-6">
+                        <motion.div 
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-purple-500"
+                          whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <Users className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Proprietários do Imóvel
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Adicione os proprietários responsáveis pelo imóvel
+                          </p>
+                        </div>
+                      </div>
+
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-600" />
-                            Proprietários do Imóvel
-                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            O primeiro proprietário será automaticamente definido como responsável principal.
+                          </p>
                           <Button 
                             onClick={() => {
                               // Simular um clique no select para adicionar
@@ -488,28 +531,22 @@ export const ModernImovelFormV2: React.FC = () => {
                           animate={{ opacity: 1, y: 0 }}
                           className={`card-glass rounded-xl p-4 border ${
                             proprietarios.length > 0 && proprietarios.some(p => p.responsabilidade_principal)
-                              ? 'border-green-200 bg-gradient-to-r from-green-50 to-emerald-50' 
+                              ? 'border-border bg-card text-card-foreground' 
                               : proprietarios.length > 0 && !proprietarios.some(p => p.responsabilidade_principal)
-                              ? 'border-yellow-200 bg-gradient-to-r from-yellow-50 to-amber-50'
-                              : 'border-red-200 bg-gradient-to-r from-red-50 to-rose-50'
+                              ? 'border-border bg-card text-card-foreground'
+                              : 'border-border bg-card text-card-foreground'
                           }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               {proprietarios.length > 0 && proprietarios.some(p => p.responsabilidade_principal) ? (
-                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                <CheckCircle className="w-5 h-5 text-foreground" />
                               ) : proprietarios.length > 0 && !proprietarios.some(p => p.responsabilidade_principal) ? (
-                                <AlertCircle className="w-5 h-5 text-yellow-600" />
+                                <AlertCircle className="w-5 h-5 text-muted-foreground" />
                               ) : (
-                                <AlertCircle className="w-5 h-5 text-red-600" />
+                                <AlertCircle className="w-5 h-5 text-muted-foreground" />
                               )}
-                              <span className={`font-medium ${
-                                proprietarios.length > 0 && proprietarios.some(p => p.responsabilidade_principal)
-                                  ? 'text-green-600' 
-                                  : proprietarios.length > 0 && !proprietarios.some(p => p.responsabilidade_principal)
-                                  ? 'text-yellow-600'
-                                  : 'text-red-600'
-                              }`}>
+                              <span className="font-medium text-foreground">
                                 {proprietarios.length === 0 
                                   ? 'É obrigatório ter pelo menos um proprietário'
                                   : !proprietarios.some(p => p.responsabilidade_principal)
@@ -520,7 +557,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <Users className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-lg font-bold text-blue-600">
+                              <span className="text-lg font-bold text-foreground">
                                 {proprietarios.length}
                               </span>
                               <span className="text-sm text-muted-foreground">
@@ -601,7 +638,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                           <h3 className="text-lg font-semibold text-foreground">
                                             Proprietário {index + 1}
                                             {proprietario.responsabilidade_principal && (
-                                              <UserCheck className="w-4 h-4 text-yellow-500 inline ml-2" title="Responsável Principal" />
+                                              <UserCheck className="w-4 h-4 text-foreground inline ml-2" title="Responsável Principal" />
                                             )}
                                           </h3>
                                           <p className="text-sm text-muted-foreground">
@@ -618,7 +655,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                           onClick={() => removerProprietario(proprietario.cliente_id)}
                                           variant="outline"
                                           size="sm"
-                                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                          className="text-muted-foreground hover:text-foreground hover:bg-muted border-border"
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -721,16 +758,40 @@ export const ModernImovelFormV2: React.FC = () => {
 
                   {/* Aba 2: Endereço */}
                   <TabsContent value="endereco" className="space-y-8">
-                    {/* Seção de Endereço */}
+                    {/* Header da Seção */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
+                      className="text-center space-y-4"
+                    >
+                      <div className="flex items-center justify-center">
+                        <div
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500"
+                        >
+                          <MapPin className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Localização e Endereço
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Informações de endereço e localização do imóvel
+                        </p>
+                      </div>
+                    </motion.div>
+
+                    {/* Seção de Endereço */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
                       className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-6">
                         <motion.div 
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-blue-500"
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500"
                           whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
                           transition={{ duration: 0.3 }}
                         >
@@ -1047,6 +1108,30 @@ export const ModernImovelFormV2: React.FC = () => {
 
                   {/* Aba 3: Encargos */}
                   <TabsContent value="encargos" className="space-y-8">
+                    {/* Header da Seção */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="text-center space-y-4"
+                    >
+                      <div className="flex items-center justify-center">
+                        <div
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500"
+                        >
+                          <Receipt className="w-6 h-6 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Encargos e Impostos
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Informações sobre IPTU e outros encargos
+                        </p>
+                      </div>
+                    </motion.div>
+
                     {/* Informações do IPTU */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -1056,7 +1141,7 @@ export const ModernImovelFormV2: React.FC = () => {
                     >
                       <div className="flex items-center gap-3 mb-6">
                         <motion.div 
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-yellow-500 to-orange-500"
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500"
                           whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
                           transition={{ duration: 0.3 }}
                         >
@@ -1275,7 +1360,7 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="copel_unidade">Copel - Unidade Consumidora</Label>
                           <InputWithIcon
@@ -1284,6 +1369,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.copel_unidade_consumidora}
                             onChange={(e) => handleFormDataChange('copel_unidade_consumidora', e.target.value)}
                             placeholder="Número da unidade consumidora"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                           />
                         </div>
 
@@ -1295,9 +1381,10 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.sanepar_matricula}
                             onChange={(e) => handleFormDataChange('sanepar_matricula', e.target.value)}
                             placeholder="Matrícula do consumidor"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                           />
                         </div>
-
+                        
                         <div className="space-y-2">
                           <Label>Possui Gás Natural/GLP</Label>
                           <RadioGroup
@@ -1326,16 +1413,16 @@ export const ModernImovelFormV2: React.FC = () => {
 
                   {/* Aba 4: Valores */}
                   <TabsContent value="valores" className="space-y-8">
-                    {/* Valores Completos */}
+                    {/* Valores e Características */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
                       className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-6">
                         <motion.div 
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500"
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500"
                           whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
                           transition={{ duration: 0.3 }}
                         >
@@ -1343,15 +1430,15 @@ export const ModernImovelFormV2: React.FC = () => {
                         </motion.div>
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">
-                            Valor de Locação
+                            Valores e Características
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Valor mensal base do aluguel (sem encargos)
+                            Valores de locação e características do imóvel
                           </p>
                         </div>
                       </div>
                     
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Valor do Aluguel */}
                         <div className="space-y-2">
                           <Label htmlFor="valor_aluguel" className="text-lg font-medium">Valor do Aluguel *</Label>
@@ -1439,26 +1526,87 @@ export const ModernImovelFormV2: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="text-center space-y-4"
                     >
-                      <div className="flex items-center justify-center gap-3">
-                        <motion.div 
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-indigo-500 to-purple-500"
-                          whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
-                          transition={{ duration: 0.3 }}
+                      <div className="flex items-center justify-center">
+                        <div
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500"
                         >
                           <FileText className="w-6 h-6 text-white" />
-                        </motion.div>
-                        <h2 className="text-xl font-semibold text-foreground">Documentos do Imóvel</h2>
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        Faça upload dos documentos referentes ao imóvel e IPTU. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
-                      </p>
+                      <div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Documentos do Imóvel
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Faça upload dos documentos referentes ao imóvel. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+                        </p>
+                      </div>
                     </motion.div>
 
-                    {/* Documentos */}
+                    {/* Documentos Obrigatórios */}
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.1 }}
+                      className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-3 mb-6">
+                        <motion.div 
+                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500"
+                          whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <FileText className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Documentos Obrigatórios
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Documentos essenciais para o cadastro do imóvel
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FileUpload
+                          label="Matrícula do Imóvel"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Matrícula:', file)}
+                          required
+                        />
+
+                        <FileUpload
+                          label="Escritura ou Contrato de Compra"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Escritura:', file)}
+                          required
+                        />
+
+                        <FileUpload
+                          label="Carnê do IPTU"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('IPTU:', file)}
+                          required
+                        />
+
+                        <FileUpload
+                          label="Certidão Negativa de Débitos"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Certidão:', file)}
+                        />
+                      </div>
+                    </motion.div>
+
+                    {/* Documentos Opcionais */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
                       className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
                     >
                       <div className="flex items-center gap-3 mb-6">
@@ -1471,141 +1619,42 @@ export const ModernImovelFormV2: React.FC = () => {
                         </motion.div>
                         <div>
                           <h3 className="text-lg font-semibold text-foreground">
-                            Documentação Oficial
+                            Documentos Opcionais
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Documentos de propriedade e registros do imóvel
+                            Documentos complementares que podem ser úteis
                           </p>
                         </div>
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Matrícula do Imóvel */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.2 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-blue-200 dark:border-blue-700">
-                            <FileText className="w-4 h-4 text-blue-600" />
-                            <Label className="font-medium text-foreground">Matrícula do Imóvel</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Documento de matrícula do registro de imóveis
-                          </p>
-                        </motion.div>
+                        <FileUpload
+                          label="Laudo de Avaliação"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Laudo:', file)}
+                        />
 
-                        {/* Escritura */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.3 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-green-200 dark:border-green-700">
-                            <FileText className="w-4 h-4 text-green-600" />
-                            <Label className="font-medium text-foreground">Escritura ou Contrato de Compra</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Documento de propriedade do imóvel
-                          </p>
-                        </motion.div>
+                        <FileUpload
+                          label="Planta do Imóvel"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Planta:', file)}
+                        />
 
-                        {/* IPTU */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.4 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-orange-200 dark:border-orange-700">
-                            <Receipt className="w-4 h-4 text-orange-600" />
-                            <Label className="font-medium text-foreground">Carnê do IPTU</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Carnê ou comprovante de IPTU atualizado
-                          </p>
-                        </motion.div>
+                        <FileUpload
+                          label="Fotos do Imóvel"
+                          accept=".jpg,.jpeg,.png"
+                          maxSize={10}
+                          onFileSelect={(file) => console.log('Fotos:', file)}
+                        />
 
-                        {/* Certidão Negativa */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.5 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-emerald-200 dark:border-emerald-700">
-                            <CheckCircle className="w-4 h-4 text-emerald-600" />
-                            <Label className="font-medium text-foreground">Certidão Negativa de Débitos</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Certidão negativa municipal e estadual
-                          </p>
-                        </motion.div>
-
-                        {/* Laudo de Avaliação */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.6 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-purple-200 dark:border-purple-700">
-                            <Building2 className="w-4 h-4 text-purple-600" />
-                            <Label className="font-medium text-foreground">Laudo de Avaliação</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Avaliação técnica do imóvel (opcional)
-                          </p>
-                        </motion.div>
-
-                        {/* Outros Documentos */}
-                        <motion.div 
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: 0.7 }}
-                          className="space-y-4 p-4 border border-border rounded-lg bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-900/20 dark:to-slate-900/20 hover:shadow-md transition-shadow duration-300"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                            <FileText className="w-4 h-4 text-gray-600" />
-                            <Label className="font-medium text-foreground">Outros Documentos</Label>
-                          </div>
-                          <input
-                            type="file"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            multiple
-                            className="w-full p-2 border border-border rounded bg-muted/50 text-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            Documentos adicionais (múltiplos arquivos)
-                          </p>
-                        </motion.div>
+                        <FileUpload
+                          label="Outros Documentos"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          maxSize={5}
+                          onFileSelect={(file) => console.log('Outros:', file)}
+                        />
                       </div>
                     </motion.div>
                   </TabsContent>
