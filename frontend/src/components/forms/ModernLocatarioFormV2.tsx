@@ -1554,15 +1554,20 @@ export const ModernLocatarioFormV2: React.FC = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="text-center"
+                    className="text-center space-y-4"
                   >
-                    <div>
-                      <h2 className="text-2xl font-bold text-foreground">
-                        Configurações de Cobrança
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure como o locatário receberá os boletos de cobrança
-                      </p>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500">
+                        <DollarSign className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          Configurações de Cobrança
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          Configure como o locatário receberá os boletos de cobrança
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
 

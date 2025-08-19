@@ -524,9 +524,6 @@ export const ModernImovelFormV2: React.FC = () => {
                           </Button>
                         </div>
 
-                        <p className="text-sm text-muted-foreground">
-                          Adicione os proprietários que são responsáveis pelo imóvel. O primeiro proprietário será automaticamente definido como responsável principal.
-                        </p>
 
                         {/* Indicador de Status */}
                         <motion.div
