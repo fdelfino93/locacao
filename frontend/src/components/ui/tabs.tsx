@@ -102,20 +102,17 @@ export const TabsContent: React.FC<TabsContentProps> = ({ value, children, class
   const { activeTab } = context;
   const isActive = activeTab === value;
   
-  // ✅ SOLUÇÃO: Ocultar em vez de desmontar para preservar estado
+  if (!isActive) {
+    return null;
+  }
+
   return (
     <motion.div
-      initial={false}
-      animate={{ 
-        opacity: isActive ? 1 : 0, 
-        y: isActive ? 0 : 10,
-        display: isActive ? 'block' : 'none'
-      }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
       className={`mt-6 ${className}`}
-      style={{ 
-        display: isActive ? 'block' : 'none' 
-      }}
     >
       {children}
     </motion.div>

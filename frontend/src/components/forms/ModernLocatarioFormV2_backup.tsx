@@ -47,9 +47,6 @@ export const ModernLocatarioFormV2: React.FC = () => {
   const [telefones, setTelefones] = useState<string[]>(['']);
   const [emails, setEmails] = useState<string[]>(['']);
   
-  // Estados para cobrança
-  const [formasEnvio, setFormasEnvio] = useState<{tipo: string, contato: string}[]>([{tipo: '', contato: ''}]);
-  
   // Estados para dados bancários e cônjuge
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
@@ -112,7 +109,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
     dados_empresa: '',
     representante: '',
     nacionalidade: 'Brasileira',
-    estado_civil: 'Solteiro',
+    estado_civil: 'Solteiro(a)',
     profissao: '',
     dados_moradores: '',
     tem_moradores: false,
@@ -196,25 +193,6 @@ export const ModernLocatarioFormV2: React.FC = () => {
       existe_conjuge: hasConjuge ? 1 : 0
     }));
   };
-
-  // Funções para gerenciar formas de envio de boleto
-  const addFormaEnvio = () => {
-    setFormasEnvio([...formasEnvio, {tipo: '', contato: ''}]);
-  };
-
-  const removeFormaEnvio = (index: number) => {
-    if (formasEnvio.length > 1) {
-      setFormasEnvio(formasEnvio.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateFormaEnvio = (index: number, field: 'tipo' | 'contato', value: string) => {
-    const newFormasEnvio = [...formasEnvio];
-    newFormasEnvio[index][field] = value;
-    setFormasEnvio(newFormasEnvio);
-    setFormData(prev => ({ ...prev, formas_envio_boleto: newFormasEnvio }));
-  };
-
 
 
   const adicionarMorador = () => {
@@ -947,129 +925,6 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             />
                           </div>
                         </div>
-
-                        {/* Endereço do Representante */}
-                        <div className="mt-6">
-                          <h4 className="text-sm font-medium text-foreground mb-3 flex items-center">
-                            <MapPin className="w-4 h-4 mr-2 text-primary" />
-                            Endereço do Representante
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="lg:col-span-2">
-                              <Label htmlFor="rua_representante" className="text-sm font-medium text-foreground">Rua/Avenida</Label>
-                              <InputWithIcon
-                                id="rua_representante"
-                                type="text"
-                                value={formData.endereco_representante?.rua || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, rua: e.target.value })}
-                                placeholder="Rua das Flores"
-                                icon={MapPin}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="numero_representante" className="text-sm font-medium text-foreground">Número</Label>
-                              <InputWithIcon
-                                id="numero_representante"
-                                type="text"
-                                value={formData.endereco_representante?.numero || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, numero: e.target.value })}
-                                placeholder="123"
-                                icon={Home}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="complemento_representante" className="text-sm font-medium text-foreground">Complemento</Label>
-                              <InputWithIcon
-                                id="complemento_representante"
-                                type="text"
-                                value={formData.endereco_representante?.complemento || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, complemento: e.target.value })}
-                                placeholder="Apto 45"
-                                icon={Building}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="bairro_representante" className="text-sm font-medium text-foreground">Bairro</Label>
-                              <InputWithIcon
-                                id="bairro_representante"
-                                type="text"
-                                value={formData.endereco_representante?.bairro || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, bairro: e.target.value })}
-                                placeholder="Centro"
-                                icon={MapPin}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="cidade_representante" className="text-sm font-medium text-foreground">Cidade</Label>
-                              <InputWithIcon
-                                id="cidade_representante"
-                                type="text"
-                                value={formData.endereco_representante?.cidade || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, cidade: e.target.value })}
-                                placeholder="Curitiba"
-                                icon={Building2}
-                              />
-                            </div>
-
-                            <div>
-                              <Label htmlFor="estado_representante" className="text-sm font-medium text-foreground">Estado</Label>
-                              <Select 
-                                value={formData.endereco_representante?.estado || ''} 
-                                onValueChange={(value) => handleInputChange('endereco_representante', { ...formData.endereco_representante, estado: value })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione o estado" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="AC">AC</SelectItem>
-                                  <SelectItem value="AL">AL</SelectItem>
-                                  <SelectItem value="AP">AP</SelectItem>
-                                  <SelectItem value="AM">AM</SelectItem>
-                                  <SelectItem value="BA">BA</SelectItem>
-                                  <SelectItem value="CE">CE</SelectItem>
-                                  <SelectItem value="DF">DF</SelectItem>
-                                  <SelectItem value="ES">ES</SelectItem>
-                                  <SelectItem value="GO">GO</SelectItem>
-                                  <SelectItem value="MA">MA</SelectItem>
-                                  <SelectItem value="MT">MT</SelectItem>
-                                  <SelectItem value="MS">MS</SelectItem>
-                                  <SelectItem value="MG">MG</SelectItem>
-                                  <SelectItem value="PA">PA</SelectItem>
-                                  <SelectItem value="PB">PB</SelectItem>
-                                  <SelectItem value="PR">PR</SelectItem>
-                                  <SelectItem value="PE">PE</SelectItem>
-                                  <SelectItem value="PI">PI</SelectItem>
-                                  <SelectItem value="RJ">RJ</SelectItem>
-                                  <SelectItem value="RN">RN</SelectItem>
-                                  <SelectItem value="RS">RS</SelectItem>
-                                  <SelectItem value="RO">RO</SelectItem>
-                                  <SelectItem value="RR">RR</SelectItem>
-                                  <SelectItem value="SC">SC</SelectItem>
-                                  <SelectItem value="SP">SP</SelectItem>
-                                  <SelectItem value="SE">SE</SelectItem>
-                                  <SelectItem value="TO">TO</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div>
-                              <Label htmlFor="cep_representante" className="text-sm font-medium text-foreground">CEP</Label>
-                              <InputWithIcon
-                                id="cep_representante"
-                                type="text"
-                                value={formData.endereco_representante?.cep || ''}
-                                onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, cep: e.target.value })}
-                                placeholder="00000-000"
-                                icon={MapPin}
-                                maxLength={9}
-                              />
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </motion.div>
                   )}
@@ -1288,33 +1143,33 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="AC">AC</SelectItem>
-                            <SelectItem value="AL">AL</SelectItem>
-                            <SelectItem value="AP">AP</SelectItem>
-                            <SelectItem value="AM">AM</SelectItem>
-                            <SelectItem value="BA">BA</SelectItem>
-                            <SelectItem value="CE">CE</SelectItem>
-                            <SelectItem value="DF">DF</SelectItem>
-                            <SelectItem value="ES">ES</SelectItem>
-                            <SelectItem value="GO">GO</SelectItem>
-                            <SelectItem value="MA">MA</SelectItem>
-                            <SelectItem value="MT">MT</SelectItem>
-                            <SelectItem value="MS">MS</SelectItem>
-                            <SelectItem value="MG">MG</SelectItem>
-                            <SelectItem value="PA">PA</SelectItem>
-                            <SelectItem value="PB">PB</SelectItem>
-                            <SelectItem value="PR">PR</SelectItem>
-                            <SelectItem value="PE">PE</SelectItem>
-                            <SelectItem value="PI">PI</SelectItem>
-                            <SelectItem value="RJ">RJ</SelectItem>
-                            <SelectItem value="RN">RN</SelectItem>
-                            <SelectItem value="RS">RS</SelectItem>
-                            <SelectItem value="RO">RO</SelectItem>
-                            <SelectItem value="RR">RR</SelectItem>
-                            <SelectItem value="SC">SC</SelectItem>
-                            <SelectItem value="SP">SP</SelectItem>
-                            <SelectItem value="SE">SE</SelectItem>
-                            <SelectItem value="TO">TO</SelectItem>
+                            <SelectItem value="AC">Acre</SelectItem>
+                            <SelectItem value="AL">Alagoas</SelectItem>
+                            <SelectItem value="AP">Amapá</SelectItem>
+                            <SelectItem value="AM">Amazonas</SelectItem>
+                            <SelectItem value="BA">Bahia</SelectItem>
+                            <SelectItem value="CE">Ceará</SelectItem>
+                            <SelectItem value="DF">Distrito Federal</SelectItem>
+                            <SelectItem value="ES">Espírito Santo</SelectItem>
+                            <SelectItem value="GO">Goiás</SelectItem>
+                            <SelectItem value="MA">Maranhão</SelectItem>
+                            <SelectItem value="MT">Mato Grosso</SelectItem>
+                            <SelectItem value="MS">Mato Grosso do Sul</SelectItem>
+                            <SelectItem value="MG">Minas Gerais</SelectItem>
+                            <SelectItem value="PA">Pará</SelectItem>
+                            <SelectItem value="PB">Paraíba</SelectItem>
+                            <SelectItem value="PR">Paraná</SelectItem>
+                            <SelectItem value="PE">Pernambuco</SelectItem>
+                            <SelectItem value="PI">Piauí</SelectItem>
+                            <SelectItem value="RJ">Rio de Janeiro</SelectItem>
+                            <SelectItem value="RN">Rio Grande do Norte</SelectItem>
+                            <SelectItem value="RS">Rio Grande do Sul</SelectItem>
+                            <SelectItem value="RO">Rondônia</SelectItem>
+                            <SelectItem value="RR">Roraima</SelectItem>
+                            <SelectItem value="SC">Santa Catarina</SelectItem>
+                            <SelectItem value="SP">São Paulo</SelectItem>
+                            <SelectItem value="SE">Sergipe</SelectItem>
+                            <SelectItem value="TO">Tocantins</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1337,25 +1192,213 @@ export const ModernLocatarioFormV2: React.FC = () => {
 
                 {/* Aba 2: Documentos */}
                 <TabsContent value="documentos" className="space-y-8">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="tem_conjuge" 
+                          checked={showConjuge}
+                          onCheckedChange={(checked) => {
+                            setShowConjuge(!!checked);
+                            handleInputChange('existe_conjuge', checked ? 1 : 0);
+                          }}
+                        />
+                        <Label htmlFor="tem_conjuge" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          Possui cônjuge/companheiro(a)
+                        </Label>
+                      </div>
+
+                      {showConjuge && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="space-y-4 border-l-4 border-pink-200 pl-4"
+                        >
+                          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Heart className="w-4 h-4 text-pink-500" />
+                            Dados do Cônjuge
+                          </h3>
+                          
+                          <div>
+                            <Label htmlFor="regime_bens">Regime de Bens *</Label>
+                            <Select 
+                              value={formData.regime_bens || ''} 
+                              onValueChange={(value) => handleInputChange('regime_bens', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o regime de bens" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {regimesBens.map(regime => (
+                                  <SelectItem key={regime} value={regime}>{regime}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="nome_conjuge">Nome do Cônjuge</Label>
+                              <InputWithIcon
+                                id="nome_conjuge"
+                                type="text"
+                                value={formData.nome_conjuge}
+                                onChange={(e) => handleInputChange('nome_conjuge', e.target.value)}
+                                placeholder="Maria Silva"
+                                icon={User}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="cpf_conjuge">CPF do Cônjuge</Label>
+                              <InputWithIcon
+                                id="cpf_conjuge"
+                                type="text"
+                                value={formData.cpf_conjuge}
+                                onChange={(e) => handleInputChange('cpf_conjuge', formatarCPFCNPJ(e.target.value))}
+                                placeholder="000.000.000-00"
+                                icon={CreditCard}
+                                maxLength={14}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label htmlFor="rg_conjuge">RG do Cônjuge</Label>
+                              <InputWithIcon
+                                id="rg_conjuge"
+                                type="text"
+                                value={formData.rg_conjuge}
+                                onChange={(e) => handleInputChange('rg_conjuge', e.target.value)}
+                                placeholder="00.000.000-0"
+                                icon={CreditCard}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="telefone_conjuge">Telefone</Label>
+                              <InputWithIcon
+                                id="telefone_conjuge"
+                                type="tel"
+                                value={formData.telefone_conjuge}
+                                onChange={(e) => handleInputChange('telefone_conjuge', e.target.value)}
+                                placeholder="(41) 99999-9999"
+                                icon={Phone}
+                              />
+                            </div>
+
+                            <div>
+                              <Label htmlFor="endereco_conjuge">Endereço</Label>
+                              <InputWithIcon
+                                id="endereco_conjuge"
+                                type="text"
+                                value={formData.endereco_conjuge}
+                                onChange={(e) => handleInputChange('endereco_conjuge', e.target.value)}
+                                placeholder="Rua, Número, Bairro"
+                                icon={Building2}
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fiador */}
+                  {showFiador && (
+                    <div className="space-y-4">
+                      <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-secondary" />
+                        Dados do Fiador
+                      </h2>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="fiador_nome">Nome do Fiador *</Label>
+                          <InputWithIcon
+                            id="fiador_nome"
+                            type="text"
+                            value={fiador.nome}
+                            onChange={(e) => setFiador(prev => ({ ...prev, nome: e.target.value }))}
+                            placeholder="João Silva"
+                            icon={User}
+                            required={showFiador}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_cpf">CPF do Fiador *</Label>
+                          <InputWithIcon
+                            id="fiador_cpf"
+                            type="text"
+                            value={fiador.cpf_cnpj}
+                            onChange={(e) => setFiador(prev => ({ ...prev, cpf_cnpj: formatarCPFCNPJ(e.target.value) }))}
+                            placeholder="000.000.000-00"
+                            icon={CreditCard}
+                            maxLength={14}
+                            required={showFiador}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="fiador_telefone">Telefone</Label>
+                          <InputWithIcon
+                            id="fiador_telefone"
+                            type="tel"
+                            value={fiador.telefone || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, telefone: e.target.value }))}
+                            placeholder="(41) 99999-9999"
+                            icon={Phone}
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_renda">Renda Mensal</Label>
+                          <InputWithIcon
+                            id="fiador_renda"
+                            type="number"
+                            value={fiador.renda_mensal?.toString() || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, renda_mensal: parseFloat(e.target.value) || 0 }))}
+                            placeholder="5000.00"
+                            icon={DollarSign}
+                            step="0.01"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="fiador_profissao">Profissão</Label>
+                          <InputWithIcon
+                            id="fiador_profissao"
+                            type="text"
+                            value={fiador.profissao || ''}
+                            onChange={(e) => setFiador(prev => ({ ...prev, profissao: e.target.value }))}
+                            placeholder="Engenheiro"
+                            icon={Briefcase}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* Aba 2: Documentos */}
+                <TabsContent value="documentos" className="space-y-8">
                   {/* Header da Seção */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="text-center space-y-4"
+                    className="text-center"
                   >
-                    <div className="flex items-center justify-center gap-3">
-                      <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500">
-                        <FileText className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          Documentos do Locatário
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          Faça upload dos documentos do locatário. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
-                        </p>
-                      </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground">
+                        Documentos do Locatário
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Faça upload dos documentos do locatário. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+                      </p>
                     </div>
                   </motion.div>
 
@@ -1547,142 +1590,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                   </motion.div>
                 </TabsContent>
 
-                {/* Aba 3: Cobrança */}
-                <TabsContent value="cobranca" className="space-y-8">
-                  {/* Header da Seção */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-center"
-                  >
-                    <div>
-                      <h2 className="text-2xl font-bold text-foreground">
-                        Configurações de Cobrança
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Configure como o locatário receberá os boletos de cobrança
-                      </p>
-                    </div>
-                  </motion.div>
-
-                  {/* Formas de Envio */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 }}
-                    className="card-glass p-6 rounded-xl border border-border shadow-sm"
-                  >
-                    <div className="mb-6">
-                      <div className="flex items-center gap-3 mb-3">
-                        <motion.div 
-                          className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg shadow-md"
-                          whileHover={{ scale: 1.05 }}
-                        >
-                          <DollarSign className="w-5 h-5 text-white" />
-                        </motion.div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground">
-                            Formas de Envio do Boleto
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Adicione as formas de envio preferidas para recebimento dos boletos
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      {formasEnvio.map((forma, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border border-border rounded-lg">
-                          <div>
-                            <Label className="text-sm font-medium text-foreground">Forma de Envio</Label>
-                            <Select 
-                              value={forma.tipo} 
-                              onValueChange={(value) => updateFormaEnvio(index, 'tipo', value)}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="imovel">Dentro do Imóvel</SelectItem>
-                                <SelectItem value="email">E-mail</SelectItem>
-                                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div>
-                            <Label className="text-sm font-medium text-foreground">
-                              {forma.tipo === 'email' ? 'E-mail' : 
-                               forma.tipo === 'whatsapp' ? 'WhatsApp' : 
-                               forma.tipo === 'imovel' ? 'Observações' : 'Contato'}
-                            </Label>
-                            {forma.tipo === 'imovel' ? (
-                              <InputWithIcon
-                                type="text"
-                                value={forma.contato}
-                                onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
-                                placeholder="Ex: Deixar na portaria"
-                                icon={Home}
-                              />
-                            ) : forma.tipo === 'email' ? (
-                              <InputWithIcon
-                                type="email"
-                                value={forma.contato}
-                                onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
-                                placeholder="email@exemplo.com"
-                                icon={Mail}
-                              />
-                            ) : forma.tipo === 'whatsapp' ? (
-                              <InputWithIcon
-                                type="tel"
-                                value={forma.contato}
-                                onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
-                                placeholder="(41) 99999-9999"
-                                icon={Phone}
-                              />
-                            ) : (
-                              <InputWithIcon
-                                type="text"
-                                value={forma.contato}
-                                onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
-                                placeholder="Informações de contato"
-                                icon={MessageSquare}
-                                disabled
-                              />
-                            )}
-                          </div>
-
-                          <div className="flex items-end">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeFormaEnvio(index)}
-                              disabled={formasEnvio.length === 1}
-                              className="px-3 hover:bg-destructive hover:text-destructive-foreground"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addFormaEnvio}
-                        className="w-full border-dashed hover:border-primary hover:text-primary"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Adicionar Forma de Envio
-                      </Button>
-                    </div>
-                  </motion.div>
-                </TabsContent>
-
-                {/* Aba 4: Observações */}
+                {/* Aba 3: Observações */}
                 <TabsContent value="observacoes" className="space-y-8">
                   {/* Header da Seção */}
                   <motion.div

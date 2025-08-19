@@ -3,6 +3,9 @@ from typing import Dict, Any
 import pyodbc
 import os
 from dotenv import load_dotenv
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from locacao.repositories.locador_repository_v2 import buscar_locador_completo, listar_locadores, inserir_locador_v2, atualizar_locador, desativar_locador
 
 load_dotenv()
 
@@ -20,62 +23,66 @@ def get_conexao():
 
 @router.get("/api/search/advanced/detalhes/locadores/{locador_id}")
 async def obter_detalhes_locador(locador_id: int) -> Dict[str, Any]:
-    """Obter detalhes completos de um locador específico"""
+    """Obter detalhes completos de um locador específico usando novo repository"""
     try:
-        conn = get_conexao()
-        cursor = conn.cursor()
+        locador = buscar_locador_completo(locador_id)
         
-        # Buscar dados completos do locador
-        cursor.execute("""
-            SELECT 
-                id, nome, cpf_cnpj, telefone, email, endereco, 
-                tipo_recebimento, conta_bancaria, rg, profissao, 
-                estado_civil, nacionalidade, data_nascimento, 
-                ativo, data_cadastro, tipo_pessoa, observacoes,
-                razao_social, nome_fantasia, inscricao_estadual
-            FROM Clientes 
-            WHERE id = ? AND tipo_cliente = 'Locador'
-        """, (locador_id,))
-        
-        row = cursor.fetchone()
-        if not row:
+        if not locador:
             raise HTTPException(status_code=404, detail="Locador não encontrado")
         
-        locador = {
-            "id": row[0],
-            "nome": row[1],
-            "cpf_cnpj": row[2],
-            "telefone": row[3],
-            "email": row[4],
-            "endereco": row[5],
-            "endereco_completo": row[5],
-            "tipo_recebimento": row[6],
-            "conta_bancaria": row[7],
-            "rg": row[8],
-            "profissao": row[9],
-            "estado_civil": row[10],
-            "nacionalidade": row[11],
-            "data_nascimento": row[12].isoformat() if row[12] else None,
-            "ativo": row[13],
-            "data_cadastro": row[14].isoformat() if row[14] else None,
-            "tipo_pessoa": row[15],
-            "observacoes": row[16],
-            "razao_social": row[17],
-            "nome_fantasia": row[18],
-            "inscricao_estadual": row[19]
-        }
-        
-        conn.close()
-        
-        return {
+        # Formatar dados para compatibilidade com frontend
+        resultado = {
             "success": True,
-            "data": {
-                "locador": locador
-            }
+            "data": locador
         }
+        
+        return resultado
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar detalhes: {str(e)}")
+
+@router.post("/api/locadores")
+async def criar_locador(dados_locador: Dict[str, Any]) -> Dict[str, Any]:
+    """Criar um novo locador usando novo repository"""
+    try:
+        resultado = inserir_locador_v2(dados_locador)
+        return resultado
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
+
+@router.get("/api/locadores")
+async def listar_locadores_api() -> Dict[str, Any]:
+    """Listar todos os locadores ativos"""
+    try:
+        locadores = listar_locadores()
+        return {
+            "success": True,
+            "data": locadores
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar locadores: {str(e)}")
+
+@router.put("/api/locadores/{locador_id}")
+async def atualizar_locador_api(locador_id: int, dados_atualizacao: Dict[str, Any]) -> Dict[str, Any]:
+    """Atualizar um locador existente"""
+    try:
+        resultado = atualizar_locador(locador_id, dados_atualizacao)
+        return resultado
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
+
+@router.delete("/api/locadores/{locador_id}")
+async def desativar_locador_api(locador_id: int) -> Dict[str, Any]:
+    """Desativar um locador"""
+    try:
+        resultado = desativar_locador(locador_id)
+        return resultado
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao desativar locador: {str(e)}")
 
 @router.get("/api/search/advanced/relacionamentos/locadores/{locador_id}")
 async def obter_relacionamentos_locador(locador_id: int) -> Dict[str, Any]:

@@ -4,8 +4,8 @@ export interface Locador {
   id?: number;
   nome: string;
   cpf_cnpj: string;
-  telefone: string;
-  email: string;
+  telefones: string[];
+  emails: string[];
   endereco?: Endereco;
   dados_bancarios?: DadosBancarios;
   tipo_pessoa: 'PF' | 'PJ';
@@ -31,5 +31,9 @@ export interface Locador {
   regime_bens?: string;
   tipo_conta?: string;
   observacoes?: string;
+  
+  // Campos legados para compatibilidade
+  telefone?: string;
+  email?: string;
 }
 

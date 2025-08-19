@@ -42,9 +42,15 @@
       "Bash(npm run:*)",
       "Bash(del \"C:\\Users\\matheus\\Documents\\Locacao\\locacao\\frontend\\src\\components\\forms\\ImovelForm.tsx\")",
       "Bash(del \"C:\\Users\\matheus\\Documents\\Locacao\\locacao\\frontend\\src\\components\\forms\\ModernImovelFormDark.tsx\")",
-      "Bash(start http://localhost:3002)"
+      "Bash(start http://localhost:3002)",
+      "Bash(del ModernLocadorFormV2.tsx)",
+      "Bash(cp:*)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "C:\\Users\\matheus\\Documents\\Locacao"
+    ]
   }
 }

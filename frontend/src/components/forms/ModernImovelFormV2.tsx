@@ -6,6 +6,7 @@ import { InputWithIcon } from '../ui/input-with-icon';
 import { Input } from '../ui/input';
 import { InputMask } from '../ui/input-mask';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { RadioGroup, type RadioOption } from '../ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
@@ -30,8 +31,12 @@ import {
   Bath,
   Sofa,
   ChefHat,
+  Building,
   Plus,
-  Trash2
+  Trash2,
+  Mail,
+  Phone,
+  CreditCard
 } from 'lucide-react';
 import type { Imovel, Endereco, InformacoesIPTU, DadosGeraisImovel } from '../../types';
 import { apiService } from '../../services/api';
@@ -461,20 +466,18 @@ export const ModernImovelFormV2: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="text-center space-y-4"
                     >
-                      <div className="flex items-center justify-center">
-                        <div
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-purple-500"
-                        >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-purple-500">
                           <Users className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          Responsáveis do Imóvel
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          Defina os proprietários responsáveis pelo imóvel
-                        </p>
+                        <div>
+                          <h2 className="text-2xl font-bold text-foreground">
+                            Responsáveis do Imóvel
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Defina os proprietários responsáveis pelo imóvel
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
 
@@ -765,20 +768,18 @@ export const ModernImovelFormV2: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="text-center space-y-4"
                     >
-                      <div className="flex items-center justify-center">
-                        <div
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500"
-                        >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500">
                           <MapPin className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          Localização e Endereço
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          Informações de endereço e localização do imóvel
-                        </p>
+                        <div>
+                          <h2 className="text-2xl font-bold text-foreground">
+                            Localização e Endereço
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Informações de endereço e localização do imóvel
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
 
@@ -807,102 +808,103 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
                     
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="rua">Rua/Logradouro *</Label>
-                            <InputWithIcon
-                              id="rua"
-                              icon={MapPin}
-                              value={endereco.rua}
-                              onChange={(e) => handleEnderecoChange('rua', e.target.value)}
-                              placeholder="Nome da rua, avenida, travessa..."
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              required
-                            />
-                          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="lg:col-span-2">
+                        <Label htmlFor="rua" className="text-sm font-medium text-foreground">Rua/Logradouro *</Label>
+                        <InputWithIcon
+                          id="rua"
+                          type="text"
+                          value={endereco.rua}
+                          onChange={(e) => handleEnderecoChange('rua', e.target.value)}
+                          placeholder="Rua das Flores"
+                          icon={MapPin}
+                          required
+                        />
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="numero">Número *</Label>
-                            <Input
-                              id="numero"
-                              value={endereco.numero}
-                              onChange={(e) => handleEnderecoChange('numero', e.target.value)}
-                              placeholder="123, S/N, KM 15..."
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              required
-                            />
-                          </div>
-                        </div>
+                      <div>
+                        <Label htmlFor="numero" className="text-sm font-medium text-foreground">Número *</Label>
+                        <InputWithIcon
+                          id="numero"
+                          type="text"
+                          value={endereco.numero}
+                          onChange={(e) => handleEnderecoChange('numero', e.target.value)}
+                          placeholder="123"
+                          icon={Home}
+                          required
+                        />
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="complemento">Complemento</Label>
-                            <Input
-                              id="complemento"
-                              value={endereco.complemento}
-                              onChange={(e) => handleEnderecoChange('complemento', e.target.value)}
-                              placeholder="Apto 101, Bloco A, Casa 2..."
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                            />
-                          </div>
+                      <div>
+                        <Label htmlFor="complemento" className="text-sm font-medium text-foreground">Complemento</Label>
+                        <InputWithIcon
+                          id="complemento"
+                          type="text"
+                          value={endereco.complemento}
+                          onChange={(e) => handleEnderecoChange('complemento', e.target.value)}
+                          placeholder="Apto 45"
+                          icon={Building}
+                        />
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="bairro">Bairro *</Label>
-                            <Input
-                              id="bairro"
-                              value={endereco.bairro}
-                              onChange={(e) => handleEnderecoChange('bairro', e.target.value)}
-                              placeholder="Nome do bairro"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              required
-                            />
-                          </div>
+                      <div>
+                        <Label htmlFor="bairro" className="text-sm font-medium text-foreground">Bairro *</Label>
+                        <InputWithIcon
+                          id="bairro"
+                          type="text"
+                          value={endereco.bairro}
+                          onChange={(e) => handleEnderecoChange('bairro', e.target.value)}
+                          placeholder="Centro"
+                          icon={MapPin}
+                          required
+                        />
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="cep">CEP *</Label>
-                            <InputMask
-                              id="cep"
-                              mask="#####-###"
-                              value={endereco.cep}
-                              onValueChange={(value) => handleEnderecoChange('cep', value)}
-                              placeholder="12345-678"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              required
-                            />
-                          </div>
-                        </div>
+                      <div>
+                        <Label htmlFor="cidade" className="text-sm font-medium text-foreground">Cidade *</Label>
+                        <InputWithIcon
+                          id="cidade"
+                          type="text"
+                          value={endereco.cidade}
+                          onChange={(e) => handleEnderecoChange('cidade', e.target.value)}
+                          placeholder="Curitiba"
+                          icon={Building2}
+                          required
+                        />
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="cidade">Cidade *</Label>
-                            <Input
-                              id="cidade"
-                              value={endereco.cidade}
-                              onChange={(e) => handleEnderecoChange('cidade', e.target.value)}
-                              placeholder="Nome da cidade"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              required
-                            />
-                          </div>
+                      <div>
+                        <Label htmlFor="estado" className="text-sm font-medium text-foreground">Estado *</Label>
+                        <Select 
+                          value={endereco.estado} 
+                          onValueChange={(value) => handleEnderecoChange('estado', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {estadosBrasil.map((estado) => (
+                              <SelectItem key={estado.value} value={estado.value}>
+                                {estado.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="estado">Estado *</Label>
-                            <Select value={endereco.estado} onValueChange={(value) => handleEnderecoChange('estado', value)}>
-                              <SelectTrigger className="bg-muted/50 border-border text-foreground">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-card border-border">
-                                {estadosBrasil.map((estado) => (
-                                  <SelectItem key={estado.value} value={estado.value} className="text-foreground hover:bg-accent">
-                                    {estado.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
+                      <div>
+                        <Label htmlFor="cep" className="text-sm font-medium text-foreground">CEP *</Label>
+                        <InputWithIcon
+                          id="cep"
+                          type="text"
+                          value={endereco.cep}
+                          onChange={(e) => handleEnderecoChange('cep', e.target.value)}
+                          placeholder="00000-000"
+                          icon={MapPin}
+                          maxLength={9}
+                          required
+                        />
+                      </div>
                     </div>
                     </motion.div>
 
@@ -931,175 +933,202 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
                         
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="tipo">Tipo do Imóvel *</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor="tipo" className="text-sm font-medium text-foreground">Tipo do Imóvel *</Label>
                             <Select onValueChange={(value) => handleFormDataChange('tipo', value)}>
-                              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Selecione o tipo" />
                               </SelectTrigger>
-                              <SelectContent className="bg-card border-border">
-                                <SelectItem value="Apartamento" className="text-foreground hover:bg-accent">Apartamento</SelectItem>
-                                <SelectItem value="Casa" className="text-foreground hover:bg-accent">Casa</SelectItem>
-                                <SelectItem value="Sala Comercial" className="text-foreground hover:bg-accent">Sala Comercial</SelectItem>
-                                <SelectItem value="Galpão" className="text-foreground hover:bg-accent">Galpão</SelectItem>
-                                <SelectItem value="Outro" className="text-foreground hover:bg-accent">Outro</SelectItem>
+                              <SelectContent>
+                                <SelectItem value="Apartamento">Apartamento</SelectItem>
+                                <SelectItem value="Casa">Casa</SelectItem>
+                                <SelectItem value="Sala Comercial">Sala Comercial</SelectItem>
+                                <SelectItem value="Galpão">Galpão</SelectItem>
+                                <SelectItem value="Outro">Outro</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="status">Status</Label>
+                          <div>
+                            <Label htmlFor="status" className="text-sm font-medium text-foreground">Status</Label>
                             <Select onValueChange={(value) => handleFormDataChange('status', value)}>
-                              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                              <SelectTrigger>
                                 <SelectValue placeholder="Selecione o status" />
                               </SelectTrigger>
-                              <SelectContent className="bg-card border-border">
-                                <SelectItem value="Disponível" className="text-foreground hover:bg-accent">Disponível</SelectItem>
-                                <SelectItem value="Ocupado" className="text-foreground hover:bg-accent">Ocupado</SelectItem>
-                                <SelectItem value="Em manutenção" className="text-foreground hover:bg-accent">Em manutenção</SelectItem>
-                                <SelectItem value="Inativo" className="text-foreground hover:bg-accent">Inativo</SelectItem>
+                              <SelectContent>
+                                <SelectItem value="Disponível">Disponível</SelectItem>
+                                <SelectItem value="Ocupado">Ocupado</SelectItem>
+                                <SelectItem value="Em manutenção">Em manutenção</SelectItem>
+                                <SelectItem value="Inativo">Inativo</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="matricula_imovel">Matrícula do Imóvel</Label>
+                          <div>
+                            <Label htmlFor="matricula_imovel" className="text-sm font-medium text-foreground">Matrícula do Imóvel</Label>
                             <InputWithIcon
                               id="matricula_imovel"
+                              type="text"
                               icon={FileText}
                               value={formData.matricula_imovel}
                               onChange={(e) => handleFormDataChange('matricula_imovel', e.target.value)}
-                              placeholder="Número da matrícula"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                              placeholder="000123456789"
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="area_total">Área Total</Label>
+                          <div>
+                            <Label htmlFor="area_total" className="text-sm font-medium text-foreground">Área Total</Label>
                             <InputWithIcon
                               id="area_total"
+                              type="text"
                               icon={Home}
                               value={formData.area_total}
                               onChange={(e) => handleFormDataChange('area_total', e.target.value)}
-                              placeholder="Ex: 80m²"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                              placeholder="80m²"
                             />
                           </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="area_privativa">Área Privativa</Label>
+                          <div>
+                            <Label htmlFor="area_privativa" className="text-sm font-medium text-foreground">Área Privativa</Label>
                             <InputWithIcon
                               id="area_privativa"
+                              type="text"
                               icon={Home}
                               value={formData.area_privativa}
                               onChange={(e) => handleFormDataChange('area_privativa', e.target.value)}
-                              placeholder="Ex: 65m²"
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                              placeholder="65m²"
                             />
                           </div>
                         </div>
 
                         <div className="space-y-6">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="quartos">Quartos</Label>
-                              <Input
+                            <div>
+                              <Label htmlFor="quartos" className="text-sm font-medium text-foreground">Quartos</Label>
+                              <InputWithIcon
                                 id="quartos"
                                 type="number"
                                 min="0"
-                                placeholder="0"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                placeholder="3"
+                                icon={Bed}
                               />
                             </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="banheiros">Banheiros</Label>
-                              <Input
+                            <div>
+                              <Label htmlFor="banheiros" className="text-sm font-medium text-foreground">Banheiros</Label>
+                              <InputWithIcon
                                 id="banheiros"
                                 type="number"
                                 min="0"
-                                placeholder="0"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                placeholder="2"
+                                icon={Bath}
                               />
                             </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="salas">Salas</Label>
-                              <Input
+                            <div>
+                              <Label htmlFor="salas" className="text-sm font-medium text-foreground">Salas</Label>
+                              <InputWithIcon
                                 id="salas"
                                 type="number"
                                 min="0"
-                                placeholder="0"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                placeholder="1"
+                                icon={Sofa}
                               />
                             </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="vagas_garagem">Vagas Garagem</Label>
-                              <Input
+                            <div>
+                              <Label htmlFor="vagas_garagem" className="text-sm font-medium text-foreground">Vagas Garagem</Label>
+                              <InputWithIcon
                                 id="vagas_garagem"
                                 type="number"
                                 min="0"
-                                placeholder="0"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                placeholder="2"
+                                icon={Car}
                               />
                             </div>
                           </div>
 
                           <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="space-y-2">
-                                <Label>Permite Animais</Label>
-                                <RadioGroup
-                                  options={simNaoOptions}
-                                  value={dadosGerais.permite_pets ? 'true' : 'false'}
-                                  onChange={(value) => handleDadosGeraisChange('permite_pets', value === 'true')}
-                                  name="permite_pets"
-                                />
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Permite Animais</Label>
+                                <Select 
+                                  value={dadosGerais.permite_pets ? 'Sim' : 'Não'} 
+                                  onValueChange={(value) => handleDadosGeraisChange('permite_pets', value === 'Sim')}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Sim">Sim</SelectItem>
+                                    <SelectItem value="Não">Não</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
 
-                              <div className="space-y-2">
-                                <Label>Mobiliado</Label>
-                                <RadioGroup
-                                  options={mobiliadoOptions}
-                                  value={dadosGerais.mobiliado}
-                                  onChange={(value) => handleDadosGeraisChange('mobiliado', value)}
-                                  name="mobiliado"
-                                />
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Mobiliado</Label>
+                                <Select 
+                                  value={dadosGerais.mobiliado} 
+                                  onValueChange={(value) => handleDadosGeraisChange('mobiliado', value)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="nao">Não</SelectItem>
+                                    <SelectItem value="sim">Sim</SelectItem>
+                                    <SelectItem value="parcial">Parcialmente</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
 
-                              <div className="space-y-2">
-                                <Label>Tem Garagem</Label>
-                                <RadioGroup
-                                  options={simNaoOptions}
-                                  value={dadosGerais.tem_garagem ? 'true' : 'false'}
-                                  onChange={(value) => handleDadosGeraisChange('tem_garagem', value === 'true')}
-                                  name="tem_garagem"
-                                />
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Tem Garagem</Label>
+                                <Select 
+                                  value={dadosGerais.tem_garagem ? 'Sim' : 'Não'} 
+                                  onValueChange={(value) => handleDadosGeraisChange('tem_garagem', value === 'Sim')}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Sim">Sim</SelectItem>
+                                    <SelectItem value="Não">Não</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                              <Label htmlFor="caracteristicas">Características Gerais</Label>
-                              <textarea
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="caracteristicas" className="text-sm font-medium text-foreground">Características Gerais</Label>
+                              <Textarea
                                 id="caracteristicas"
                                 placeholder="Ex: cozinha americana, área de serviço, sacada..."
-                                className="w-full p-3 border rounded-lg bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[80px] resize-y"
+                                rows={6}
+                                className="resize-none"
                               />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Descreva as principais características do imóvel
+                              </p>
                             </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="observacoes_gerais">Observações Gerais</Label>
-                              <textarea
+                            <div>
+                              <Label htmlFor="observacoes_gerais" className="text-sm font-medium text-foreground">Observações Gerais</Label>
+                              <Textarea
                                 id="observacoes_gerais"
                                 value={formData.dados_imovel}
                                 onChange={(e) => handleFormDataChange('dados_imovel', e.target.value)}
                                 placeholder="Informações adicionais, estado de conservação, etc..."
-                                className="w-full p-3 border rounded-lg bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[80px] resize-y"
+                                rows={6}
+                                className="resize-none"
                               />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Informações complementares sobre o imóvel
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -1115,20 +1144,18 @@ export const ModernImovelFormV2: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="text-center space-y-4"
                     >
-                      <div className="flex items-center justify-center">
-                        <div
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500"
-                        >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500">
                           <Receipt className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          Encargos e Impostos
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          Informações sobre IPTU e outros encargos
-                        </p>
+                        <div>
+                          <h2 className="text-2xl font-bold text-foreground">
+                            Encargos e Impostos
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Informações sobre IPTU e outros encargos
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
 
@@ -1157,23 +1184,24 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
                           
-                      <div className="space-y-6">
-                            <div className="space-y-2">
-                              <Label htmlFor="titular_iptu">Titular do IPTU</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="lg:col-span-3">
+                              <Label htmlFor="titular_iptu" className="text-sm font-medium text-foreground">Titular do IPTU</Label>
                               <InputWithIcon
                                 id="titular_iptu"
+                                type="text"
                                 icon={Users}
                                 value={informacoesIPTU.titular}
                                 onChange={(e) => handleIPTUChange('titular', e.target.value)}
-                                placeholder="Nome do titular do IPTU"
+                                placeholder="João Silva"
                               />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-2">
-                                <Label htmlFor="inscricao_imobiliaria">Inscrição Imobiliária</Label>
+                              <div>
+                                <Label htmlFor="inscricao_imobiliaria" className="text-sm font-medium text-foreground">Inscrição Imobiliária</Label>
                                 <InputWithIcon
                                   id="inscricao_imobiliaria"
+                                  type="text"
                                   icon={Hash}
                                   value={informacoesIPTU.inscricao_imobiliaria}
                                   onChange={(e) => handleIPTUChange('inscricao_imobiliaria', e.target.value)}
@@ -1181,27 +1209,31 @@ export const ModernImovelFormV2: React.FC = () => {
                                 />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label htmlFor="indicacao_fiscal">Indicação Fiscal</Label>
+                              <div>
+                                <Label htmlFor="indicacao_fiscal" className="text-sm font-medium text-foreground">Indicação Fiscal</Label>
                                 <InputWithIcon
                                   id="indicacao_fiscal"
+                                  type="text"
                                   icon={Hash}
                                   value={informacoesIPTU.indicacao_fiscal}
                                   onChange={(e) => handleIPTUChange('indicacao_fiscal', e.target.value)}
                                   placeholder="000987654321"
                                 />
                               </div>
-                            </div>
 
-                            <div className="space-y-2 md:col-span-2">
-                              <Label htmlFor="info_iptu">Informações sobre IPTU</Label>
-                              <textarea
+                            <div className="lg:col-span-3">
+                              <Label htmlFor="info_iptu" className="text-sm font-medium text-foreground">Informações sobre IPTU</Label>
+                              <Textarea
                                 id="info_iptu"
                                 value={formData.info_iptu}
                                 onChange={(e) => handleFormDataChange('info_iptu', e.target.value)}
                                 placeholder="Detalhes sobre pagamento do IPTU, parcelamento, etc."
-                                className="w-full p-3 border rounded-lg bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[80px] resize-y"
+                                rows={4}
+                                className="resize-none"
                               />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Informações adicionais sobre o IPTU do imóvel
+                              </p>
                             </div>
                           </div>
                     </motion.div>
@@ -1234,13 +1266,12 @@ export const ModernImovelFormV2: React.FC = () => {
                         
                       <div className="space-y-6">
                         {/* Pergunta se tem condomínio */}
-                        <div className="space-y-2">
-                          <Label>O imóvel faz parte de um condomínio?</Label>
-                          <RadioGroup
-                            options={simNaoOptions}
-                            value={temCondominio ? 'true' : 'false'}
-                            onChange={(value) => {
-                              const hasCondominio = value === 'true';
+                        <div>
+                          <Label className="text-sm font-medium text-foreground">O imóvel faz parte de um condomínio?</Label>
+                          <Select 
+                            value={temCondominio ? 'Sim' : 'Não'} 
+                            onValueChange={(value) => {
+                              const hasCondominio = value === 'Sim';
                               setTemCondominio(hasCondominio);
                               if (!hasCondominio) {
                                 handleFormDataChange('condominio', 0);
@@ -1248,8 +1279,15 @@ export const ModernImovelFormV2: React.FC = () => {
                                 handleFormDataChange('boleto_condominio', false);
                               }
                             }}
-                            name="tem_condominio"
-                          />
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sim">Sim</SelectItem>
+                              <SelectItem value="Não">Não</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         {/* Campos condicionais se tem condomínio */}
@@ -1259,63 +1297,71 @@ export const ModernImovelFormV2: React.FC = () => {
                             animate={{ opacity: 1, height: 'auto' }}
                             className="space-y-6 p-4 bg-muted/20 rounded-lg border border-muted-foreground/20"
                           >
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <div className="space-y-2">
-                                <Label htmlFor="nome_condominio">Nome do Condomínio</Label>
-                                <Input
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div className="lg:col-span-2">
+                                <Label htmlFor="nome_condominio" className="text-sm font-medium text-foreground">Nome do Condomínio</Label>
+                                <InputWithIcon
                                   id="nome_condominio"
-                                  placeholder="Nome ou razão social do condomínio"
-                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                  type="text"
+                                  placeholder="Condomínio Residencial Flores"
+                                  icon={Building}
                                 />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label htmlFor="sindico">Síndico</Label>
-                                <Input
+                              <div>
+                                <Label htmlFor="sindico" className="text-sm font-medium text-foreground">Síndico</Label>
+                                <InputWithIcon
                                   id="sindico"
-                                  placeholder="Nome do síndico"
-                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                  type="text"
+                                  placeholder="João Silva"
+                                  icon={Users}
                                 />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label htmlFor="cnpj_condominio">CNPJ do Condomínio</Label>
-                                <Input
+                              <div>
+                                <Label htmlFor="cnpj_condominio" className="text-sm font-medium text-foreground">CNPJ do Condomínio</Label>
+                                <InputWithIcon
                                   id="cnpj_condominio"
+                                  type="text"
                                   placeholder="00.000.000/0000-00"
-                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                  icon={CreditCard}
                                 />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label htmlFor="email_condominio">Email</Label>
-                                <Input
+                              <div>
+                                <Label htmlFor="email_condominio" className="text-sm font-medium text-foreground">Email</Label>
+                                <InputWithIcon
                                   id="email_condominio"
                                   type="email"
                                   placeholder="contato@condominio.com.br"
-                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                  icon={Mail}
                                 />
                               </div>
 
-                              <div className="space-y-2">
-                                <Label htmlFor="telefone_condominio">Telefone</Label>
-                                <Input
+                              <div>
+                                <Label htmlFor="telefone_condominio" className="text-sm font-medium text-foreground">Telefone</Label>
+                                <InputWithIcon
                                   id="telefone_condominio"
-                                  placeholder="(00) 0000-0000"
-                                  className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                                  type="tel"
+                                  placeholder="(41) 99999-9999"
+                                  icon={Phone}
                                 />
                               </div>
                             </div>
 
-                            <div className="space-y-2">
-                              <Label htmlFor="observacoes_condominio">Observações do Condomínio</Label>
-                              <textarea
+                            <div>
+                              <Label htmlFor="observacoes_condominio" className="text-sm font-medium text-foreground">Observações do Condomínio</Label>
+                              <Textarea
                                 id="observacoes_condominio"
                                 value={formData.observacoes_condominio}
                                 onChange={(e) => handleFormDataChange('observacoes_condominio', e.target.value)}
                                 placeholder="Regras do condomínio, horários, observações..."
-                                className="w-full p-3 border rounded-lg bg-muted/50 border-border text-foreground placeholder:text-muted-foreground min-h-[80px] resize-y"
+                                rows={4}
+                                className="resize-none"
                               />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Regras e informações específicas do condomínio
+                              </p>
                             </div>
 
                             <div className="flex items-center space-x-3 p-4 rounded-xl bg-muted/30 border border-muted-foreground/20">
@@ -1360,50 +1406,57 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="copel_unidade">Copel - Unidade Consumidora</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="copel_unidade" className="text-sm font-medium text-foreground">Copel - Unidade Consumidora</Label>
                           <InputWithIcon
                             id="copel_unidade"
+                            type="text"
                             icon={Hash}
                             value={formData.copel_unidade_consumidora}
                             onChange={(e) => handleFormDataChange('copel_unidade_consumidora', e.target.value)}
-                            placeholder="Número da unidade consumidora"
-                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                            placeholder="123456789"
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="sanepar_matricula">Sanepar - Matrícula</Label>
+                        <div>
+                          <Label htmlFor="sanepar_matricula" className="text-sm font-medium text-foreground">Sanepar - Matrícula</Label>
                           <InputWithIcon
                             id="sanepar_matricula"
+                            type="text"
                             icon={Hash}
                             value={formData.sanepar_matricula}
                             onChange={(e) => handleFormDataChange('sanepar_matricula', e.target.value)}
-                            placeholder="Matrícula do consumidor"
-                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                            placeholder="987654321"
                           />
                         </div>
                         
-                        <div className="space-y-2">
-                          <Label>Possui Gás Natural/GLP</Label>
-                          <RadioGroup
-                            options={simNaoOptions}
-                            value={formData.tem_gas ? 'true' : 'false'}
-                            onChange={(value) => handleFormDataChange('tem_gas', value === 'true')}
-                            name="tem_gas"
-                          />
+                        <div>
+                          <Label className="text-sm font-medium text-foreground">Possui Gás Natural/GLP</Label>
+                          <Select 
+                            value={formData.tem_gas ? 'Sim' : 'Não'} 
+                            onValueChange={(value) => handleFormDataChange('tem_gas', value === 'Sim')}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sim">Sim</SelectItem>
+                              <SelectItem value="Não">Não</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         {formData.tem_gas && (
-                          <div className="space-y-2">
-                            <Label htmlFor="info_gas">Informações sobre Gás</Label>
-                            <Input
+                          <div className="lg:col-span-3">
+                            <Label htmlFor="info_gas" className="text-sm font-medium text-foreground">Informações sobre Gás</Label>
+                            <InputWithIcon
                               id="info_gas"
+                              type="text"
                               value={formData.info_gas}
                               onChange={(e) => handleFormDataChange('info_gas', e.target.value)}
                               placeholder="Número do medidor, tipo de gás, etc."
-                              className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
+                              icon={Flame}
                             />
                           </div>
                         )}
@@ -1438,10 +1491,9 @@ export const ModernImovelFormV2: React.FC = () => {
                         </div>
                       </div>
                     
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Valor do Aluguel */}
-                        <div className="space-y-2">
-                          <Label htmlFor="valor_aluguel" className="text-lg font-medium">Valor do Aluguel *</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <Label htmlFor="valor_aluguel" className="text-sm font-medium text-foreground">Valor do Aluguel *</Label>
                           <InputWithIcon
                             id="valor_aluguel"
                             type="number"
@@ -1450,70 +1502,56 @@ export const ModernImovelFormV2: React.FC = () => {
                             icon={DollarSign}
                             value={formData.valor_aluguel}
                             onChange={(e) => handleFormDataChange('valor_aluguel', parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
+                            placeholder="1500.00"
                             required
-                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
                           />
-                          <p className="text-sm text-muted-foreground">
-                            Valor mensal base do aluguel (sem encargos)
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Valor mensal base
                           </p>
                         </div>
 
-                        {/* Valores dos Encargos */}
-                        <div className="space-y-4">
-                          <div>
-                            <Label className="text-lg font-medium text-foreground">Valores dos Encargos</Label>
-                            <p className="text-sm text-muted-foreground">
-                              Configure os valores mensais de IPTU, condomínio e taxas
-                            </p>
-                          </div>
-                          
-                            <div className="space-y-2">
-                              <Label htmlFor="iptu">Valor do IPTU</Label>
-                              <InputWithIcon
-                                id="iptu"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                icon={DollarSign}
-                                value={formData.iptu}
-                                onChange={(e) => handleFormDataChange('iptu', parseFloat(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="condominio">Valor do Condomínio</Label>
-                              <InputWithIcon
-                                id="condominio"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                icon={DollarSign}
-                                value={formData.condominio}
-                                onChange={(e) => handleFormDataChange('condominio', parseFloat(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="taxa_incendio">Taxa de Incêndio</Label>
-                              <InputWithIcon
-                                id="taxa_incendio"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                icon={DollarSign}
-                                value={formData.taxa_incendio}
-                                onChange={(e) => handleFormDataChange('taxa_incendio', parseFloat(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
-                              />
-                            </div>
-                          </div>
+                        <div>
+                          <Label htmlFor="iptu" className="text-sm font-medium text-foreground">Valor do IPTU</Label>
+                          <InputWithIcon
+                            id="iptu"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            icon={DollarSign}
+                            value={formData.iptu}
+                            onChange={(e) => handleFormDataChange('iptu', parseFloat(e.target.value) || 0)}
+                            placeholder="200.00"
+                          />
                         </div>
+
+                        <div>
+                          <Label htmlFor="condominio" className="text-sm font-medium text-foreground">Valor do Condomínio</Label>
+                          <InputWithIcon
+                            id="condominio"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            icon={DollarSign}
+                            value={formData.condominio}
+                            onChange={(e) => handleFormDataChange('condominio', parseFloat(e.target.value) || 0)}
+                            placeholder="350.00"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="taxa_incendio" className="text-sm font-medium text-foreground">Taxa de Incêndio</Label>
+                          <InputWithIcon
+                            id="taxa_incendio"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            icon={DollarSign}
+                            value={formData.taxa_incendio}
+                            onChange={(e) => handleFormDataChange('taxa_incendio', parseFloat(e.target.value) || 0)}
+                            placeholder="15.00"
+                          />
+                        </div>
+                      </div>
                     </motion.div>
                   </TabsContent>
 
@@ -1526,20 +1564,18 @@ export const ModernImovelFormV2: React.FC = () => {
                       transition={{ duration: 0.3 }}
                       className="text-center space-y-4"
                     >
-                      <div className="flex items-center justify-center">
-                        <div
-                          className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500"
-                        >
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500">
                           <FileText className="w-6 h-6 text-white" />
                         </div>
-                      </div>
-                      <div>
-                        <h2 className="text-2xl font-bold text-foreground">
-                          Documentos do Imóvel
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                          Faça upload dos documentos referentes ao imóvel. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
-                        </p>
+                        <div>
+                          <h2 className="text-2xl font-bold text-foreground">
+                            Documentos do Imóvel
+                          </h2>
+                          <p className="text-sm text-muted-foreground">
+                            Faça upload dos documentos referentes ao imóvel. Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
+                          </p>
+                        </div>
                       </div>
                     </motion.div>
 

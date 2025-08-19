@@ -113,7 +113,6 @@ export const ModernLocatarioFormV3: React.FC = () => {
     tipo_pessoa: 'PF',
     representante_legal: representanteLegal,
     documentos_empresa: documentosEmpresa,
-    tipo_garantia: 'Nenhuma',
     tem_fiador: false,
     fiador: fiador,
     responsavel_pgto_agua: 'Locatario',
@@ -151,7 +150,6 @@ export const ModernLocatarioFormV3: React.FC = () => {
   });
 
   const estadosCivis = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
-  const tiposGarantia = ['Nenhuma', 'Fiador', 'Caução', 'Seguro Fiança', 'Título de Capitalização'];
   const regimesBens = ['Comunhão Total de Bens', 'Comunhão Parcial de Bens', 'Separação Total de Bens', 'Outros'];
   const formasEnvioBoleto = ['Dentro do Imóvel', 'E-mail', 'WhatsApp'];
 
@@ -301,12 +299,22 @@ export const ModernLocatarioFormV3: React.FC = () => {
                 
                 <Tabs defaultValue="dados-basicos" className="w-full">
                   <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="dados-basicos">Dados Básicos</TabsTrigger>
-                    <TabsTrigger value="documentos">Documentos</TabsTrigger>
-                    <TabsTrigger value="empresa" className={!isPJ ? 'opacity-50 cursor-not-allowed' : ''}>
-                      Empresa
+                    <TabsTrigger value="dados-basicos">
+                      <User className="w-4 h-4 mr-2" />
+                      Dados Básicos
                     </TabsTrigger>
-                    <TabsTrigger value="configuracoes">Configurações</TabsTrigger>
+                    <TabsTrigger value="pagamentos">
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      Pagamentos
+                    </TabsTrigger>
+                    <TabsTrigger value="documentos">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Documentos
+                    </TabsTrigger>
+                    <TabsTrigger value="observacoes">
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Observações
+                    </TabsTrigger>
                   </TabsList>
 
                   {/* Aba 1: Dados Básicos */}
@@ -335,22 +343,6 @@ export const ModernLocatarioFormV3: React.FC = () => {
                           </Select>
                         </div>
 
-                        <div>
-                          <Label>Tipo de Garantia</Label>
-                          <Select value={formData.tipo_garantia} onValueChange={(value) => {
-                            handleInputChange('tipo_garantia', value);
-                            setShowFiador(value === 'Fiador');
-                          }}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {tiposGarantia.map(tipo => (
-                                <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
                       </div>
                     </div>
 
