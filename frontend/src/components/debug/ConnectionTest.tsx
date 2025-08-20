@@ -17,7 +17,7 @@ const ConnectionTest: React.FC = () => {
           statusCode: response.status
         }
       }));
-    } catch (error) {
+    } catch (error: any) {
       setResults((prev: any) => ({
         ...prev,
         [name]: {
