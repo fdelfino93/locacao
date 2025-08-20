@@ -45,7 +45,12 @@
       "Bash(start http://localhost:3002)",
       "Bash(del ModernLocadorFormV2.tsx)",
       "Bash(cp:*)",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(grep:*)",
+      "Bash(streamlit run:*)",
+      "Bash(start http://localhost:8501)",
+      "Bash(start http://localhost:3001)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

@@ -88,6 +88,15 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
     }
   }, [imoveis, locadoresSelecionados]);
 
+  // Recarregar imóveis quando locadores selecionados mudarem
+  useEffect(() => {
+    if (locadoresSelecionados.length > 0) {
+      carregarImoveisPorLocadores();
+    } else {
+      carregarImoveis();
+    }
+  }, [locadoresSelecionados]);
+
   useEffect(() => {
     if (imovelId > 0) {
       const imovel = imoveisFiltrados.find(i => i.id === imovelId);
@@ -105,30 +114,66 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
   const carregarImoveis = async () => {
     try {
       setLoading(true);
-      // Usar o endpoint de busca que funciona e já inclui dados do locador
-      const response = await fetch('/api/search/imoveis?limit=100');
-      const data = await response.json();
+      // Usar o endpoint correto de imóveis
+      const response = await apiService.listarImoveis();
       
-      if (data.success && data.dados) {
+      if (response.success && response.data) {
         // Transformar os dados para o formato esperado
-        const imoveisFormatados = data.dados.map((imovel: any) => ({
+        const imoveisFormatados = response.data.map((imovel: any) => ({
           id: imovel.id,
           endereco: imovel.endereco,
           tipo: imovel.tipo,
           valor_aluguel: imovel.valor_aluguel,
           status: imovel.status,
-          locador_nome: imovel.locador?.nome,
-          locador_telefone: imovel.locador?.telefone,
-          // Mapear o nome do locador para o ID
-          id_cliente: imovel.locador?.nome ? locadoresMap[imovel.locador.nome] : undefined
+          // O campo correto no banco é id_locador, não id_cliente
+          id_cliente: imovel.id_locador,
+          locador_nome: '', // Será preenchido depois se necessário
+          locador_telefone: ''
         }));
         
         setImoveis(imoveisFormatados);
       } else {
-        console.error('Erro na resposta da API de busca:', data);
+        console.error('Erro na resposta da API de imóveis:', response);
       }
     } catch (error) {
       console.error('Erro ao carregar imóveis:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const carregarImoveisPorLocadores = async () => {
+    try {
+      setLoading(true);
+      // Carregar imóveis para cada locador selecionado
+      const promisesImoveis = locadoresSelecionados.map(locadorId => 
+        fetch(`/api/imoveis?locador_id=${locadorId}`).then(res => res.json())
+      );
+      
+      const respostas = await Promise.all(promisesImoveis);
+      const todosImoveis: any[] = [];
+      
+      respostas.forEach(response => {
+        if (response.success && response.data) {
+          todosImoveis.push(...response.data);
+        }
+      });
+
+      // Transformar os dados para o formato esperado
+      const imoveisFormatados = todosImoveis.map((imovel: any) => ({
+        id: imovel.id,
+        endereco: imovel.endereco,
+        tipo: imovel.tipo,
+        valor_aluguel: imovel.valor_aluguel,
+        status: imovel.status,
+        id_cliente: imovel.id_locador,
+        locador_nome: '',
+        locador_telefone: ''
+      }));
+      
+      setImoveis(imoveisFormatados);
+    } catch (error) {
+      console.error('Erro ao carregar imóveis por locadores:', error);
     } finally {
       setLoading(false);
     }

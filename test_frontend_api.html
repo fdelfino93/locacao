@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste API Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            border-color: #28a745;
+            background-color: #d4edda;
+        }
+        .error {
+            border-color: #dc3545;
+            background-color: #f8d7da;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste de Conectividade API - Cobimob</h1>
+    
+    <div class="test-container">
+        <h2>Testes de Endpoints</h2>
+        <button class="button" onclick="testEndpoint('/', 'Root API')">Testar Root (Direto)</button>
+        <button class="button" onclick="testEndpoint('/health', 'Health Check')">Testar Health</button>
+        <button class="button" onclick="testEndpoint('/api/locadores', 'Locadores (Proxy)')">Testar Locadores (Proxy)</button>
+        <button class="button" onclick="testEndpoint('http://localhost:8000/api/locadores', 'Locadores (Direto)', true)">Testar Locadores (Direto)</button>
+        <button class="button" onclick="testEndpoint('/api/locatarios', 'Locatários')">Testar Locatários</button>
+        <button class="button" onclick="testEndpoint('/api/imoveis', 'Imóveis')">Testar Imóveis</button>
+        <button class="button" onclick="clearResults()">Limpar Resultados</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        let testCount = 0;
+
+        async function testEndpoint(url, name, direct = false) {
+            testCount++;
+            const resultId = `result-${testCount}`;
+            const resultsDiv = document.getElementById('results');
+            
+            // Criar div para o resultado
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'test-container';
+            resultDiv.innerHTML = `
+                <h3>${name} - ${url}</h3>
+                <div id="${resultId}" class="result">Testando...</div>
+            `;
+            resultsDiv.appendChild(resultDiv);
+            
+            const resultElement = document.getElementById(resultId);
+            
+            try {
+                console.log(`Testando: ${name} -> ${url}`);
+                
+                const options = {};
+                if (direct) {
+                    options.mode = 'cors';
+                }
+                
+                const response = await fetch(url, options);
+                const data = await response.json();
+                
+                resultElement.className = 'result success';
+                resultElement.textContent = `✅ SUCESSO (${response.status})\n\n${JSON.stringify(data, null, 2)}`;
+                
+                console.log(`✅ ${name} OK:`, data);
+                
+            } catch (error) {
+                resultElement.className = 'result error';
+                resultElement.textContent = `❌ ERRO\n\n${error.message}\n\nStack: ${error.stack}`;
+                
+                console.error(`❌ ${name} Erro:`, error);
+            }
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            testCount = 0;
+        }
+
+        // Teste automático ao carregar
+        window.onload = () => {
+            console.log('🚀 Iniciando testes automáticos...');
+            setTimeout(() => testEndpoint('/', 'Root API (Auto)'), 500);
+            setTimeout(() => testEndpoint('/health', 'Health Check (Auto)'), 1000);
+            setTimeout(() => testEndpoint('/api/locadores', 'Locadores Proxy (Auto)'), 1500);
+        };
+    </script>
+</body>
+</html>

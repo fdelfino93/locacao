@@ -196,14 +196,9 @@ async def criar_imovel(imovel: ImovelCreate):
         raise HTTPException(status_code=500, detail=f"Erro ao cadastrar imóvel: {str(e)}")
 
 @app.get("/api/imoveis")
-async def listar_imoveis(locador_id: int = None):
+async def listar_imoveis():
     try:
         imoveis = buscar_imoveis()
-        
-        # Filtrar por locador se especificado
-        if locador_id:
-            imoveis = [imovel for imovel in imoveis if imovel.get('id_locador') == locador_id]
-        
         return {"data": imoveis, "success": True, "count": len(imoveis)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar imóveis: {str(e)}")
