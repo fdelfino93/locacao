@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hero } from './components/sections/Hero';
 import { FormNavigation } from './components/sections/FormNavigation';
@@ -8,24 +8,91 @@ import { ModernLocatarioFormV2 } from './components/forms/ModernLocatarioFormV2'
 import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContasModernaDebug } from './components/sections/PrestacaoContasModernaDebug';
+import PrestacaoContasLancamento from './components/pages/PrestacaoContasLancamento';
 import Dashboard from './components/dashboard/Dashboard';
-import EnhancedSearchModule from './components/search/EnhancedSearchModule';
 import SearchModule from './components/search/SearchModule';
 // import TestCard from './components/debug/TestCard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
-type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
 
+  // Função para determinar a página baseada na URL
+  const getPageFromURL = (): PageType => {
+    const path = window.location.pathname;
+    console.log('🌐 URL atual:', path);
+    
+    if (path === '/prestacao-contas/lancamento') {
+      return 'prestacao-contas-lancamento';
+    }
+    
+    // Mapeamento de outras rotas se necessário
+    const routeMap: {[key: string]: PageType} = {
+      '/': 'hero',
+      '/hero': 'hero',
+      '/locador': 'locador',
+      '/locatario': 'locatario',
+      '/imovel': 'imovel',
+      '/contrato': 'contrato',
+      '/prestacao-contas': 'prestacao-contas',
+      '/dashboard': 'dashboard',
+      '/busca': 'busca'
+    };
+    
+    return routeMap[path] || 'hero';
+  };
+
+  // Verificar URL na montagem e mudanças de URL
+  useEffect(() => {
+    const initialPage = getPageFromURL();
+    console.log('📄 Página inicial determinada:', initialPage);
+    setCurrentPage(initialPage);
+
+    // Listener para mudanças na URL (botão voltar/avançar do navegador)
+    const handlePopState = () => {
+      const newPage = getPageFromURL();
+      console.log('🔄 Mudança de URL detectada:', newPage);
+      setCurrentPage(newPage);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Atualizar URL quando a página muda via navegação interna
+  const handlePageChange = (page: PageType, updateURL = true) => {
+    setCurrentPage(page);
+    
+    if (updateURL) {
+      const urlMap: {[key in PageType]: string} = {
+        'hero': '/',
+        'locador': '/locador',
+        'locatario': '/locatario',
+        'imovel': '/imovel',
+        'contrato': '/contrato',
+        'prestacao-contas': '/prestacao-contas',
+        'prestacao-contas-lancamento': '/prestacao-contas/lancamento',
+        'dashboard': '/dashboard',
+        'busca': '/busca'
+      };
+      
+      const newURL = urlMap[page];
+      if (newURL && window.location.pathname !== newURL) {
+        window.history.pushState({}, '', newURL);
+        console.log('🌐 URL atualizada para:', newURL);
+      }
+    }
+  };
+
   const handleGetStarted = () => {
-    setCurrentPage('locador');
+    handlePageChange('locador');
   };
 
   const handleFormChange = (form: 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca') => {
-    setCurrentPage(form);
+    handlePageChange(form as PageType);
   };
 
   const renderCurrentContent = () => {
@@ -130,6 +197,18 @@ function App() {
             <SearchModule />
           </motion.div>
         );
+      case 'prestacao-contas-lancamento':
+        return (
+          <motion.div
+            key="prestacao-contas-lancamento"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <PrestacaoContasLancamento />
+          </motion.div>
+        );
       default:
         return null;
     }
@@ -148,7 +227,7 @@ function App() {
             <div className="flex items-center justify-between py-4">
               {/* Logo */}
               <motion.button
-                onClick={() => setCurrentPage('hero')}
+                onClick={() => handlePageChange('hero')}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 className="flex items-center space-x-3 text-foreground hover:text-primary transition-colors duration-300 group"
@@ -172,7 +251,7 @@ function App() {
               <div className="flex items-center space-x-6">
                 <div className="hidden md:flex">
                   <MiniFormNavigation 
-                    currentForm={currentPage as 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas'} 
+                    currentForm={currentPage as 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca'} 
                     onFormChange={handleFormChange} 
                   />
                 </div>

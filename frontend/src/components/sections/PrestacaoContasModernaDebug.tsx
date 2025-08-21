@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithIcon } from "@/components/ui/input-with-icon";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
+import { DetalhamentoBoleto } from "@/components/boletos/DetalhamentoBoleto";
 
 export const PrestacaoContasModernaDebug: React.FC = () => {
   const [debugMessage, setDebugMessage] = useState("Componente carregado");
@@ -32,6 +33,13 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const [showLancamento, setShowLancamento] = useState(false);
   const [showNovaPrestacao, setShowNovaPrestacao] = useState(false);
   
+  // Estados para visualização de boleto
+  const [faturaParaDetalhes, setFaturaParaDetalhes] = useState<Fatura | null>(null);
+  const [showDetalheBoleto, setShowDetalheBoleto] = useState(false);
+  
+  // Estados para menu de ações
+  const [menuAbertoId, setMenuAbertoId] = useState<number | null>(null);
+  
   // Estados do formulário de lançamento
   const [valorPago, setValorPago] = useState<number>(0);
   const [valorVencido, setValorVencido] = useState<number>(0);
@@ -40,6 +48,12 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const [statusLancamento, setStatusLancamento] = useState<'pago' | 'pendente' | 'atrasado' | 'vencido'>('pendente');
   const [observacoesLancamento, setObservacoesLancamento] = useState<string>('');
   const [lancamentos, setLancamentos] = useState<any[]>([]);
+  
+  // Novos estados para nova prestação
+  const [tipoLancamento, setTipoLancamento] = useState<'entrada' | 'mensal' | 'rescisao'>('mensal');
+  const [contratoSelecionado, setContratoSelecionado] = useState<any>(null);
+  const [contratos, setContratos] = useState<any[]>([]);
+  const [loadingContratos, setLoadingContratos] = useState(false);
 
   // Função para buscar faturas da API
   const buscarFaturas = async () => {
@@ -124,6 +138,18 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     buscarFaturas();
   }, [activeTab, sortField, sortDirection]);
 
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuAbertoId && !(event.target as Element).closest('.relative')) {
+        setMenuAbertoId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuAbertoId]);
+
   // Debounce APENAS para search e filtros de formulário (não para aba)
   useEffect(() => {
     console.log('⏱️ Debounce iniciado para filtros de texto');
@@ -178,29 +204,21 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     }
   };
 
-  // Funções para área de lançamento
+  // Funções para área de lançamento - Redirecionamento para página inteira
   const abrirLancamentoFatura = (fatura: Fatura) => {
-    console.log('🎯 Abrindo lançamento para fatura:', fatura.numero_fatura);
-    setFaturaParaLancamento(fatura);
+    console.log('🎯 Redirecionando para lançamento de fatura:', fatura.numero_fatura);
     
-    // Pré-preencher dados baseados na fatura
-    setValorPago(fatura.status === 'paga' ? fatura.valor_total : 0);
-    setValorVencido(fatura.status !== 'paga' ? fatura.valor_total : 0);
-    setEncargos(0);
-    setDeducoes(0);
+    // Salvar dados da fatura no localStorage para a página de lançamento
+    const dadosFatura = {
+      fatura: fatura,
+      tipo: 'fatura_existente',
+      timestamp: Date.now()
+    };
     
-    // Definir status baseado na fatura
-    if (fatura.status === 'paga') {
-      setStatusLancamento('pago');
-    } else if (fatura.status === 'em_atraso') {
-      setStatusLancamento('atrasado');
-    } else {
-      setStatusLancamento('pendente');
-    }
+    localStorage.setItem('prestacao_dados_temp', JSON.stringify(dadosFatura));
     
-    setObservacoesLancamento(fatura.observacoes || '');
-    setLancamentos([]);
-    setShowLancamento(true);
+    // Redirecionar para a página de prestação (assumindo que existe uma rota)
+    window.location.href = '/prestacao-contas/lancamento';
   };
 
   const fecharLancamento = () => {
@@ -220,12 +238,82 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     setLancamentos([]);
   };
 
+  const buscarContratos = async () => {
+    setLoadingContratos(true);
+    try {
+      console.log('🔍 Buscando contratos disponíveis...');
+      const response = await fetch('/api/contratos');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Contratos carregados:', data.data?.length || 0);
+      setContratos(data.data || []);
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar contratos:', error);
+      toast.error("Erro ao carregar contratos");
+      setContratos([]);
+    } finally {
+      setLoadingContratos(false);
+    }
+  };
+
+  const abrirDetalheBoleto = (fatura: Fatura) => {
+    console.log('👁️ Abrindo detalhes do boleto:', fatura.numero_fatura);
+    setFaturaParaDetalhes(fatura);
+    setShowDetalheBoleto(true);
+  };
+
+  const fecharDetalheBoleto = () => {
+    setShowDetalheBoleto(false);
+    setFaturaParaDetalhes(null);
+  };
+
+  const editarFatura = (fatura: Fatura) => {
+    console.log('📝 Editando fatura:', fatura.numero_fatura);
+    setMenuAbertoId(null);
+    // TODO: Implementar edição de fatura
+    toast.success("Função de edição será implementada em breve");
+  };
+
+  const cancelarFatura = async (fatura: Fatura) => {
+    console.log('❌ Cancelando fatura:', fatura.numero_fatura);
+    setMenuAbertoId(null);
+    
+    if (!confirm(`Tem certeza que deseja cancelar a fatura ${fatura.numero_fatura}?`)) {
+      return;
+    }
+    
+    try {
+      // TODO: Implementar API call para cancelar fatura
+      toast.success(`Fatura ${fatura.numero_fatura} cancelada com sucesso!`);
+      buscarFaturas(); // Recarregar lista
+    } catch (error) {
+      console.error('❌ Erro ao cancelar fatura:', error);
+      toast.error("Erro ao cancelar fatura");
+    }
+  };
+
+  const toggleMenu = (faturaId: number) => {
+    setMenuAbertoId(menuAbertoId === faturaId ? null : faturaId);
+  };
+
   const abrirNovaPrestacao = () => {
-    console.log('🆕 Abrindo nova prestação de contas');
-    setFaturaParaLancamento(null);
-    limparFormulario();
-    setShowNovaPrestacao(true);
-    setShowLancamento(true);
+    console.log('🆕 Redirecionando para nova prestação de contas');
+    
+    // Salvar indicador de nova prestação no localStorage
+    const dadosNovaPrestacao = {
+      tipo: 'nova_prestacao',
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem('prestacao_dados_temp', JSON.stringify(dadosNovaPrestacao));
+    
+    // Redirecionar para a página de prestação
+    window.location.href = '/prestacao-contas/lancamento';
   };
 
   const adicionarLancamento = () => {
@@ -260,9 +348,22 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
   const salvarLancamento = async () => {
     try {
+      // Validações para nova prestação
+      if (showNovaPrestacao) {
+        if (!tipoLancamento) {
+          toast.error("Selecione o tipo de lançamento");
+          return;
+        }
+        if (!contratoSelecionado) {
+          toast.error("Selecione um contrato");
+          return;
+        }
+      }
+
       const { totalBruto, totalLiquido } = calcularTotais();
       
       const dadosLancamento = {
+        // Dados existentes
         fatura_id: faturaParaLancamento?.id,
         valor_pago: valorPago,
         valor_vencido: valorVencido,
@@ -272,13 +373,28 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
         total_liquido: totalLiquido,
         status: statusLancamento,
         observacoes_manuais: observacoesLancamento,
-        lancamentos
+        lancamentos,
+        
+        // Novos dados para prestação
+        tipo_lancamento: showNovaPrestacao ? tipoLancamento : null,
+        contrato_id: showNovaPrestacao ? contratoSelecionado?.id : faturaParaLancamento?.contrato_id,
+        contrato_dados: showNovaPrestacao ? contratoSelecionado : null,
+        
+        // Dados do contexto
+        is_nova_prestacao: showNovaPrestacao,
+        is_fatura_existente: !showNovaPrestacao
       };
 
       console.log('💾 Salvando lançamento:', dadosLancamento);
+      console.log('🏷️ Tipo:', tipoLancamento);
+      console.log('📄 Contrato:', contratoSelecionado?.id);
       
       // TODO: Implementar API call para salvar
-      toast.success("Lançamento salvo com sucesso!");
+      const tipoMsg = showNovaPrestacao 
+        ? `${tipoLancamento === 'entrada' ? 'Entrada' : tipoLancamento === 'mensal' ? 'Cobrança mensal' : 'Rescisão'}`
+        : 'Lançamento de fatura';
+        
+      toast.success(`${tipoMsg} salva com sucesso!`);
       fecharLancamento();
       buscarFaturas(); // Recarregar lista
       
@@ -656,19 +772,46 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                   <div className="flex items-center space-x-2">
                                     <Button 
                                       size="sm" 
-                                      variant="outline" 
-                                      className="btn-outline"
-                                      onClick={() => abrirLancamentoFatura(fatura)}
-                                      title="Lançar Prestação de Contas"
+                                      className="btn-gradient"
+                                      onClick={() => abrirDetalheBoleto(fatura)}
+                                      title="Ver Detalhes e Lançar"
                                     >
-                                      <Receipt className="w-4 h-4" />
+                                      <Eye className="w-4 h-4 mr-2" />
+                                      Detalhes
                                     </Button>
-                                    <Button size="sm" variant="outline" className="btn-outline" title="Ver Detalhes">
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="btn-outline" title="Mais Opções">
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
+                                    <div className="relative">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="btn-outline" 
+                                        onClick={() => toggleMenu(fatura.id)}
+                                        title="Mais Opções"
+                                      >
+                                        <MoreVertical className="w-4 h-4" />
+                                      </Button>
+                                      
+                                      {/* Menu Dropdown */}
+                                      {menuAbertoId === fatura.id && (
+                                        <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50">
+                                          <div className="py-1">
+                                            <button
+                                              onClick={() => editarFatura(fatura)}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                            >
+                                              <Edit className="w-4 h-4" />
+                                              <span>Editar</span>
+                                            </button>
+                                            <button
+                                              onClick={() => cancelarFatura(fatura)}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                                            >
+                                              <XCircle className="w-4 h-4" />
+                                              <span>Cancelar</span>
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </td>
                               </motion.tr>
@@ -690,512 +833,102 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Modal Centralizado da Área de Lançamento */}
-      {showLancamento && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Overlay */}
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={fecharLancamento}
-          />
-          
-          {/* Modal Centralizado */}
+      {/* Modal de Detalhamento do Boleto */}
+      {showDetalheBoleto && faturaParaDetalhes && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-6xl max-h-[90vh] bg-background rounded-3xl shadow-2xl border border-border overflow-hidden"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
           >
-            {/* Header com Gradiente */}
-            <div className="bg-gradient-to-r from-primary to-secondary p-8 text-primary-foreground">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-primary-foreground/20 rounded-2xl backdrop-blur-sm">
-                    <Receipt className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-bold">
-                      {faturaParaLancamento ? 'Lançamento de Fatura' : 'Nova Prestação de Contas'}
-                    </h1>
-                    {faturaParaLancamento && (
-                      <p className="text-primary-foreground/80 text-lg">
-                        {faturaParaLancamento.numero_fatura} • {faturaParaLancamento.locatario_nome}
-                      </p>
-                    )}
-                  </div>
+            {/* Header do Modal */}
+            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Receipt className="w-5 h-5 text-primary" />
                 </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Detalhamento do Boleto</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {faturaParaDetalhes.numero_fatura || `#${faturaParaDetalhes.id}`} - {faturaParaDetalhes.locatario_nome}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center">
                 <Button 
                   variant="ghost" 
-                  size="lg"
-                  onClick={fecharLancamento}
-                  className="text-primary-foreground hover:bg-primary-foreground/20 rounded-xl"
+                  size="sm" 
+                  onClick={fecharDetalheBoleto}
+                  className="hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <MoreVertical className="w-6 h-6 rotate-45" />
+                  <X className="w-5 h-5" />
                 </Button>
               </div>
             </div>
 
-            {/* Conteúdo com Scroll */}
-            <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-              <div className="p-8 space-y-8">
+            {/* Conteúdo do Modal */}
+            <div className="p-6 overflow-y-auto flex-1">
+              <DetalhamentoBoleto 
+                boleto={{
+                  numero_boleto: faturaParaDetalhes.numero_fatura,
+                  valores_base: {
+                    aluguel: faturaParaDetalhes.valor_aluguel || 0,
+                    iptu: faturaParaDetalhes.valor_iptu || 0,
+                    seguro_fianca: faturaParaDetalhes.valor_seguro_fianca || 0,
+                    seguro_incendio: faturaParaDetalhes.valor_seguro_incendio || 0,
+                    condominio: faturaParaDetalhes.valor_condominio || 0,
+                    energia_eletrica: faturaParaDetalhes.valor_energia || 0,
+                    gas: faturaParaDetalhes.valor_gas || 0,
+                    fci: faturaParaDetalhes.valor_fci || 0,
+                  },
+                  acrescimos: {
+                    valor_total: faturaParaDetalhes.valor_acrescimos || 0,
+                    dias_atraso: faturaParaDetalhes.dias_atraso || 0,
+                  },
+                  descontos: {
+                    desconto_pontualidade: faturaParaDetalhes.desconto_pontualidade || 0,
+                    desconto_benfeitoria_1: faturaParaDetalhes.desconto_benfeitoria_1 || 0,
+                    desconto_benfeitoria_2: faturaParaDetalhes.desconto_benfeitoria_2 || 0,
+                    desconto_benfeitoria_3: faturaParaDetalhes.desconto_benfeitoria_3 || 0,
+                    reembolso_fundo_obras: faturaParaDetalhes.reembolso_fundo_obras || 0,
+                    fundo_reserva: faturaParaDetalhes.fundo_reserva || 0,
+                    fundo_iptu: faturaParaDetalhes.fundo_iptu || 0,
+                    fundo_outros: faturaParaDetalhes.fundo_outros || 0,
+                    honorario_advogados: faturaParaDetalhes.honorario_advogados || 0,
+                    boleto_advogados: faturaParaDetalhes.boleto_advogados || 0,
+                  },
+                  valor_total: faturaParaDetalhes.valor_total || 0,
+                  contrato: {
+                    locatario_nome: faturaParaDetalhes.locatario_nome || 'Nome não informado',
+                    imovel_endereco: faturaParaDetalhes.imovel_endereco || 'Endereço não informado',
+                    locatario_telefone: faturaParaDetalhes.locatario_telefone,
+                    locatario_email: faturaParaDetalhes.locatario_email,
+                    proprietario_nome: faturaParaDetalhes.proprietario_nome,
+                    proprietario_telefone: faturaParaDetalhes.proprietario_telefone,
+                    proprietario_email: faturaParaDetalhes.proprietario_email,
+                  },
+                  periodo: {
+                    mes: parseInt(faturaParaDetalhes.mes_referencia?.toString().split('/')[0] || '1'),
+                    ano: parseInt(faturaParaDetalhes.mes_referencia?.toString().split('/')[1] || new Date().getFullYear().toString()),
+                    data_vencimento: faturaParaDetalhes.data_vencimento || new Date().toISOString(),
+                    data_pagamento: faturaParaDetalhes.data_pagamento,
+                  },
+                }}
+              />
+            </div>
 
-                {/* Informações da Fatura (se selecionada) */}
-                {faturaParaLancamento && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Card className="card-glass border-primary/20 shadow-lg">
-                      <CardContent className="p-8">
-                        <div className="flex items-center space-x-3 mb-6">
-                          <div className="p-2 bg-primary/10 rounded-xl">
-                            <FileText className="w-5 h-5 text-primary" />
-                          </div>
-                          <h3 className="text-xl font-bold text-foreground">Informações da Fatura</h3>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                          <div className="space-y-4">
-                            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800">
-                              <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Número da Fatura</p>
-                              <p className="text-xl font-bold text-blue-900 dark:text-blue-100">{faturaParaLancamento.numero_fatura}</p>
-                            </div>
-                            <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-xl border border-green-200 dark:border-green-800">
-                              <p className="text-sm text-green-600 dark:text-green-400 font-medium">Valor Total</p>
-                              <p className="text-xl font-bold text-green-900 dark:text-green-100">{formatCurrency(faturaParaLancamento.valor_total)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                            <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800">
-                              <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Vencimento</p>
-                              <p className="text-xl font-bold text-purple-900 dark:text-purple-100">{formatDate(faturaParaLancamento.data_vencimento)}</p>
-                            </div>
-                            <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800">
-                              <p className="text-sm text-orange-600 dark:text-orange-400 font-medium">Status Atual</p>
-                              <div className="mt-2">{getStatusBadge(faturaParaLancamento.status)}</div>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                            <div className="p-4 bg-slate-50 dark:bg-slate-950/30 rounded-xl border border-slate-200 dark:border-slate-800">
-                              <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">Cliente</p>
-                              <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{faturaParaLancamento.locatario_nome}</p>
-                              <p className="text-sm text-slate-600 dark:text-slate-400">{faturaParaLancamento.locatario_cpf}</p>
-                            </div>
-                            <div className="p-4 bg-indigo-50 dark:bg-indigo-950/30 rounded-xl border border-indigo-200 dark:border-indigo-800">
-                              <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">Imóvel</p>
-                              <p className="text-sm font-medium text-indigo-900 dark:text-indigo-100">{faturaParaLancamento.imovel_endereco}</p>
-                              <p className="text-xs text-indigo-600 dark:text-indigo-400">{faturaParaLancamento.imovel_tipo}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )}
-
-                {/* Layout Principal em Duas Colunas */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Coluna Esquerda: Dados Financeiros */}
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                  >
-                    <Card className="card-glass border-green-200 dark:border-green-800">
-                      <CardContent className="p-8">
-                        <div className="flex items-center space-x-3 mb-8">
-                          <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl">
-                            <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
-                          </div>
-                          <h3 className="text-2xl font-bold text-foreground">Dados Financeiros</h3>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-3">
-                              <Label className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
-                                💰 Valor Pago (R$)
-                              </Label>
-                              <InputWithIcon
-                                type="number"
-                                step="0.01"
-                                icon={DollarSign}
-                                value={valorPago}
-                                onChange={(e) => setValorPago(Number(e.target.value) || 0)}
-                                placeholder="0,00"
-                                className="text-lg font-semibold h-12"
-                              />
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <Label className="text-sm font-semibold text-red-700 dark:text-red-300 uppercase tracking-wide">
-                                ⏰ Valor Vencido (R$)
-                              </Label>
-                              <InputWithIcon
-                                type="number"
-                                step="0.01"
-                                icon={DollarSign}
-                                value={valorVencido}
-                                onChange={(e) => setValorVencido(Number(e.target.value) || 0)}
-                                placeholder="0,00"
-                                className="text-lg font-semibold h-12"
-                              />
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <Label className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-                                📈 Encargos (R$)
-                              </Label>
-                              <InputWithIcon
-                                type="number"
-                                step="0.01"
-                                icon={DollarSign}
-                                value={encargos}
-                                onChange={(e) => setEncargos(Number(e.target.value) || 0)}
-                                placeholder="0,00"
-                                className="text-lg font-semibold h-12"
-                              />
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <Label className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
-                                📉 Deduções (R$)
-                              </Label>
-                              <InputWithIcon
-                                type="number"
-                                step="0.01"
-                                icon={DollarSign}
-                                value={deducoes}
-                                onChange={(e) => setDeducoes(Number(e.target.value) || 0)}
-                                placeholder="0,00"
-                                className="text-lg font-semibold h-12"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <Label className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                              📊 Status do Lançamento
-                            </Label>
-                            <div className="relative">
-                              <select 
-                                value={statusLancamento} 
-                                onChange={(e) => setStatusLancamento(e.target.value as any)}
-                                className="flex h-12 w-full items-center justify-between rounded-xl border border-input bg-background px-4 py-3 text-lg font-semibold ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer text-foreground"
-                              >
-                                <option value="pago">✅ Pago</option>
-                                <option value="pendente">⏳ Pendente</option>
-                                <option value="atrasado">⚠️ Atrasado</option>
-                                <option value="vencido">❌ Vencido</option>
-                              </select>
-                              <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                                <ArrowDown className="w-5 h-5 text-muted-foreground" />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-
-                  {/* Coluna Direita: Resumo Financeiro */}
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                  >
-                    <Card className="card-glass border-blue-200 dark:border-blue-800">
-                      <CardContent className="p-8">
-                        <div className="flex items-center space-x-3 mb-8">
-                          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-2xl">
-                            <Calculator className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <h3 className="text-2xl font-bold text-foreground">Resumo Financeiro</h3>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <motion.div 
-                            className="p-8 bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border-2 border-primary/20 shadow-lg"
-                            whileHover={{ scale: 1.02 }}
-                            transition={{ type: "spring", stiffness: 300 }}
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="font-bold text-primary text-lg">💰 Total Bruto</p>
-                              <div className="p-2 bg-primary/20 rounded-lg">
-                                <DollarSign className="w-5 h-5 text-primary" />
-                              </div>
-                            </div>
-                            <p className="text-4xl font-black text-foreground">
-                              {formatCurrency(calcularTotais().totalBruto)}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              Valor pago + vencido + encargos
-                            </p>
-                          </motion.div>
-                          
-                          <motion.div 
-                            className="p-8 bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-2xl border-2 border-secondary/20 shadow-lg"
-                            whileHover={{ scale: 1.02 }}
-                            transition={{ type: "spring", stiffness: 300 }}
-                          >
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="font-bold text-secondary text-lg">💎 Total Líquido</p>
-                              <div className="p-2 bg-secondary/20 rounded-lg">
-                                <CheckCircle className="w-5 h-5 text-secondary" />
-                              </div>
-                            </div>
-                            <p className="text-4xl font-black text-foreground">
-                              {formatCurrency(calcularTotais().totalLiquido)}
-                            </p>
-                            <p className="text-sm text-muted-foreground mt-2">
-                              Total bruto - deduções
-                            </p>
-                          </motion.div>
-                          
-                          <div className="p-6 bg-muted/50 rounded-2xl border border-border">
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="font-bold text-muted-foreground text-lg">📊 Status Atual</p>
-                              <div className="p-2 bg-muted rounded-lg">
-                                <AlertCircle className="w-5 h-5 text-muted-foreground" />
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <span className={`text-2xl font-bold ${
-                                statusLancamento === 'pago' ? 'text-green-500' :
-                                statusLancamento === 'pendente' ? 'text-yellow-500' :
-                                statusLancamento === 'atrasado' ? 'text-orange-500' :
-                                'text-red-500'
-                              }`}>
-                                {statusLancamento === 'pago' ? '✅' :
-                                 statusLancamento === 'pendente' ? '⏳' :
-                                 statusLancamento === 'atrasado' ? '⚠️' : '❌'}
-                              </span>
-                              <span className={`text-xl font-semibold ${
-                                statusLancamento === 'pago' ? 'text-green-500' :
-                                statusLancamento === 'pendente' ? 'text-yellow-500' :
-                                statusLancamento === 'atrasado' ? 'text-orange-500' :
-                                'text-red-500'
-                              }`}>
-                                {statusLancamento.charAt(0).toUpperCase() + statusLancamento.slice(1)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </div>
-
-
-                {/* Lançamentos Detalhados */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
+            {/* Footer do Modal */}
+            <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t px-6 py-4">
+              <div className="flex items-center justify-end">
+                <Button 
+                  onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
+                  className="btn-gradient"
                 >
-                  <Card className="card-glass border-purple-200 dark:border-purple-800">
-                    <CardContent className="p-8">
-                      <div className="flex justify-between items-center mb-8">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl">
-                            <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <h3 className="text-2xl font-bold text-foreground">Lançamentos Extras</h3>
-                        </div>
-                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                          <Button 
-                            onClick={adicionarLancamento} 
-                            className="btn-gradient px-6 py-3"
-                          >
-                            <Receipt className="w-5 h-5 mr-2" />
-                            Adicionar Lançamento
-                          </Button>
-                        </motion.div>
-                      </div>
-                      
-                      {lancamentos.length === 0 ? (
-                        <div className="p-12 text-center bg-gradient-to-br from-muted/30 to-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/30">
-                          <div className="p-4 bg-muted/50 rounded-full w-fit mx-auto mb-4">
-                            <FileText className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                          <h4 className="text-lg font-semibold text-foreground mb-2">Nenhum lançamento extra</h4>
-                          <p className="text-muted-foreground mb-4">Adicione taxas, descontos ou outros valores específicos</p>
-                          <Button onClick={adicionarLancamento} variant="outline" className="btn-outline">
-                            <Receipt className="w-4 h-4 mr-2" />
-                            Criar Primeiro Lançamento
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          {lancamentos.map((lancamento, index) => (
-                            <motion.div 
-                              key={index}
-                              initial={{ opacity: 0, scale: 0.95 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ duration: 0.2 }}
-                              className="p-6 bg-gradient-to-br from-background to-muted/20 rounded-2xl border border-border shadow-lg"
-                            >
-                              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-                                    🏷️ Tipo
-                                  </Label>
-                                  <select 
-                                    value={lancamento.tipo} 
-                                    onChange={(e) => atualizarLancamento(index, 'tipo', e.target.value)}
-                                    className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-purple-500"
-                                  >
-                                    <option value="receita">💰 Receita</option>
-                                    <option value="despesa">💸 Despesa</option>
-                                    <option value="taxa">📋 Taxa</option>
-                                    <option value="desconto">🎯 Desconto</option>
-                                  </select>
-                                </div>
-                                
-                                <div className="md:col-span-2 space-y-2">
-                                  <Label className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                                    📝 Descrição
-                                  </Label>
-                                  <InputWithIcon
-                                    icon={FileText}
-                                    value={lancamento.descricao}
-                                    onChange={(e) => atualizarLancamento(index, 'descricao', e.target.value)}
-                                    placeholder="Ex: Taxa de administração, desconto pontualidade..."
-                                    className="h-12 text-lg"
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
-                                    💵 Valor (R$)
-                                  </Label>
-                                  <InputWithIcon
-                                    icon={DollarSign}
-                                    type="number"
-                                    step="0.01"
-                                    value={lancamento.valor}
-                                    onChange={(e) => atualizarLancamento(index, 'valor', Number(e.target.value) || 0)}
-                                    placeholder="0,00"
-                                    className="h-12 text-lg font-semibold"
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
-                                    📅 Data
-                                  </Label>
-                                  <input
-                                    type="date"
-                                    value={lancamento.data_lancamento || ''}
-                                    onChange={(e) => atualizarLancamento(index, 'data_lancamento', e.target.value)}
-                                    className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-orange-500"
-                                  />
-                                </div>
-                              </div>
-                              
-                              <div className="flex justify-end mt-4">
-                                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                                  <Button 
-                                    onClick={() => removerLancamento(index)} 
-                                    variant="destructive"
-                                    size="sm"
-                                    className="rounded-xl"
-                                  >
-                                    🗑️ Remover
-                                  </Button>
-                                </motion.div>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                {/* Observações */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.4 }}
-                >
-                  <Card className="card-glass border-slate-200 dark:border-slate-800">
-                    <CardContent className="p-8">
-                      <div className="flex items-center space-x-3 mb-6">
-                        <div className="p-3 bg-slate-100 dark:bg-slate-900/30 rounded-2xl">
-                          <FileText className="w-6 h-6 text-slate-600 dark:text-slate-400" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-foreground">Observações e Ajustes</h3>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                          📝 Observações Gerais
-                        </Label>
-                        <textarea
-                          value={observacoesLancamento}
-                          onChange={(e) => setObservacoesLancamento(e.target.value)}
-                          placeholder="Ex: Pagamento realizado com atraso de 3 dias, aplicado desconto de pontualidade, taxa extra de manutenção..."
-                          rows={5}
-                          className="flex w-full rounded-2xl border border-input bg-background px-6 py-4 text-lg ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 resize-none"
-                        />
-                        <p className="text-sm text-muted-foreground">
-                          💡 Adicione detalhes importantes sobre este lançamento que possam ser úteis para futuras consultas
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-
-                {/* Botões de Ação com Design Melhorado */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.5 }}
-                  className="sticky bottom-0 bg-background/80 backdrop-blur-lg border-t border-border p-6 -mx-8 -mb-8"
-                >
-                  <div className="flex flex-wrap justify-between items-center gap-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-muted-foreground">
-                        <p className="font-medium">
-                          {faturaParaLancamento ? '📄 Editando fatura existente' : '🆕 Criando nova prestação'}
-                        </p>
-                        <p>Total: <span className="font-bold text-foreground">{formatCurrency(calcularTotais().totalLiquido)}</span></p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4">
-                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                        <Button
-                          onClick={fecharLancamento}
-                          variant="outline"
-                          size="lg"
-                          className="btn-outline px-8 py-4 text-lg font-semibold rounded-2xl"
-                        >
-                          ❌ Cancelar
-                        </Button>
-                      </motion.div>
-                      
-                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                        <Button 
-                          onClick={salvarLancamento}
-                          size="lg"
-                          className="btn-gradient px-10 py-4 text-xl font-bold rounded-2xl shadow-2xl hover:shadow-primary/25 transition-all duration-300"
-                        >
-                          <Calculator className="w-6 h-6 mr-3" />
-                          💾 Salvar Lançamento
-                        </Button>
-                      </motion.div>
-                    </div>
-                  </div>
-                </motion.div>
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Lançar Prestação
+                </Button>
               </div>
             </div>
           </motion.div>

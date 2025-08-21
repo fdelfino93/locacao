@@ -54,7 +54,13 @@
       "Bash(start http://localhost:3010)",
       "Bash(npx eslint:*)",
       "Bash(start http://localhost:3005/)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(start http://localhost:3005/prestacao-contas)",
+      "mcp__ide__getDiagnostics",
+      "Bash(start http://localhost:3005/prestacao-contas/lancamento)",
+      "Bash(pip install:*)",
+      "Bash(start http://localhost:3007/prestacao-contas/lancamento)",
+      "Bash(touch:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

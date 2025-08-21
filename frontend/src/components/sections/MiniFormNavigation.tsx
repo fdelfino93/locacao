@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Building2, User, Users, FileText, Calculator, BarChart3, Search } from 'lucide-react';
+import { Building2, User, Users, FileText, Calculator, BarChart3, Search, TrendingUp } from 'lucide-react';
 
 type FormType = 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca';
 

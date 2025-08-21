@@ -10,5 +10,6 @@ export * from './Imovel';
 export * from './PlanoLocacao';
 export * from './Contrato';
 export * from './ApiResponse';
-export * from './PrestacaoContas';
 export * from './Fatura';
+export * from './CalculoPrestacao';
+export * from './PrestacaoContas';
