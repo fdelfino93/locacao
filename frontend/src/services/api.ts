@@ -156,7 +156,9 @@ class ApiService {
 
   // Método público para requests customizados  
   public async requestPublic<T>(endpoint: string, options: RequestInit = {}): Promise<{ data: T }> {
-    const result = await this.request<T>(endpoint, options);
+    // Normalizar endpoint - adicionar / no início se não existir
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const result = await this.request<T>(normalizedEndpoint, options);
     return { data: result.data || result as any };
   }
 

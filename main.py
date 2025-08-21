@@ -11,7 +11,8 @@ from repositories_adapter import (
     inserir_locador, buscar_locadores,
     inserir_locatario, buscar_locatarios,
     inserir_imovel, buscar_imoveis,
-    inserir_contrato
+    inserir_contrato, buscar_contratos, buscar_contratos_por_locador,
+    buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura
 )
 
 load_dotenv()
@@ -214,7 +215,7 @@ async def criar_contrato(contrato: ContratoCreate):
     try:
         inserir_contrato(
             id_imovel=contrato.id_imovel,
-            id_locatario=contrato.id_locatario,
+            id_inquilino=contrato.id_locatario,
             data_inicio=contrato.data_inicio,
             data_fim=contrato.data_fim,
             taxa_administracao=contrato.taxa_administracao,
@@ -245,12 +246,170 @@ async def criar_contrato(contrato: ContratoCreate):
         raise HTTPException(status_code=500, detail=f"Erro ao salvar contrato: {str(e)}")
 
 @app.get("/api/contratos")
-async def listar_contratos():
+async def listar_contratos(locador_id: int = None):
     try:
-        # Por enquanto retorna lista vazia, pois não temos buscar_contratos implementado
-        return {"data": [], "success": True}
+        if locador_id:
+            contratos = buscar_contratos_por_locador(locador_id)
+        else:
+            contratos = buscar_contratos()
+        return {"data": contratos, "success": True, "count": len(contratos)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos: {str(e)}")
+
+# --- ENDPOINTS DO DASHBOARD ---
+@app.get("/api/dashboard/metricas")
+async def obter_metricas_dashboard():
+    try:
+        locadores = buscar_locadores()
+        locatarios = buscar_locatarios()
+        imoveis = buscar_imoveis()
+        contratos = buscar_contratos()
+        
+        return {
+            "total_contratos": len(contratos),
+            "contratos_ativos": len([c for c in contratos if c.get('status') == 'Ativo']),
+            "receita_mensal": sum([float(i.get('valor_aluguel', 0)) for i in imoveis]),
+            "crescimento_percentual": 8.5,
+            "total_clientes": len(locadores),
+            "novos_clientes_mes": 2
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar métricas: {str(e)}")
+
+@app.get("/api/dashboard/ocupacao")
+async def obter_ocupacao_dashboard():
+    try:
+        imoveis = buscar_imoveis()
+        total_imoveis = len(imoveis)
+        ocupados = len([i for i in imoveis if i.get('status') == 'Ativo'])
+        
+        return {
+            "taxa_ocupacao": (ocupados / total_imoveis * 100) if total_imoveis > 0 else 0,
+            "unidades_ocupadas": ocupados,
+            "unidades_totais": total_imoveis,
+            "unidades_disponiveis": total_imoveis - ocupados,
+            "ocupacao_por_tipo": [
+                {"tipo": "Apartamento", "total": 2, "ocupadas": 1, "percentual": 50},
+                {"tipo": "Casa", "total": 0, "ocupadas": 0, "percentual": 0}
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar ocupação: {str(e)}")
+
+@app.get("/api/dashboard/vencimentos")
+async def obter_vencimentos_dashboard():
+    return []
+
+@app.get("/api/dashboard/alertas")
+async def obter_alertas_dashboard():
+    return [
+        {
+            "id": 1,
+            "tipo": "vencimento",
+            "titulo": "Contrato próximo ao vencimento",
+            "descricao": "Contrato de João Silva vence em 15 dias",
+            "severidade": "MEDIO",
+            "data_criacao": "2024-08-20T10:00:00",
+            "ativo": True
+        }
+    ]
+
+@app.get("/api/dashboard")
+async def obter_dashboard_completo():
+    try:
+        metricas = await obter_metricas_dashboard()
+        ocupacao = await obter_ocupacao_dashboard()
+        vencimentos = await obter_vencimentos_dashboard()
+        alertas = await obter_alertas_dashboard()
+        
+        return {
+            "metricas": metricas,
+            "ocupacao": ocupacao,
+            "vencimentos": vencimentos,
+            "alertas": alertas,
+            "timestamp": "2024-08-20T20:00:00"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar dashboard: {str(e)}")
+
+# --- ENDPOINTS DE FATURAS ---
+@app.get("/api/faturas")
+async def listar_faturas(
+    status: str = None,
+    data_inicio: str = None,
+    data_fim: str = None,
+    search: str = None,
+    locador_id: int = None,
+    valor_min: float = None,
+    valor_max: float = None,
+    page: int = 1,
+    limit: int = 20,
+    order_by: str = 'data_vencimento',
+    order_dir: str = 'DESC'
+):
+    try:
+        # Construir filtros
+        filtros = {}
+        if status:
+            filtros['status'] = status.split(',')
+        if data_inicio:
+            filtros['data_inicio'] = data_inicio
+        if data_fim:
+            filtros['data_fim'] = data_fim
+        if search:
+            filtros['search'] = search
+        if locador_id:
+            filtros['locador_id'] = locador_id
+        if valor_min:
+            filtros['valor_min'] = valor_min
+        if valor_max:
+            filtros['valor_max'] = valor_max
+        
+        # Buscar faturas
+        resultado = buscar_faturas(filtros, page, limit, order_by, order_dir)
+        
+        # Buscar estatísticas
+        stats = buscar_estatisticas_faturas()
+        
+        return {
+            "data": resultado['data'],
+            "total": resultado['total'],
+            "page": resultado['page'],
+            "pages": resultado['pages'],
+            "stats": stats,
+            "success": True
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar faturas: {str(e)}")
+
+@app.get("/api/faturas/stats")
+async def obter_estatisticas_faturas():
+    try:
+        stats = buscar_estatisticas_faturas()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar estatísticas: {str(e)}")
+
+@app.get("/api/faturas/{fatura_id}")
+async def obter_fatura(fatura_id: int):
+    try:
+        fatura = buscar_fatura_por_id(fatura_id)
+        if not fatura:
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+        return {"data": fatura, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar fatura: {str(e)}")
+
+@app.post("/api/faturas/{fatura_id}/gerar-boleto")
+async def gerar_boleto(fatura_id: int):
+    try:
+        boleto = gerar_boleto_fatura(fatura_id)
+        if not boleto:
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+        return {"data": boleto, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar boleto: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

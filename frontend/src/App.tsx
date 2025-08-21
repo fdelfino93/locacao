@@ -7,7 +7,7 @@ import { ModernLocadorFormV2 } from './components/forms/ModernLocadorFormV2';
 import { ModernLocatarioFormV2 } from './components/forms/ModernLocatarioFormV2';
 import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
-import { PrestacaoContas } from './components/sections/PrestacaoContas';
+import { PrestacaoContasModernaDebug } from './components/sections/PrestacaoContasModernaDebug';
 import Dashboard from './components/dashboard/Dashboard';
 import EnhancedSearchModule from './components/search/EnhancedSearchModule';
 import SearchModule from './components/search/SearchModule';
@@ -103,7 +103,7 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <PrestacaoContas />
+            <PrestacaoContasModernaDebug />
           </motion.div>
         );
       case 'dashboard':

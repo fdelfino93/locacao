@@ -50,7 +50,11 @@
       "Bash(streamlit run:*)",
       "Bash(start http://localhost:8501)",
       "Bash(start http://localhost:3001)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(start http://localhost:3010)",
+      "Bash(npx eslint:*)",
+      "Bash(start http://localhost:3005/)",
+      "Bash(tasklist:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

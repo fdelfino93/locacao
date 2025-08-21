@@ -160,3 +160,569 @@ def validar_porcentagens_contrato(locadores):
 def buscar_todos_locadores_ativos():
     """Lista todos os locadores ativos para seleção em contratos"""
     return []
+
+def buscar_contratos():
+    """Busca todos os contratos com informações relacionadas"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                c.id,
+                c.id_imovel,
+                c.id_locatario,
+                c.data_inicio,
+                c.data_fim,
+                c.valor_aluguel,
+                c.taxa_administracao,
+                c.status,
+                i.endereco as imovel_endereco,
+                i.tipo as imovel_tipo,
+                i.id_locador,
+                l.nome as locador_nome,
+                loc.nome as locatario_nome
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locadores l ON i.id_locador = l.id
+            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            ORDER BY c.data_inicio DESC
+        """)
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultados para lista de dicionários
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"Erro ao buscar contratos: {e}")
+        return []
+
+def buscar_contratos_por_locador(locador_id):
+    """Busca contratos de um locador específico"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                c.id,
+                c.id_imovel,
+                c.id_locatario,
+                c.data_inicio,
+                c.data_fim,
+                c.valor_aluguel,
+                c.taxa_administracao,
+                i.endereco as imovel_endereco,
+                i.tipo as imovel_tipo,
+                loc.nome as locatario_nome,
+                loc.cpf_cnpj as locatario_documento
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            WHERE i.id_locador = ?
+            ORDER BY c.data_inicio DESC
+        """, (locador_id,))
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultados para lista de dicionários
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+    except Exception as e:
+        print(f"Erro ao buscar contratos por locador: {e}")
+        return []
+
+# === FUNÇÕES PARA FATURAS ===
+
+def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', order_dir='DESC'):
+    """Busca faturas com filtros, paginação e ordenação"""
+    
+    # Dados de teste expandidos para demonstrar a interface
+    faturas_teste = [
+        {
+            'id': 1,
+            'numero_fatura': 'FAT-001',
+            'valor_total': 1200.00,
+            'data_vencimento': '2024-12-05',
+            'data_pagamento': None,
+            'status': 'aberta',
+            'mes_referencia': '2024-12',
+            'observacoes': '',
+            'data_criacao': '2024-11-01',
+            'contrato_id': 1,
+            'contrato_numero': '001',
+            'imovel_endereco': 'Rua das Flores, 123 - Centro',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 1200.00,
+            'locatario_nome': 'João Silva',
+            'locatario_cpf': '123.456.789-00',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 15
+        },
+        {
+            'id': 2,
+            'numero_fatura': 'FAT-002',
+            'valor_total': 1500.00,
+            'data_vencimento': '2024-11-05',
+            'data_pagamento': '2024-11-03',
+            'status': 'paga',
+            'mes_referencia': '2024-11',
+            'observacoes': 'Pago em dia',
+            'data_criacao': '2024-10-01',
+            'contrato_id': 2,
+            'contrato_numero': '002',
+            'imovel_endereco': 'Rua Martin Afonso, 1168',
+            'imovel_tipo': 'Casa',
+            'valor_aluguel': 1500.00,
+            'locatario_nome': 'Maria Santos',
+            'locatario_cpf': '987.654.321-00',
+            'locador_nome': 'Fernanda Carol',
+            'dias_atraso': 0
+        },
+        {
+            'id': 3,
+            'numero_fatura': 'FAT-003',
+            'valor_total': 800.00,
+            'data_vencimento': '2024-12-10',
+            'data_pagamento': None,
+            'status': 'pendente',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Aguardando confirmação',
+            'data_criacao': '2024-11-05',
+            'contrato_id': 3,
+            'contrato_numero': '003',
+            'imovel_endereco': 'Av. Brasil, 456 - Batel',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 800.00,
+            'locatario_nome': 'Carlos Oliveira',
+            'locatario_cpf': '111.222.333-44',
+            'locador_nome': 'Brian Thiago',
+            'dias_atraso': 0
+        },
+        {
+            'id': 4,
+            'numero_fatura': 'FAT-004',
+            'valor_total': 2000.00,
+            'data_vencimento': '2024-10-05',
+            'data_pagamento': None,
+            'status': 'em_atraso',
+            'mes_referencia': '2024-10',
+            'observacoes': 'Vencido há mais de 30 dias',
+            'data_criacao': '2024-09-01',
+            'contrato_id': 4,
+            'contrato_numero': '004',
+            'imovel_endereco': 'Rua XV de Novembro, 789',
+            'imovel_tipo': 'Sala Comercial',
+            'valor_aluguel': 2000.00,
+            'locatario_nome': 'Ana Costa',
+            'locatario_cpf': '555.666.777-88',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 76
+        },
+        {
+            'id': 5,
+            'numero_fatura': 'FAT-005',
+            'valor_total': 950.00,
+            'data_vencimento': '2024-12-15',
+            'data_pagamento': None,
+            'status': 'aberta',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Primeira cobrança',
+            'data_criacao': '2024-11-15',
+            'contrato_id': 5,
+            'contrato_numero': '005',
+            'imovel_endereco': 'Rua dos Pioneiros, 321 - Água Verde',
+            'imovel_tipo': 'Kitnet',
+            'valor_aluguel': 950.00,
+            'locatario_nome': 'Roberto Silva',
+            'locatario_cpf': '444.555.666-77',
+            'locador_nome': 'Brian Thiago',
+            'dias_atraso': 0
+        },
+        {
+            'id': 6,
+            'numero_fatura': 'FAT-006',
+            'valor_total': 3200.00,
+            'data_vencimento': '2024-11-20',
+            'data_pagamento': '2024-11-18',
+            'status': 'paga',
+            'mes_referencia': '2024-11',
+            'observacoes': 'Pagamento antecipado',
+            'data_criacao': '2024-10-20',
+            'contrato_id': 6,
+            'contrato_numero': '006',
+            'imovel_endereco': 'Av. Sete de Setembro, 888 - Centro',
+            'imovel_tipo': 'Loja',
+            'valor_aluguel': 3200.00,
+            'locatario_nome': 'Loja ModaStyle LTDA',
+            'locatario_cpf': '12.345.678/0001-90',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 0
+        },
+        {
+            'id': 7,
+            'numero_fatura': 'FAT-007',
+            'valor_total': 1800.00,
+            'data_vencimento': '2024-12-03',
+            'data_pagamento': None,
+            'status': 'pendente',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Aguardando negociação',
+            'data_criacao': '2024-11-03',
+            'contrato_id': 7,
+            'contrato_numero': '007',
+            'imovel_endereco': 'Rua Coronel Dulcídio, 555 - Batel',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 1800.00,
+            'locatario_nome': 'Fernanda Lima',
+            'locatario_cpf': '999.888.777-66',
+            'locador_nome': 'Fernanda Carol',
+            'dias_atraso': 0
+        },
+        {
+            'id': 8,
+            'numero_fatura': 'FAT-008',
+            'valor_total': 2500.00,
+            'data_vencimento': '2024-09-15',
+            'data_pagamento': None,
+            'status': 'em_atraso',
+            'mes_referencia': '2024-09',
+            'observacoes': 'Cliente não localizado',
+            'data_criacao': '2024-08-15',
+            'contrato_id': 8,
+            'contrato_numero': '008',
+            'imovel_endereco': 'Rua Comendador Macedo, 123 - Alto da Glória',
+            'imovel_tipo': 'Casa',
+            'valor_aluguel': 2500.00,
+            'locatario_nome': 'José Santos',
+            'locatario_cpf': '777.666.555-44',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 96
+        }
+    ]
+    
+    # Aplicar filtros
+    faturas_filtradas = faturas_teste.copy()
+    
+    if filtros:
+        if filtros.get('status'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['status'] in filtros['status']]
+        
+        if filtros.get('search'):
+            search_term = filtros['search'].lower()
+            faturas_filtradas = [f for f in faturas_filtradas if 
+                search_term in f['numero_fatura'].lower() or
+                search_term in f['locatario_nome'].lower() or
+                search_term in f['imovel_endereco'].lower() or
+                search_term in f['contrato_numero'].lower()
+            ]
+        
+        if filtros.get('valor_min'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['valor_total'] >= filtros['valor_min']]
+        
+        if filtros.get('valor_max'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['valor_total'] <= filtros['valor_max']]
+    
+    # Aplicar ordenação
+    reverse = order_dir == 'DESC'
+    if order_by == 'valor_total':
+        faturas_filtradas.sort(key=lambda x: x['valor_total'], reverse=reverse)
+    elif order_by == 'data_vencimento':
+        faturas_filtradas.sort(key=lambda x: x['data_vencimento'], reverse=reverse)
+    elif order_by == 'numero_fatura':
+        faturas_filtradas.sort(key=lambda x: x['numero_fatura'], reverse=reverse)
+    
+    # Aplicar paginação
+    total = len(faturas_filtradas)
+    start_index = (page - 1) * limit
+    end_index = start_index + limit
+    faturas_pagina = faturas_filtradas[start_index:end_index]
+    
+    # Adicionar campos calculados
+    for fatura in faturas_pagina:
+        fatura['referencia_display'] = format_mes_referencia(fatura['mes_referencia'])
+        fatura['situacao_pagamento'] = calcular_situacao_pagamento(fatura)
+    
+    return {
+        'data': faturas_pagina,
+        'total': total,
+        'page': page,
+        'pages': (total + limit - 1) // limit if total > 0 else 0
+    }
+    
+    # Código original comentado para futuro uso com dados reais
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Query base simulando faturas com dados dos contratos
+        base_query = """
+            SELECT 
+                c.id,
+                CAST(c.id AS VARCHAR) as numero_fatura,
+                i.valor_aluguel as valor_total,
+                c.data_fim as data_vencimento,
+                NULL as data_pagamento,
+                'aberta' as status,
+                FORMAT(c.data_inicio, 'yyyy-MM') as mes_referencia,
+                '' as observacoes,
+                c.data_inicio as data_criacao,
+                c.id as contrato_id,
+                CAST(c.id AS VARCHAR) as contrato_numero,
+                i.endereco as imovel_endereco,
+                i.tipo as imovel_tipo,
+                i.valor_aluguel,
+                loc.nome as locatario_nome,
+                loc.cpf_cnpj as locatario_cpf,
+                l.nome as locador_nome,
+                DATEDIFF(day, c.data_fim, GETDATE()) as dias_atraso
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN Locadores l ON i.id_locador = l.id
+        """
+        
+        # Construir condições WHERE baseadas nos filtros
+        where_conditions = []
+        params = []
+        
+        if filtros:
+            if filtros.get('status'):
+                # Como estamos simulando com contratos, vou mapear os status
+                status_map = {'aberta': 'ativo', 'paga': 'finalizado', 'pendente': 'pendente'}
+                mapped_status = [status_map.get(s, s) for s in filtros['status']]
+                placeholders = ','.join(['?' for _ in mapped_status])
+                where_conditions.append(f"c.status IN ({placeholders})")
+                params.extend(mapped_status)
+            
+            if filtros.get('data_inicio'):
+                where_conditions.append("c.data_fim >= ?")
+                params.append(filtros['data_inicio'])
+            
+            if filtros.get('data_fim'):
+                where_conditions.append("c.data_fim <= ?")
+                params.append(filtros['data_fim'])
+            
+            if filtros.get('search'):
+                search_term = f"%{filtros['search']}%"
+                where_conditions.append("""
+                    (CAST(c.id AS VARCHAR) LIKE ? OR 
+                     loc.nome LIKE ? OR 
+                     i.endereco LIKE ? OR 
+                     CAST(c.id AS VARCHAR) LIKE ?)
+                """)
+                params.extend([search_term, search_term, search_term, search_term])
+            
+            if filtros.get('locador_id'):
+                where_conditions.append("i.id_locador = ?")
+                params.append(filtros['locador_id'])
+            
+            if filtros.get('valor_min'):
+                where_conditions.append("i.valor_aluguel >= ?")
+                params.append(filtros['valor_min'])
+            
+            if filtros.get('valor_max'):
+                where_conditions.append("i.valor_aluguel <= ?")
+                params.append(filtros['valor_max'])
+        
+        # Montar query completa
+        if where_conditions:
+            query = base_query + " WHERE " + " AND ".join(where_conditions)
+        else:
+            query = base_query
+        
+        # Adicionar ordenação
+        query += f" ORDER BY {order_by} {order_dir}"
+        
+        # Executar query para contagem total
+        count_query = f"SELECT COUNT(*) FROM ({query}) as total_query"
+        cursor.execute(count_query, params)
+        total = cursor.fetchone()[0]
+        
+        # Adicionar paginação
+        offset = (page - 1) * limit
+        query += f" OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
+        
+        # Executar query principal
+        cursor.execute(query, params)
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        
+        # Converter resultados
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    row_dict[columns[i]] = value
+            
+            # Adicionar campos calculados
+            row_dict['referencia_display'] = format_mes_referencia(row_dict.get('mes_referencia', ''))
+            row_dict['situacao_pagamento'] = calcular_situacao_pagamento(row_dict)
+            
+            result.append(row_dict)
+        
+        conn.close()
+        return {
+            'data': result,
+            'total': total,
+            'page': page,
+            'pages': (total + limit - 1) // limit
+        }
+        
+    except Exception as e:
+        print(f"Erro ao buscar faturas: {e}")
+        return {'data': [], 'total': 0, 'page': 1, 'pages': 0}
+
+def buscar_estatisticas_faturas():
+    """Busca estatísticas resumidas das faturas para as abas"""
+    
+    # Dados de teste atualizados com todas as 8 faturas
+    faturas_exemplo = [
+        {'status': 'aberta', 'valor_total': 1200.00},    # FAT-001
+        {'status': 'paga', 'valor_total': 1500.00},      # FAT-002
+        {'status': 'pendente', 'valor_total': 800.00},   # FAT-003
+        {'status': 'em_atraso', 'valor_total': 2000.00}, # FAT-004
+        {'status': 'aberta', 'valor_total': 950.00},     # FAT-005
+        {'status': 'paga', 'valor_total': 3200.00},      # FAT-006
+        {'status': 'pendente', 'valor_total': 1800.00},  # FAT-007
+        {'status': 'em_atraso', 'valor_total': 2500.00}  # FAT-008
+    ]
+    
+    stats = {
+        'todas': len(faturas_exemplo),
+        'abertas': len([f for f in faturas_exemplo if f['status'] == 'aberta']),
+        'pendentes': len([f for f in faturas_exemplo if f['status'] == 'pendente']),
+        'pagas': len([f for f in faturas_exemplo if f['status'] == 'paga']),
+        'em_atraso': len([f for f in faturas_exemplo if f['status'] == 'em_atraso']),
+        'canceladas': 0,
+        'valor_total_aberto': sum([f['valor_total'] for f in faturas_exemplo if f['status'] in ['aberta', 'pendente']]),
+        'valor_total_recebido': sum([f['valor_total'] for f in faturas_exemplo if f['status'] == 'paga']),
+        'valor_total_atrasado': sum([f['valor_total'] for f in faturas_exemplo if f['status'] == 'em_atraso'])
+    }
+    
+    return stats
+
+def buscar_fatura_por_id(fatura_id):
+    """Busca uma fatura específica com detalhes completos"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Simular busca de fatura usando contratos
+        cursor.execute("""
+            SELECT 
+                c.id,
+                CAST(c.id AS VARCHAR) as numero_fatura,
+                c.valor_aluguel as valor_total,
+                c.data_fim as data_vencimento,
+                NULL as data_pagamento,
+                'aberta' as status,
+                FORMAT(c.data_inicio, 'yyyy-MM') as mes_referencia,
+                '' as observacoes,
+                c.data_inicio as data_criacao,
+                i.endereco as imovel_endereco,
+                i.tipo as imovel_tipo,
+                loc.nome as locatario_nome,
+                l.nome as locador_nome
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN Locadores l ON i.id_locador = l.id
+            WHERE c.id = ?
+        """, (fatura_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            columns = [column[0] for column in cursor.description]
+            result = {}
+            for i, value in enumerate(row):
+                if hasattr(value, 'strftime'):
+                    result[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    result[columns[i]] = value
+            return result
+        else:
+            return None
+            
+    except Exception as e:
+        print(f"Erro ao buscar fatura: {e}")
+        return None
+
+def gerar_boleto_fatura(fatura_id, dados_boleto=None):
+    """Simula geração de boleto para uma fatura"""
+    try:
+        fatura = buscar_fatura_por_id(fatura_id)
+        if not fatura:
+            return None
+            
+        return {
+            'url_boleto': f'https://boleto.exemplo.com/fatura_{fatura_id}.pdf',
+            'codigo_barras': f'00190.00009 12345.678901 23456.789012 3 {fatura_id:08d}',
+            'linha_digitavel': f'00190.00009 12345.678901 23456.789012 3 {fatura_id:08d}',
+            'data_vencimento': fatura.get('data_vencimento'),
+            'valor': float(fatura.get('valor_total', 0))
+        }
+        
+    except Exception as e:
+        print(f"Erro ao gerar boleto: {e}")
+        return None
+
+def format_mes_referencia(mes_ref):
+    """Formata mês de referência de YYYY-MM para 'Janeiro/2024'"""
+    if not mes_ref:
+        return ''
+    
+    try:
+        meses = {
+            '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+            '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+            '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+        }
+        
+        ano, mes = mes_ref.split('-')
+        return f"{meses.get(mes, mes)}/{ano}"
+    except:
+        return mes_ref
+
+def calcular_situacao_pagamento(fatura_dict):
+    """Calcula situação do pagamento baseado nas datas"""
+    if fatura_dict.get('data_pagamento'):
+        return 'quitado'
+    
+    dias_atraso = fatura_dict.get('dias_atraso', 0)
+    if dias_atraso > 30:
+        return 'vencido'
+    elif dias_atraso > 0:
+        return 'atrasado'
+    else:
+        return 'em_dia'

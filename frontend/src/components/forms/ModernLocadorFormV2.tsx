@@ -676,31 +676,36 @@ export const ModernLocadorFormV2: React.FC = () => {
                       </>
                     )}
 
-                    <div>
-                      <Label htmlFor="telefone" className="text-sm font-medium text-foreground">Telefone *</Label>
-                      <InputWithIcon
-                        id="telefone"
-                        type="tel"
-                        value={formData.telefone}
-                        onChange={(e) => handleInputChange('telefone', e.target.value)}
-                        placeholder="(41) 99999-9999"
-                        icon={Phone}
-                        required
-                      />
-                    </div>
+                    {/* Telefone e Email apenas para PJ - PF usa seção Contatos */}
+                    {isPJ && (
+                      <>
+                        <div>
+                          <Label htmlFor="telefone" className="text-sm font-medium text-foreground">Telefone *</Label>
+                          <InputWithIcon
+                            id="telefone"
+                            type="tel"
+                            value={formData.telefone}
+                            onChange={(e) => handleInputChange('telefone', e.target.value)}
+                            placeholder="(41) 99999-9999"
+                            icon={Phone}
+                            required
+                          />
+                        </div>
 
-                    <div>
-                      <Label htmlFor="email" className="text-sm font-medium text-foreground">Email *</Label>
-                      <InputWithIcon
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        placeholder="locador@email.com"
-                        icon={Mail}
-                        required
-                      />
-                    </div>
+                        <div>
+                          <Label htmlFor="email" className="text-sm font-medium text-foreground">Email *</Label>
+                          <InputWithIcon
+                            id="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange('email', e.target.value)}
+                            placeholder="empresa@email.com"
+                            icon={Mail}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </motion.div>
 

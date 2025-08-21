@@ -29,6 +29,8 @@ import toast from "react-hot-toast";
 function PrestacaoContasPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [contratos, setContratos] = useState<any[]>([]);
+  const [contratoSelecionado, setContratoSelecionado] = useState<any>(null);
   const [mes, setMes] = useState<string>("");
   const [ano, setAno] = useState<string>("");
   const [prestacao, setPrestacao] = useState<PrestacaoContas | null>(null);
@@ -56,9 +58,28 @@ function PrestacaoContasPage() {
     fetchClientes();
   }, []);
 
+  const buscarContratos = async () => {
+    try {
+      const response = await apiService.requestPublic('/api/contratos');
+      setContratos(response.data || []);
+    } catch (error) {
+      console.error('Erro ao buscar contratos:', error);
+      toast.error("Erro ao buscar contratos");
+    }
+  };
+
+  useEffect(() => {
+    buscarContratos();
+  }, []);
+
   const buscarPrestacao = async () => {
     if (!clienteSelecionado || !mes || !ano) {
       toast.error("Selecione cliente, mês e ano!");
+      return;
+    }
+    
+    if (!contratoSelecionado) {
+      toast.error("Selecione um contrato para realizar a prestação de contas!");
       return;
     }
 
@@ -92,12 +113,18 @@ function PrestacaoContasPage() {
       toast.error("Selecione cliente, mês e ano!");
       return;
     }
+    
+    if (!contratoSelecionado) {
+      toast.error("Selecione um contrato para realizar a prestação de contas!");
+      return;
+    }
 
     const totalBruto = valorPago + valorVencido + encargos;
     const totalLiquido = totalBruto - deducoes;
 
     const dadosPrestacao: Partial<PrestacaoContas> = {
       cliente_id: clienteSelecionado.id,
+      contrato_id: contratoSelecionado.id,
       mes,
       ano,
       referencia: `${mes}/${ano}`,
@@ -166,6 +193,11 @@ function PrestacaoContasPage() {
       return;
     }
     
+    if (!contratoSelecionado) {
+      toast.error("Selecione um contrato!");
+      return;
+    }
+    
     try {
       const response = await apiService.requestPublic(`/prestacao-contas/export/excel/${clienteSelecionado.id}/${mes}/${ano}`, {
         method: 'GET'
@@ -182,6 +214,11 @@ function PrestacaoContasPage() {
   const exportarPdf = async () => {
     if (!clienteSelecionado || !mes || !ano) {
       toast.error("Selecione cliente, mês e ano!");
+      return;
+    }
+    
+    if (!contratoSelecionado) {
+      toast.error("Selecione um contrato!");
       return;
     }
     
@@ -245,13 +282,14 @@ function PrestacaoContasPage() {
                   <span>Filtros</span>
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Cliente</Label>
                     <Select
                       onValueChange={(value) => {
                         const cliente = clientes.find((c) => c.id?.toString() === value);
                         setClienteSelecionado(cliente || null);
+                        setContratoSelecionado(null);
                       }}
                       value={clienteSelecionado?.id?.toString() || ""}
                     >
@@ -262,6 +300,36 @@ function PrestacaoContasPage() {
                         {clientes.map((cliente) => (
                           <SelectItem key={cliente.id} value={cliente.id?.toString() || ''} className="text-foreground hover:bg-accent">
                             {cliente.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Contrato</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        const contrato = contratos.find((c) => c.id?.toString() === value);
+                        setContratoSelecionado(contrato || null);
+                        if (contrato) {
+                          const locador = clientes.find(cl => cl.id === contrato.id_locador);
+                          if (locador) setClienteSelecionado(locador);
+                        }
+                      }}
+                      value={contratoSelecionado?.id?.toString() || ""}
+                      disabled={!contratos.length}
+                    >
+                      <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                        <SelectValue placeholder="Selecione o contrato" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        {contratos
+                          .filter(contrato => !clienteSelecionado || contrato.id_locador === clienteSelecionado.id)
+                          .map((contrato) => (
+                          <SelectItem key={contrato.id} value={contrato.id?.toString() || ''} className="text-foreground hover:bg-accent">
+                            {contrato.imovel_endereco ? `${contrato.imovel_endereco.substring(0, 30)}...` : `Contrato #${contrato.id}`}
+                            {contrato.locatario_nome && ` - ${contrato.locatario_nome}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -319,7 +387,7 @@ function PrestacaoContasPage() {
                 </motion.div>
               </motion.div>
 
-              {(prestacao || (clienteSelecionado && mes && ano)) && (
+              {(prestacao || (clienteSelecionado && contratoSelecionado && mes && ano)) && (
                 <>
                   {/* Dados Financeiros */}
                   <motion.div
