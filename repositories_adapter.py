@@ -426,12 +426,25 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         }
     ]
     
+    # Aplicar alterações de status às faturas
+    for fatura in faturas_teste:
+        if fatura['id'] in faturas_status:
+            fatura['status'] = faturas_status[fatura['id']]
+    
     # Aplicar filtros
     faturas_filtradas = faturas_teste.copy()
     
     if filtros:
         if filtros.get('status'):
             faturas_filtradas = [f for f in faturas_filtradas if f['status'] in filtros['status']]
+        
+        if filtros.get('mes'):
+            mes_filtro = filtros['mes']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].endswith(f'-{mes_filtro}')]
+        
+        if filtros.get('ano'):
+            ano_filtro = filtros['ano']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].startswith(ano_filtro)]
         
         if filtros.get('search'):
             search_term = filtros['search'].lower()
@@ -601,31 +614,49 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         print(f"Erro ao buscar faturas: {e}")
         return {'data': [], 'total': 0, 'page': 1, 'pages': 0}
 
-def buscar_estatisticas_faturas():
+def buscar_estatisticas_faturas(filtros=None):
     """Busca estatísticas resumidas das faturas para as abas"""
     
     # Dados de teste atualizados com todas as 8 faturas
     faturas_exemplo = [
-        {'status': 'aberta', 'valor_total': 1200.00},    # FAT-001
-        {'status': 'paga', 'valor_total': 1500.00},      # FAT-002
-        {'status': 'pendente', 'valor_total': 800.00},   # FAT-003
-        {'status': 'em_atraso', 'valor_total': 2000.00}, # FAT-004
-        {'status': 'aberta', 'valor_total': 950.00},     # FAT-005
-        {'status': 'paga', 'valor_total': 3200.00},      # FAT-006
-        {'status': 'pendente', 'valor_total': 1800.00},  # FAT-007
-        {'status': 'em_atraso', 'valor_total': 2500.00}  # FAT-008
+        {'status': 'aberta', 'valor_total': 1200.00, 'mes_referencia': '2024-12'},    # FAT-001
+        {'status': 'paga', 'valor_total': 1500.00, 'mes_referencia': '2024-11'},      # FAT-002
+        {'status': 'pendente', 'valor_total': 800.00, 'mes_referencia': '2024-12'},   # FAT-003
+        {'status': 'em_atraso', 'valor_total': 2000.00, 'mes_referencia': '2024-10'}, # FAT-004
+        {'status': 'aberta', 'valor_total': 950.00, 'mes_referencia': '2024-12'},     # FAT-005
+        {'status': 'paga', 'valor_total': 3200.00, 'mes_referencia': '2024-11'},      # FAT-006
+        {'status': 'pendente', 'valor_total': 1800.00, 'mes_referencia': '2024-12'},  # FAT-007
+        {'status': 'em_atraso', 'valor_total': 2500.00, 'mes_referencia': '2024-09'}  # FAT-008
     ]
     
+    # Aplicar alterações de status às faturas de exemplo
+    for i, fatura in enumerate(faturas_exemplo):
+        fatura_id = fatura.get('id', i + 1)  # Usar índice + 1 como ID se não houver
+        if fatura_id in faturas_status:
+            fatura['status'] = faturas_status[fatura_id]
+    
+    # Aplicar filtros se fornecidos
+    faturas_filtradas = faturas_exemplo.copy()
+    
+    if filtros:
+        if filtros.get('mes'):
+            mes_filtro = filtros['mes']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].endswith(f'-{mes_filtro}')]
+        
+        if filtros.get('ano'):
+            ano_filtro = filtros['ano']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].startswith(ano_filtro)]
+    
     stats = {
-        'todas': len(faturas_exemplo),
-        'abertas': len([f for f in faturas_exemplo if f['status'] == 'aberta']),
-        'pendentes': len([f for f in faturas_exemplo if f['status'] == 'pendente']),
-        'pagas': len([f for f in faturas_exemplo if f['status'] == 'paga']),
-        'em_atraso': len([f for f in faturas_exemplo if f['status'] == 'em_atraso']),
-        'canceladas': 0,
-        'valor_total_aberto': sum([f['valor_total'] for f in faturas_exemplo if f['status'] in ['aberta', 'pendente']]),
-        'valor_total_recebido': sum([f['valor_total'] for f in faturas_exemplo if f['status'] == 'paga']),
-        'valor_total_atrasado': sum([f['valor_total'] for f in faturas_exemplo if f['status'] == 'em_atraso'])
+        'todas': len(faturas_filtradas),
+        'abertas': len([f for f in faturas_filtradas if f['status'] == 'aberta']),
+        'pendentes': len([f for f in faturas_filtradas if f['status'] == 'pendente']),
+        'pagas': len([f for f in faturas_filtradas if f['status'] == 'paga']),
+        'em_atraso': len([f for f in faturas_filtradas if f['status'] == 'em_atraso']),
+        'canceladas': len([f for f in faturas_filtradas if f['status'] == 'cancelada']),
+        'valor_total_aberto': sum([f['valor_total'] for f in faturas_filtradas if f['status'] in ['aberta', 'pendente']]),
+        'valor_total_recebido': sum([f['valor_total'] for f in faturas_filtradas if f['status'] == 'paga']),
+        'valor_total_atrasado': sum([f['valor_total'] for f in faturas_filtradas if f['status'] == 'em_atraso'])
     }
     
     return stats
@@ -726,3 +757,26 @@ def calcular_situacao_pagamento(fatura_dict):
         return 'atrasado'
     else:
         return 'em_dia'
+
+# Variável global para simular o estado das faturas
+faturas_status = {}
+
+def cancelar_fatura(fatura_id):
+    """Cancela uma fatura específica (mantido para compatibilidade)"""
+    return alterar_status_fatura(fatura_id, 'cancelada')
+
+def alterar_status_fatura(fatura_id, novo_status, motivo=None):
+    """Altera o status de uma fatura específica"""
+    try:
+        # Armazenar o novo status
+        faturas_status[fatura_id] = novo_status
+        
+        print(f"Fatura {fatura_id} alterada para status: {novo_status}")
+        if motivo:
+            print(f"Motivo: {motivo}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Erro ao alterar status da fatura {fatura_id}: {e}")
+        return False

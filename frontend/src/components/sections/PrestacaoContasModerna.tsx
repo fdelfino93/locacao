@@ -318,7 +318,7 @@ export const PrestacaoContasModerna: React.FC = () => {
                   {/* Busca principal */}
                   <InputWithIcon
                     icon={Search}
-                    placeholder="Buscar por número da fatura, cliente, imóvel ou contrato..."
+                    placeholder="Buscar por número da fatura, proprietário, imóvel ou contrato..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground"
@@ -539,10 +539,10 @@ export const PrestacaoContasModerna: React.FC = () => {
                                 <td className="px-4 py-3">
                                   <div className="space-y-1">
                                     <p className="font-medium text-foreground text-sm">
-                                      {fatura.locatario_nome || 'Nome não informado'}
+                                      {fatura.proprietario_nome || 'Nome não informado'}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      {fatura.locatario_cpf || 'CPF não informado'}
+                                      {fatura.proprietario_cpf || 'CPF não informado'}
                                     </p>
                                   </div>
                                 </td>

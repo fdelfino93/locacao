@@ -27,8 +27,8 @@ import ExportarPdfButton from "@/components/ExportarPdfButton";
 import toast from "react-hot-toast";
 
 function PrestacaoContasPage() {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [proprietarios, setProprietarios] = useState<Cliente[]>([]);
+  const [proprietarioSelecionado, setProprietarioSelecionado] = useState<Cliente | null>(null);
   const [contratos, setContratos] = useState<any[]>([]);
   const [contratoSelecionado, setContratoSelecionado] = useState<any>(null);
   const [mes, setMes] = useState<string>("");
@@ -49,10 +49,10 @@ function PrestacaoContasPage() {
     const fetchClientes = async () => {
       try {
         const response = await apiService.listarLocadores();
-        setClientes(response.data || []);
+        setProprietarios(response.data || []);
       } catch (error) {
-        console.error('Erro ao buscar clientes:', error);
-        toast.error("Erro ao buscar clientes");
+        console.error('Erro ao buscar proprietários:', error);
+        toast.error("Erro ao buscar proprietários");
       }
     };
     fetchClientes();
@@ -73,8 +73,8 @@ function PrestacaoContasPage() {
   }, []);
 
   const buscarPrestacao = async () => {
-    if (!clienteSelecionado || !mes || !ano) {
-      toast.error("Selecione cliente, mês e ano!");
+    if (!proprietarioSelecionado || !mes || !ano) {
+      toast.error("Selecione proprietário, mês e ano!");
       return;
     }
     
@@ -85,7 +85,7 @@ function PrestacaoContasPage() {
 
     try {
       setLoading(true);
-      const response = await apiService.requestPublic(`/prestacao-contas/${clienteSelecionado.id}/${mes}/${ano}`);
+      const response = await apiService.requestPublic(`/prestacao-contas/${proprietarioSelecionado.id}/${mes}/${ano}`);
       const data = response.data as PrestacaoContas;
       setPrestacao(data);
       
@@ -109,8 +109,8 @@ function PrestacaoContasPage() {
   };
 
   const salvarPrestacao = async () => {
-    if (!clienteSelecionado || !mes || !ano) {
-      toast.error("Selecione cliente, mês e ano!");
+    if (!proprietarioSelecionado || !mes || !ano) {
+      toast.error("Selecione proprietário, mês e ano!");
       return;
     }
     
@@ -123,7 +123,7 @@ function PrestacaoContasPage() {
     const totalLiquido = totalBruto - deducoes;
 
     const dadosPrestacao: Partial<PrestacaoContas> = {
-      cliente_id: clienteSelecionado.id,
+      cliente_id: proprietarioSelecionado.id,
       contrato_id: contratoSelecionado.id,
       mes,
       ano,
@@ -188,8 +188,8 @@ function PrestacaoContasPage() {
   };
 
   const exportarExcel = async () => {
-    if (!clienteSelecionado || !mes || !ano) {
-      toast.error("Selecione cliente, mês e ano!");
+    if (!proprietarioSelecionado || !mes || !ano) {
+      toast.error("Selecione proprietário, mês e ano!");
       return;
     }
     
@@ -199,7 +199,7 @@ function PrestacaoContasPage() {
     }
     
     try {
-      const response = await apiService.requestPublic(`/prestacao-contas/export/excel/${clienteSelecionado.id}/${mes}/${ano}`, {
+      const response = await apiService.requestPublic(`/prestacao-contas/export/excel/${proprietarioSelecionado.id}/${mes}/${ano}`, {
         method: 'GET'
       });
       
@@ -212,8 +212,8 @@ function PrestacaoContasPage() {
   };
 
   const exportarPdf = async () => {
-    if (!clienteSelecionado || !mes || !ano) {
-      toast.error("Selecione cliente, mês e ano!");
+    if (!proprietarioSelecionado || !mes || !ano) {
+      toast.error("Selecione proprietário, mês e ano!");
       return;
     }
     
@@ -223,7 +223,7 @@ function PrestacaoContasPage() {
     }
     
     try {
-      const response = await apiService.requestPublic(`/prestacao-contas/export/pdf/${clienteSelecionado.id}/${mes}/${ano}`, {
+      const response = await apiService.requestPublic(`/prestacao-contas/export/pdf/${proprietarioSelecionado.id}/${mes}/${ano}`, {
         method: 'GET'
       });
       
@@ -291,15 +291,15 @@ function PrestacaoContasPage() {
                         setClienteSelecionado(cliente || null);
                         setContratoSelecionado(null);
                       }}
-                      value={clienteSelecionado?.id?.toString() || ""}
+                      value={proprietarioSelecionado?.id?.toString() || ""}
                     >
                       <SelectTrigger className="bg-muted/50 border-border text-foreground">
-                        <SelectValue placeholder="Selecione o cliente" />
+                        <SelectValue placeholder="Selecione o proprietário" />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
-                        {clientes.map((cliente) => (
-                          <SelectItem key={cliente.id} value={cliente.id?.toString() || ''} className="text-foreground hover:bg-accent">
-                            {cliente.nome}
+                        {proprietarios.map((proprietario) => (
+                          <SelectItem key={proprietario.id} value={proprietario.id?.toString() || ''} className="text-foreground hover:bg-accent">
+                            {proprietario.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -313,8 +313,8 @@ function PrestacaoContasPage() {
                         const contrato = contratos.find((c) => c.id?.toString() === value);
                         setContratoSelecionado(contrato || null);
                         if (contrato) {
-                          const locador = clientes.find(cl => cl.id === contrato.id_locador);
-                          if (locador) setClienteSelecionado(locador);
+                          const locador = proprietarios.find(cl => cl.id === contrato.id_locador);
+                          if (locador) setProprietarioSelecionado(locador);
                         }
                       }}
                       value={contratoSelecionado?.id?.toString() || ""}
@@ -325,11 +325,11 @@ function PrestacaoContasPage() {
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
                         {contratos
-                          .filter(contrato => !clienteSelecionado || contrato.id_locador === clienteSelecionado.id)
+                          .filter(contrato => !proprietarioSelecionado || contrato.id_locador === proprietarioSelecionado.id)
                           .map((contrato) => (
                           <SelectItem key={contrato.id} value={contrato.id?.toString() || ''} className="text-foreground hover:bg-accent">
                             {contrato.imovel_endereco ? `${contrato.imovel_endereco.substring(0, 30)}...` : `Contrato #${contrato.id}`}
-                            {contrato.locatario_nome && ` - ${contrato.locatario_nome}`}
+                            {contrato.locador_nome && ` - ${contrato.locador_nome}`}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -387,7 +387,7 @@ function PrestacaoContasPage() {
                 </motion.div>
               </motion.div>
 
-              {(prestacao || (clienteSelecionado && contratoSelecionado && mes && ano)) && (
+              {(prestacao || (proprietarioSelecionado && contratoSelecionado && mes && ano)) && (
                 <>
                   {/* Dados Financeiros */}
                   <motion.div

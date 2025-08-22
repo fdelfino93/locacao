@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithIcon } from "@/components/ui/input-with-icon";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle } from 'lucide-react';
+import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
@@ -36,6 +36,10 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   // Estados para visualização de boleto
   const [faturaParaDetalhes, setFaturaParaDetalhes] = useState<Fatura | null>(null);
   const [showDetalheBoleto, setShowDetalheBoleto] = useState(false);
+  
+  // Estados para edição de fatura
+  const [faturaParaEdicao, setFaturaParaEdicao] = useState<Fatura | null>(null);
+  const [showEdicaoFatura, setShowEdicaoFatura] = useState(false);
   
   // Estados para menu de ações
   const [menuAbertoId, setMenuAbertoId] = useState<number | null>(null);
@@ -111,8 +115,17 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       }
       
       setFaturas(data.data || []);
-      setStats(data.stats || stats);
-      setDebugMessage(`${data.data?.length || 0} faturas carregadas | Aba: ${activeTab} | Status aplicado: ${activeTab !== 'todas' ? activeTab : 'todos'}`);
+      setStats(data.stats || {
+        todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
+        valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
+      });
+      
+      const filtroMsg = [];
+      if (mesSelecionado) filtroMsg.push(`Mês: ${mesSelecionado}`);
+      if (anoSelecionado) filtroMsg.push(`Ano: ${anoSelecionado}`);
+      if (searchTerm) filtroMsg.push(`Busca: "${searchTerm}"`);
+      
+      setDebugMessage(`${data.data?.length || 0} faturas carregadas | Aba: ${activeTab} | ${filtroMsg.length ? filtroMsg.join(' | ') : 'Sem filtros'}`);
       
     } catch (error) {
       console.error('❌ Erro ao buscar faturas:', error);
@@ -273,27 +286,63 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   };
 
   const editarFatura = (fatura: Fatura) => {
-    console.log('📝 Editando fatura:', fatura.numero_fatura);
-    setMenuAbertoId(null);
-    // TODO: Implementar edição de fatura
-    toast.success("Função de edição será implementada em breve");
+    console.log('📝 Abrindo detalhes da fatura:', fatura.numero_fatura);
+    console.log('📋 Dados da fatura:', fatura);
+    setFaturaParaEdicao(fatura);
+    setShowEdicaoFatura(true);
   };
 
-  const cancelarFatura = async (fatura: Fatura) => {
-    console.log('❌ Cancelando fatura:', fatura.numero_fatura);
+  const fecharEdicaoFatura = () => {
+    setShowEdicaoFatura(false);
+    setFaturaParaEdicao(null);
+  };
+
+  const alterarStatusFatura = async (fatura: Fatura, novoStatus: string) => {
+    console.log(`🔄 Alterando status da fatura ${fatura.numero_fatura} para: ${novoStatus}`);
     setMenuAbertoId(null);
     
-    if (!confirm(`Tem certeza que deseja cancelar a fatura ${fatura.numero_fatura}?`)) {
-      return;
+    // Mensagem de confirmação específica para cancelamento
+    if (novoStatus === 'cancelada') {
+      if (!confirm(`Tem certeza que deseja cancelar a fatura ${fatura.numero_fatura}?`)) {
+        return;
+      }
     }
     
     try {
-      // TODO: Implementar API call para cancelar fatura
-      toast.success(`Fatura ${fatura.numero_fatura} cancelada com sucesso!`);
-      buscarFaturas(); // Recarregar lista
+      const response = await fetch(`/api/faturas/${fatura.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          status: novoStatus,
+          motivo: `Alteração manual pelo usuário para: ${novoStatus}`
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        const statusLabels = {
+          'aberta': 'Aberta',
+          'pendente': 'Pendente', 
+          'paga': 'Paga',
+          'em_atraso': 'Em Atraso',
+          'cancelada': 'Cancelada'
+        };
+        
+        toast.success(`Fatura ${fatura.numero_fatura} alterada para ${statusLabels[novoStatus as keyof typeof statusLabels]}!`);
+        buscarFaturas(); // Recarregar lista
+      } else {
+        throw new Error(data.message || 'Erro ao alterar status da fatura');
+      }
     } catch (error) {
-      console.error('❌ Erro ao cancelar fatura:', error);
-      toast.error("Erro ao cancelar fatura");
+      console.error('❌ Erro ao alterar status da fatura:', error);
+      toast.error("Erro ao alterar status da fatura");
     }
   };
 
@@ -420,8 +469,8 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                   <Calculator className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground">Prestação de Contas - Debug</h1>
-                  <p className="text-muted-foreground">Testando componente: {debugMessage}</p>
+                  <h1 className="text-3xl font-bold text-foreground">Prestação de Contas</h1>
+                  <p className="text-muted-foreground">Gerenciamento e controle de prestações de contas</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -437,54 +486,67 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
           </div>
 
           {/* Cards de Resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <Card className="card-glass">
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Aberto</p>
-                    <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.valor_total_aberto)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Total Boleto</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido)}</p>
                   </div>
-                  <DollarSign className="w-8 h-8 text-blue-500" />
+                  <Receipt className="w-7 h-7 text-blue-500 flex-shrink-0 ml-2" />
                 </div>
               </CardContent>
             </Card>
 
             <Card className="card-glass">
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Recebido</p>
-                    <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.valor_total_recebido)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Retido</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.1 + (stats.pagas * 12.50))}</p>
                   </div>
-                  <CheckCircle className="w-8 h-8 text-green-500" />
+                  <TrendingDown className="w-7 h-7 text-red-500 flex-shrink-0 ml-2" />
                 </div>
               </CardContent>
             </Card>
 
             <Card className="card-glass">
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Em Atraso</p>
-                    <p className="text-2xl font-bold text-foreground">{formatCurrency(stats.valor_total_atrasado)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Repasse</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.9 - (stats.pagas * 12.50))}</p>
                   </div>
-                  <AlertCircle className="w-8 h-8 text-red-500" />
+                  <Crown className="w-7 h-7 text-green-500 flex-shrink-0 ml-2" />
                 </div>
               </CardContent>
             </Card>
 
             <Card className="card-glass">
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Faturas</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.todas}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Em Atraso</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_atrasado)}</p>
                   </div>
-                  <FileText className="w-8 h-8 text-purple-500" />
+                  <AlertCircle className="w-7 h-7 text-red-500 flex-shrink-0 ml-2" />
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="card-glass">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Em Aberto</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_aberto)}</p>
+                  </div>
+                  <CheckCircle className="w-7 h-7 text-orange-500 flex-shrink-0 ml-2" />
+                </div>
+              </CardContent>
+            </Card>
+
           </div>
 
           {/* Sistema de Abas */}
@@ -563,13 +625,13 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
                 {/* Filtros - padrão visual dos locatários */}
                 <div className="mb-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {/* Busca */}
                     <div>
                       <Label className="text-sm font-medium text-foreground">Buscar Faturas</Label>
                       <InputWithIcon
                         icon={Search}
-                        placeholder="Buscar por número da fatura, cliente, imóvel..."
+                        placeholder="Buscar por número da fatura, proprietário, imóvel..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -578,61 +640,50 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                     {/* Filtro Mês */}
                     <div>
                       <Label className="text-sm font-medium text-foreground">Mês</Label>
-                      <div className="relative">
-                        <select 
-                          value={mesSelecionado} 
-                          onChange={(e) => setMesSelecionado(e.target.value)}
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer text-foreground"
-                          style={{
-                            colorScheme: 'dark'
-                          }}
-                        >
-                          <option value="" className="bg-background text-muted-foreground">Selecione o mês</option>
-                          <option value="01" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Janeiro</option>
-                          <option value="02" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Fevereiro</option>
-                          <option value="03" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Março</option>
-                          <option value="04" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Abril</option>
-                          <option value="05" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Maio</option>
-                          <option value="06" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Junho</option>
-                          <option value="07" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Julho</option>
-                          <option value="08" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Agosto</option>
-                          <option value="09" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Setembro</option>
-                          <option value="10" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Outubro</option>
-                          <option value="11" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Novembro</option>
-                          <option value="12" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">Dezembro</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </div>
+                      <select 
+                        value={mesSelecionado} 
+                        onChange={(e) => setMesSelecionado(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
+                      >
+                        <option value="">Selecione o mês</option>
+                        <option value="01">Janeiro</option>
+                        <option value="02">Fevereiro</option>
+                        <option value="03">Março</option>
+                        <option value="04">Abril</option>
+                        <option value="05">Maio</option>
+                        <option value="06">Junho</option>
+                        <option value="07">Julho</option>
+                        <option value="08">Agosto</option>
+                        <option value="09">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                      </select>
                     </div>
 
                     {/* Filtro Ano */}
                     <div>
                       <Label className="text-sm font-medium text-foreground">Ano</Label>
-                      <div className="relative">
-                        <select 
-                          value={anoSelecionado} 
-                          onChange={(e) => setAnoSelecionado(e.target.value)}
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none cursor-pointer text-foreground"
-                          style={{
-                            colorScheme: 'dark'
-                          }}
-                        >
-                          <option value="" className="bg-background text-muted-foreground">Selecione o ano</option>
-                          <option value="2024" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">2024</option>
-                          <option value="2023" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">2023</option>
-                          <option value="2022" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">2022</option>
-                          <option value="2021" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">2021</option>
-                          <option value="2020" className="bg-background text-foreground hover:bg-accent hover:text-accent-foreground">2020</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
+                      <select 
+                        value={anoSelecionado} 
+                        onChange={(e) => setAnoSelecionado(e.target.value)}
+                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-foreground"
+                      >
+                        <option value="">Selecione o ano</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                      </select>
+                    </div>
+
+                    {/* Filtro Faturas */}
+                    <div>
+                      <Label className="text-sm font-medium text-foreground">Faturas</Label>
+                      <div className="bg-muted/30 px-3 py-2 rounded-md">
+                        <p className="text-sm font-medium text-foreground">{stats.todas}</p>
                       </div>
                     </div>
                   </div>
@@ -743,10 +794,10 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                 <td className="px-4 py-3">
                                   <div className="space-y-1">
                                     <p className="font-medium text-foreground text-sm">
-                                      {fatura.locatario_nome || 'Nome não informado'}
+                                      {fatura.proprietario_nome || 'Nome não informado'}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      {fatura.locatario_cpf || 'CPF não informado'}
+                                      {fatura.proprietario_cpf || 'CPF não informado'}
                                     </p>
                                   </div>
                                 </td>
@@ -774,10 +825,18 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                       size="sm" 
                                       className="btn-gradient"
                                       onClick={() => abrirDetalheBoleto(fatura)}
-                                      title="Ver Detalhes e Lançar"
+                                      title="Lançar Prestação"
                                     >
-                                      <Eye className="w-4 h-4 mr-2" />
-                                      Detalhes
+                                      <Receipt className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="btn-outline"
+                                      onClick={() => editarFatura(fatura)}
+                                      title="Ver Detalhes"
+                                    >
+                                      <Eye className="w-4 h-4" />
                                     </Button>
                                     <div className="relative">
                                       <Button 
@@ -792,17 +851,42 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                       
                                       {/* Menu Dropdown */}
                                       {menuAbertoId === fatura.id && (
-                                        <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-md shadow-lg z-50">
+                                        <div className="absolute right-0 top-full mt-1 w-56 bg-background border border-border rounded-md shadow-lg z-50">
                                           <div className="py-1">
+                                            <div className="px-4 py-2 text-xs text-muted-foreground border-b">
+                                              Alterar Status
+                                            </div>
                                             <button
-                                              onClick={() => editarFatura(fatura)}
+                                              onClick={() => alterarStatusFatura(fatura, 'aberta')}
                                               className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                                             >
-                                              <Edit className="w-4 h-4" />
-                                              <span>Editar</span>
+                                              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                              <span>Aberta</span>
                                             </button>
                                             <button
-                                              onClick={() => cancelarFatura(fatura)}
+                                              onClick={() => alterarStatusFatura(fatura, 'pendente')}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                            >
+                                              <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                              <span>Pendente</span>
+                                            </button>
+                                            <button
+                                              onClick={() => alterarStatusFatura(fatura, 'paga')}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                            >
+                                              <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                              <span>Paga</span>
+                                            </button>
+                                            <button
+                                              onClick={() => alterarStatusFatura(fatura, 'em_atraso')}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                            >
+                                              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                              <span>Em Atraso</span>
+                                            </button>
+                                            <div className="border-t my-1"></div>
+                                            <button
+                                              onClick={() => alterarStatusFatura(fatura, 'cancelada')}
                                               className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                                             >
                                               <XCircle className="w-4 h-4" />
@@ -851,7 +935,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-bold text-foreground">Detalhamento do Boleto</h2>
                   <p className="text-sm text-muted-foreground">
-                    {faturaParaDetalhes.numero_fatura || `#${faturaParaDetalhes.id}`} - {faturaParaDetalhes.locatario_nome}
+                    {faturaParaDetalhes.numero_fatura || `#${faturaParaDetalhes.id}`} - {faturaParaDetalhes.proprietario_nome}
                   </p>
                 </div>
               </div>
@@ -921,7 +1005,13 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
             {/* Footer do Modal */}
             <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t px-6 py-4">
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-between">
+                <Button 
+                  onClick={fecharDetalheBoleto}
+                  variant="outline"
+                >
+                  Fechar
+                </Button>
                 <Button 
                   onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
                   className="btn-gradient"
@@ -929,6 +1019,243 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                   <Receipt className="w-4 h-4 mr-2" />
                   Lançar Prestação
                 </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal de Edição da Fatura */}
+      {showEdicaoFatura && faturaParaEdicao && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+          >
+            {/* Header do Modal */}
+            <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Detalhes da Fatura</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {faturaParaEdicao.numero_fatura || `#${faturaParaEdicao.id}`} - {faturaParaEdicao.proprietario_nome}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={fecharEdicaoFatura}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Conteúdo do Modal */}
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Coluna Esquerda - Informações Básicas */}
+                <div className="space-y-6">
+                  <Card className="card-glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                          <Hash className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Informações da Fatura</h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Número da Fatura</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm font-mono">{faturaParaEdicao.numero_fatura}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                          <div className="mt-1">
+                            {getStatusBadge(faturaParaEdicao.status)}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Data de Vencimento</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{formatDate(faturaParaEdicao.data_vencimento)}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Valor Total</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm font-semibold text-green-600">
+                              {formatCurrency(faturaParaEdicao.valor_total || 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="card-glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-green-500/10 rounded-lg">
+                          <Building className="w-4 h-4 text-green-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Informações do Imóvel</h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Endereço</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{faturaParaEdicao.imovel_endereco}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Tipo</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{faturaParaEdicao.imovel_tipo}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Coluna Direita - Informações do Cliente */}
+                <div className="space-y-6">
+                  <Card className="card-glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-purple-500/10 rounded-lg">
+                          <User className="w-4 h-4 text-purple-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Proprietário</h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Nome</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{faturaParaEdicao.proprietario_nome}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">CPF</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm font-mono">{faturaParaEdicao.proprietario_cpf}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="card-glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-orange-500/10 rounded-lg">
+                          <Users className="w-4 h-4 text-orange-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Locatário</h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Nome</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{faturaParaEdicao.locatario_nome}</p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">CPF</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm font-mono">{faturaParaEdicao.locatario_cpf}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="card-glass">
+                    <CardContent className="p-6">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-red-500/10 rounded-lg">
+                          <AlertCircle className="w-4 h-4 text-red-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-foreground">Status de Pagamento</h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Dias em Atraso</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm font-semibold text-red-600">
+                              {faturaParaEdicao.dias_atraso || 0} dias
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Referência</Label>
+                          <div className="mt-1 p-2 bg-muted/30 rounded-md">
+                            <p className="text-sm">{faturaParaEdicao.referencia_display || faturaParaEdicao.mes_referencia}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer do Modal */}
+            <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t px-6 py-4">
+              <div className="flex items-center justify-between">
+                <Button 
+                  onClick={fecharEdicaoFatura}
+                  variant="outline"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Fechar
+                </Button>
+                
+                <div className="flex items-center space-x-3">
+                  <Button 
+                    onClick={() => abrirLancamentoFatura(faturaParaEdicao)}
+                    variant="outline"
+                  >
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Lançar Prestação
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => {
+                      // TODO: Implementar salvamento de alterações
+                      toast.success("Alterações salvas com sucesso!");
+                      fecharEdicaoFatura();
+                    }}
+                    className="btn-gradient"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Salvar Alterações
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>

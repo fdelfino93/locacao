@@ -15,7 +15,7 @@ import {
 interface LancamentoFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (tipo: 'lancamento' | 'desconto', dados: { tipo: string; valor: number }) => void;
+  onSave: (tipo: 'lancamento' | 'desconto', dados: { tipo: string; valor: number; quantidade?: number; valorUnitario?: number }) => void;
   tipoOperacao: 'lancamento' | 'desconto';
   pagamentoId: number;
 }
@@ -28,6 +28,8 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
   pagamentoId
 }) => {
   const [tipo, setTipo] = useState('');
+  const [quantidade, setQuantidade] = useState('1');
+  const [valorUnitario, setValorUnitario] = useState('');
   const [valor, setValor] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -56,19 +58,33 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
   if (!isOpen) return null;
 
   const handleSave = async () => {
-    if (!tipo || !valor) {
+    if (!tipo || (!valor && !valorUnitario)) {
       return;
     }
 
-    const valorNumerico = parseFloat(valor.replace(',', '.'));
-    if (isNaN(valorNumerico)) {
-      return;
+    const qtd = parseFloat(quantidade.replace(',', '.')) || 1;
+    let valorFinal: number;
+    
+    if (valorUnitario) {
+      const valorUnit = parseFloat(valorUnitario.replace(',', '.'));
+      if (isNaN(valorUnit)) return;
+      valorFinal = valorUnit * qtd;
+    } else {
+      valorFinal = parseFloat(valor.replace(',', '.'));
+      if (isNaN(valorFinal)) return;
     }
 
     setLoading(true);
     try {
-      await onSave(tipoOperacao, { tipo, valor: valorNumerico });
+      await onSave(tipoOperacao, { 
+        tipo, 
+        valor: valorFinal,
+        quantidade: qtd,
+        valorUnitario: valorUnitario ? parseFloat(valorUnitario.replace(',', '.')) : valorFinal
+      });
       setTipo('');
+      setQuantidade('1');
+      setValorUnitario('');
       setValor('');
       onClose();
     } catch (error) {
@@ -80,6 +96,8 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
 
   const handleClose = () => {
     setTipo('');
+    setQuantidade('1');
+    setValorUnitario('');
     setValor('');
     onClose();
   };
@@ -138,17 +156,68 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
             </Select>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="quantidade">Quantidade</Label>
+              <InputWithIcon
+                id="quantidade"
+                type="text"
+                value={quantidade}
+                onChange={(e) => {
+                  setQuantidade(formatarValor(e.target.value));
+                  // Recalcular valor total se tiver valor unitário
+                  if (valorUnitario) {
+                    const qtd = parseFloat(e.target.value.replace(',', '.')) || 1;
+                    const valorUnit = parseFloat(valorUnitario.replace(',', '.')) || 0;
+                    setValor((qtd * valorUnit).toFixed(2).replace('.', ','));
+                  }
+                }}
+                placeholder="1"
+                className="mt-1"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="valorUnitario">Valor Unitário (R$)</Label>
+              <InputWithIcon
+                id="valorUnitario"
+                type="text"
+                value={valorUnitario}
+                onChange={(e) => {
+                  setValorUnitario(formatarValor(e.target.value));
+                  // Calcular valor total automaticamente
+                  const qtd = parseFloat(quantidade.replace(',', '.')) || 1;
+                  const valorUnit = parseFloat(e.target.value.replace(',', '.')) || 0;
+                  setValor((qtd * valorUnit).toFixed(2).replace('.', ','));
+                }}
+                placeholder="0,00"
+                icon={DollarSign}
+                className="mt-1"
+              />
+            </div>
+          </div>
+
           <div>
-            <Label htmlFor="valor">Valor (R$)</Label>
+            <Label htmlFor="valor">Valor Total (R$)</Label>
             <InputWithIcon
               id="valor"
               type="text"
               value={valor}
-              onChange={(e) => setValor(formatarValor(e.target.value))}
+              onChange={(e) => {
+                setValor(formatarValor(e.target.value));
+                // Limpar valor unitário quando editar valor total diretamente
+                setValorUnitario('');
+              }}
               placeholder="0,00"
               icon={DollarSign}
-              className="mt-1"
+              className="mt-1 bg-muted/50"
+              disabled={!!valorUnitario}
             />
+            {valorUnitario && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Calculado: {quantidade} x R$ {valorUnitario} = R$ {valor}
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">
@@ -161,7 +230,7 @@ export const LancamentoForm: React.FC<LancamentoFormProps> = ({
             </Button>
             <Button
               onClick={handleSave}
-              disabled={loading || !tipo || !valor}
+              disabled={loading || !tipo || (!valor && !valorUnitario)}
               className={tipoOperacao === 'lancamento' ? 'btn-primary' : 'btn bg-destructive text-destructive-foreground hover:bg-destructive/90'}
             >
               {loading ? (

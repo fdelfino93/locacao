@@ -338,6 +338,8 @@ async def listar_faturas(
     status: str = None,
     data_inicio: str = None,
     data_fim: str = None,
+    mes: str = None,
+    ano: str = None,
     search: str = None,
     locador_id: int = None,
     valor_min: float = None,
@@ -356,6 +358,10 @@ async def listar_faturas(
             filtros['data_inicio'] = data_inicio
         if data_fim:
             filtros['data_fim'] = data_fim
+        if mes:
+            filtros['mes'] = mes
+        if ano:
+            filtros['ano'] = ano
         if search:
             filtros['search'] = search
         if locador_id:
@@ -368,8 +374,8 @@ async def listar_faturas(
         # Buscar faturas
         resultado = buscar_faturas(filtros, page, limit, order_by, order_dir)
         
-        # Buscar estatísticas
-        stats = buscar_estatisticas_faturas()
+        # Buscar estatísticas com os mesmos filtros
+        stats = buscar_estatisticas_faturas(filtros)
         
         return {
             "data": resultado['data'],
@@ -410,6 +416,36 @@ async def gerar_boleto(fatura_id: int):
         return {"data": boleto, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao gerar boleto: {str(e)}")
+
+@app.post("/api/faturas/{fatura_id}/cancelar")
+async def cancelar_fatura(fatura_id: int):
+    try:
+        from repositories_adapter import cancelar_fatura
+        resultado = cancelar_fatura(fatura_id)
+        
+        if resultado:
+            return {"message": f"Fatura {fatura_id} cancelada com sucesso", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao cancelar fatura: {str(e)}")
+
+class AlterarStatusRequest(BaseModel):
+    status: str
+    motivo: Optional[str] = None
+
+@app.put("/api/faturas/{fatura_id}/status")
+async def alterar_status_fatura(fatura_id: int, request: AlterarStatusRequest):
+    try:
+        from repositories_adapter import alterar_status_fatura
+        resultado = alterar_status_fatura(fatura_id, request.status, request.motivo)
+        
+        if resultado:
+            return {"message": f"Status da fatura {fatura_id} alterado para {request.status}", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status da fatura: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

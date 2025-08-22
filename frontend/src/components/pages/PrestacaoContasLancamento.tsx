@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Loader2, Receipt, ArrowLeft, ArrowDown, Search, User, Building, Hash, Calendar, Settings, Mail, MessageCircle, Clock, Percent, CreditCard, TrendingDown, X, Crown, Users } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Loader2, Receipt, ArrowLeft, ArrowDown, Search, User, Building, Hash, Calendar, Settings, Mail, MessageCircle, Clock, Percent, CreditCard, TrendingDown, X, Crown, Users, Send } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura } from "@/types";
 import toast from "react-hot-toast";
@@ -32,7 +33,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
   const [deducoes, setDeducoes] = useState<number>(0);
   const [statusLancamento, setStatusLancamento] = useState<'pago' | 'pendente' | 'atrasado' | 'vencido'>('pendente');
   const [observacoesLancamento, setObservacoesLancamento] = useState<string>('');
+  const [mostrandoFormulario, setMostrandoFormulario] = useState(false);
+  const [novoLancamento, setNovoLancamento] = useState({
+    tipo: 'receita',
+    descricao: '',
+    valor: 0
+  });
   const [lancamentos, setLancamentos] = useState<any[]>([]);
+  
+  // Estados para retidos extras
+  const [mostrandoFormularioRetidos, setMostrandoFormularioRetidos] = useState(false);
+  const [novoRetido, setNovoRetido] = useState({
+    tipo: 'retido',
+    descricao: '',
+    valor: 0
+  });
+  const [retidosExtras, setRetidosExtras] = useState<any[]>([]);
   
   // Novos estados para nova prestação
   const [tipoLancamento, setTipoLancamento] = useState<'entrada' | 'mensal' | 'rescisao'>('mensal');
@@ -116,6 +132,16 @@ export const PrestacaoContasLancamento: React.FC = () => {
     setContratosFiltrados(contratos);
   }, [contratos]);
 
+  // Reset tipo de lançamento quando contrato muda
+  useEffect(() => {
+    if (contratoSelecionado) {
+      // Se não for primeira prestação e está em entrada, muda para mensal
+      if (!contratoSelecionado.primeira_prestacao && tipoLancamento === 'entrada') {
+        setTipoLancamento('mensal');
+      }
+    }
+  }, [contratoSelecionado]);
+
   const buscarLocadores = async () => {
     setLoadingLocadores(true);
     
@@ -179,10 +205,27 @@ export const PrestacaoContasLancamento: React.FC = () => {
           proprietario_telefone: '(11) 98765-4321',
           imovel_endereco: 'Rua das Flores, 123 - Centro',
           imovel_tipo: 'Apartamento',
+          // Valores Mensais
           valor_aluguel: 1500.00,
+          valor_condominio: 280.00,
+          valor_fci: 35.00,
+          taxa_administracao: 10.0,
+          bonificacao: 0,
+          multa_atraso: 2.0,
+          // Seguros e IPTU
+          valor_seguro_fianca: 450.00,
+          valor_seguro_incendio: 120.00,
+          valor_iptu: 180.00,
+          // Retidos
+          retido_fci: true,
+          retido_iptu: true,
+          retido_condominio: false,
+          retido_seguro_fianca: true,
+          retido_seguro_incendio: true,
           status: 'ativo',
           data_inicio: '2024-01-15',
-          data_fim: '2024-12-15'
+          data_fim: '2024-12-15',
+          primeira_prestacao: false // Já teve prestações anteriores
         },
         {
           id: 2,
@@ -196,10 +239,27 @@ export const PrestacaoContasLancamento: React.FC = () => {
           proprietario_telefone: '(11) 91234-5678',
           imovel_endereco: 'Av. Paulista, 456 - Bela Vista',
           imovel_tipo: 'Casa',
+          // Valores Mensais
           valor_aluguel: 2200.00,
+          valor_condominio: 420.00,
+          valor_fci: 45.00,
+          taxa_administracao: 8.5,
+          bonificacao: 50.00,
+          multa_atraso: 2.5,
+          // Seguros e IPTU
+          valor_seguro_fianca: 650.00,
+          valor_seguro_incendio: 180.00,
+          valor_iptu: 320.00,
+          // Retidos
+          retido_fci: false,
+          retido_iptu: true,
+          retido_condominio: true,
+          retido_seguro_fianca: false,
+          retido_seguro_incendio: true,
           status: 'ativo',
           data_inicio: '2024-03-01',
-          data_fim: '2025-02-28'
+          data_fim: '2025-02-28',
+          primeira_prestacao: false // Já teve prestações anteriores
         },
         {
           id: 3,
@@ -213,9 +273,26 @@ export const PrestacaoContasLancamento: React.FC = () => {
           proprietario_telefone: '(11) 95555-6666',
           imovel_endereco: 'Rua Augusta, 789 - Jardins',
           imovel_tipo: 'Kitnet',
+          // Valores Mensais
           valor_aluguel: 900.00,
+          valor_condominio: 150.00,
+          valor_fci: 20.00,
+          taxa_administracao: 12.0,
+          bonificacao: 0,
+          multa_atraso: 3.0,
+          // Seguros e IPTU
+          valor_seguro_fianca: 270.00,
+          valor_seguro_incendio: 80.00,
+          valor_iptu: 120.00,
+          // Retidos
+          retido_fci: true,
+          retido_iptu: false,
+          retido_condominio: false,
+          retido_seguro_fianca: true,
+          retido_seguro_incendio: false,
           status: 'ativo',
-          data_inicio: '2024-02-10'
+          data_inicio: '2024-02-10',
+          primeira_prestacao: true // Primeira prestação - permite entrada
         },
         {
           id: 4,
@@ -230,8 +307,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
           imovel_endereco: 'Rua das Acácias, 88 - Centro',
           imovel_tipo: 'Apartamento',
           valor_aluguel: 1200.00,
+          taxa_administracao: 9.0, // 9%
           status: 'ativo',
-          data_inicio: '2024-04-01'
+          data_inicio: '2024-04-01',
+          primeira_prestacao: true // Primeira prestação - permite entrada
         }
       ];
       
@@ -250,6 +329,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
+  };
+
+  // Função para calcular a taxa de administração do contrato
+  const calcularTaxaAdministracao = (contrato: any) => {
+    if (!contrato) return 0;
+    const valorAluguel = contrato.valor_aluguel || 0;
+    const taxaPercentual = contrato.taxa_administracao || 10; // fallback para 10%
+    return (valorAluguel * taxaPercentual) / 100;
   };
 
   const formatDate = (dateString: string) => {
@@ -300,14 +387,64 @@ export const PrestacaoContasLancamento: React.FC = () => {
     setLancamentos(novosLancamentos);
   };
 
+  // Função para obter valores baseados no tipo de cálculo selecionado
+  const obterValoresPorTipo = () => {
+    if (!contratoSelecionado) return {};
+    
+    switch (tipoLancamento) {
+      case 'entrada':
+        // Para entrada, valores podem ser proporcionais
+        return {
+          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
+          valor_condominio: contratoSelecionado.valor_condominio || 0,
+          valor_fci: contratoSelecionado.valor_fci || 0,
+          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
+          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
+          valor_iptu: contratoSelecionado.valor_iptu || 0,
+        };
+      
+      case 'mensal':
+        // Para mensal, valores completos
+        return {
+          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
+          valor_condominio: contratoSelecionado.valor_condominio || 0,
+          valor_fci: contratoSelecionado.valor_fci || 0,
+          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
+          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
+          valor_iptu: contratoSelecionado.valor_iptu || 0,
+        };
+      
+      case 'rescisao':
+        // Para rescisão, valores podem incluir multa
+        return {
+          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
+          valor_condominio: contratoSelecionado.valor_condominio || 0,
+          valor_fci: contratoSelecionado.valor_fci || 0,
+          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
+          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
+          valor_iptu: contratoSelecionado.valor_iptu || 0,
+          multa_rescisoria: contratoSelecionado.valor_aluguel * (contratoSelecionado.multa_rescisoria || 2) / 100,
+        };
+      
+      default:
+        return {};
+    }
+  };
+
   const calcularTotais = () => {
+    // Separar lançamentos por tipo para cálculo
+    const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
+    const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
+    
+    const valoresPorTipo = obterValoresPorTipo();
+    
     // Subtotal dos lançamentos (sem acréscimos por atraso)
-    const subtotalLancamentos = (contratoSelecionado?.valor_aluguel || 1500) + encargos + 
-      lancamentos.reduce((total, lanc) => total + lanc.valor, 0);
+    const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) + 
+      lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
     
     // Total bruto incluindo acréscimos por atraso
     const totalBruto = subtotalLancamentos + valorVencido;
-    const totalDescontos = descontosAjustes.reduce((total, desconto) => total + desconto.valor, 0);
+    const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
     
     // Valor do boleto = subtotal + acréscimos - descontos
     const valorBoleto = totalBruto - totalDescontos;
@@ -316,7 +453,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const numProprietarios = proprietarios.length || 1;
     const taxaAdmin = valorBoleto * (configuracaoRetencoes.percentual_admin / 100);
     const taxaBoleto = configuracaoRetencoes.taxa_boleto;
-    const taxaTransferencia = configuracaoRetencoes.taxa_transferencia * numProprietarios;
+    // Taxa de transferência só se aplica para proprietários adicionais (além do primeiro)
+    const taxaTransferencia = numProprietarios > 1 ? configuracaoRetencoes.taxa_transferencia * (numProprietarios - 1) : 0;
     const totalRetido = taxaAdmin + taxaBoleto + taxaTransferencia;
     
     // Valor final de repasse aos proprietários
@@ -569,7 +707,81 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       )}
                     </div>
                   
-                    {loadingContratos ? (
+{contratoSelecionado ? (
+                      // Modo: Contrato Selecionado
+                      <div className="space-y-6">
+                        {/* Botão Voltar e Contrato Selecionado */}
+                        <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20">
+                          <div className="flex items-center space-x-4">
+                            <Button
+                              onClick={() => setContratoSelecionado(null)}
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center space-x-2"
+                            >
+                              <ArrowLeft className="w-4 h-4" />
+                              <span>Voltar</span>
+                            </Button>
+                            <div className="flex items-center space-x-3">
+                              <div className="p-1 bg-primary/20 rounded-lg">
+                                <CheckCircle className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-semibold text-foreground">Contrato Selecionado</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {contratoSelecionado.numero || `CTR-${contratoSelecionado.id}`} - {contratoSelecionado.locatario_nome}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Resumo do Contrato */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Building className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">Imóvel</span>
+                            </div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {contratoSelecionado.imovel_endereco}
+                            </p>
+                            {contratoSelecionado.imovel_tipo && (
+                              <Badge variant="secondary" className="text-xs mt-1">
+                                {contratoSelecionado.imovel_tipo}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Users className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">Partes</span>
+                            </div>
+                            <p className="text-sm font-semibold text-foreground">
+                              {contratoSelecionado.locador_nome}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Locatário: {contratoSelecionado.locatario_nome}
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-muted/30 rounded-lg">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <DollarSign className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">Valor</span>
+                            </div>
+                            <p className="text-sm font-bold text-green-600">
+                              {formatCurrency((contratoSelecionado?.valor_aluguel || 1500) || 0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {contratoSelecionado.numero}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : loadingContratos ? (
+                      // Modo: Carregando
                       <div className="flex items-center justify-center py-16">
                         <div className="flex flex-col items-center space-y-4">
                           <div className="p-4 bg-primary/10 rounded-xl">
@@ -582,6 +794,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
                       </div>
                     ) : contratosFiltrados.length === 0 ? (
+                      // Modo: Nenhum contrato
                       <div className="text-center py-16 bg-muted/30 rounded-xl border border-dashed border-muted-foreground/30">
                         <div className="p-4 bg-muted/50 rounded-xl w-fit mx-auto mb-6">
                           <FileText className="w-8 h-8 text-muted-foreground" />
@@ -599,6 +812,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </Button>
                       </div>
                     ) : (
+                      // Modo: Lista de contratos
                       <div className="space-y-6">
                         {/* Campo de Busca */}
                         <div className="relative">
@@ -630,25 +844,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               whileHover={{ scale: 1.01 }}
                               whileTap={{ scale: 0.99 }}
                               onClick={() => setContratoSelecionado(contrato)}
-                              className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                                contratoSelecionado?.id === contrato.id
-                                  ? 'border-primary bg-primary/5 shadow-md'
-                                  : 'border-border bg-background hover:border-primary/50 hover:bg-primary/5'
-                              }`}
+                              className="p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 border-border bg-background hover:border-primary/50 hover:bg-primary/5"
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-4 flex-1">
-                                  {/* Indicador de Seleção */}
-                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                    contratoSelecionado?.id === contrato.id
-                                      ? 'border-primary bg-primary'
-                                      : 'border-muted-foreground'
-                                  }`}>
-                                    {contratoSelecionado?.id === contrato.id && (
-                                      <CheckCircle className="w-3 h-3 text-white" />
-                                    )}
-                                  </div>
-                                  
                                   {/* Info Principal */}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2 mb-1">
@@ -658,6 +857,11 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                       <div className={`w-2 h-2 rounded-full ${
                                         contrato.status === 'ativo' ? 'bg-green-500' : 'bg-gray-400'
                                       }`} />
+                                      {contrato.primeira_prestacao && (
+                                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                          1ª Prestação
+                                        </Badge>
+                                      )}
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
@@ -707,67 +911,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       </div>
                     )}
                   
-                    {/* Resumo do Contrato Selecionado */}
-                    {contratoSelecionado && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-6 p-4 bg-primary/5 rounded-lg border border-primary/20"
-                      >
-                        <div className="flex items-center space-x-3 mb-3">
-                          <div className="p-1 bg-primary/20 rounded-lg">
-                            <CheckCircle className="w-4 h-4 text-primary" />
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-semibold text-foreground">Contrato Selecionado</h4>
-                            <p className="text-xs text-muted-foreground">Confirme os dados antes de prosseguir</p>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                          <div className="p-3 bg-background/60 rounded-lg border border-border/50">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <Building className="w-3 h-3 text-primary" />
-                              <span className="text-xs font-medium text-muted-foreground">Imóvel</span>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {contratoSelecionado.imovel_endereco}
-                            </p>
-                            {contratoSelecionado.imovel_tipo && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {contratoSelecionado.imovel_tipo}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="p-3 bg-background/60 rounded-lg border border-border/50">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <User className="w-3 h-3 text-primary" />
-                              <span className="text-xs font-medium text-muted-foreground">Locatário</span>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {contratoSelecionado.locatario_nome}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Locador: {contratoSelecionado.locador_nome}
-                            </p>
-                          </div>
-                          
-                          <div className="p-3 bg-background/60 rounded-lg border border-border/50">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <DollarSign className="w-3 h-3 text-green-500" />
-                              <span className="text-xs font-medium text-muted-foreground">Valor Mensal</span>
-                            </div>
-                            <p className="text-sm font-bold text-green-600">
-                              {formatCurrency((contratoSelecionado?.valor_aluguel || 1500) || 0)}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {contratoSelecionado.numero}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -836,7 +979,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 }}
-                className="space-y-6"
               >
                 <Card className="card-glass">
                   <CardContent className="p-6">
@@ -849,235 +991,1251 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           <span className="text-green-600 mr-2">2.</span>
                           Configuração do Cálculo
                         </h3>
-                        <p className="text-sm text-muted-foreground">Configure o tipo e parâmetros do cálculo</p>
+                        <p className="text-sm text-muted-foreground">Configure os parâmetros da fatura e cálculos</p>
                       </div>
                     </div>
-                    
-                    {/* Tipo de Lançamento - Cards Selecionáveis */}
-                    <div className="space-y-4 mb-6">
-                      <Label className="text-sm font-medium text-foreground">Tipo de Lançamento</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                          {
-                            value: 'entrada',
-                            icon: '🏠',
-                            title: 'Entrada de Imóvel',
-                            description: 'Primeira cobrança do contrato',
-                            color: 'blue'
-                          },
-                          {
-                            value: 'mensal',
-                            icon: '📅',
-                            title: 'Cobrança Mensal',
-                            description: 'Aluguel e taxas mensais',
-                            color: 'green'
-                          },
-                          {
-                            value: 'rescisao',
-                            icon: '📋',
-                            title: 'Rescisão de Contrato',
-                            description: 'Acertos finais e devolução',
-                            color: 'orange'
-                          }
-                        ].map((tipo) => (
-                          <motion.div
-                            key={tipo.value}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setTipoLancamento(tipo.value as any)}
-                            className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                              tipoLancamento === tipo.value
-                                ? tipo.value === 'entrada' ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20' :
-                                  tipo.value === 'mensal' ? 'border-green-500 bg-green-50/50 dark:bg-green-950/20' :
-                                  'border-orange-500 bg-orange-50/50 dark:bg-orange-950/20'
-                                : 'border-border bg-background hover:border-primary/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-2xl">{tipo.icon}</span>
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                tipoLancamento === tipo.value
-                                  ? tipo.value === 'entrada' ? 'border-blue-500 bg-blue-500' :
-                                    tipo.value === 'mensal' ? 'border-green-500 bg-green-500' :
-                                    'border-orange-500 bg-orange-500'
-                                  : 'border-muted-foreground'
-                              }`}>
-                                {tipoLancamento === tipo.value && (
-                                  <div className="w-2 h-2 rounded-full bg-white" />
-                                )}
+
+                    {/* Tipo de Cálculo */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <motion.div 
+                          className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg shadow-md"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Calculator className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Tipo de Cálculo
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Selecione o tipo de lançamento e configure os parâmetros
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 border border-border rounded-lg">
+                        <Tabs value={tipoLancamento} onValueChange={(value: 'entrada' | 'mensal' | 'rescisao') => setTipoLancamento(value)} className="w-full">
+                          <TabsList className="grid w-full grid-cols-3 mb-6">
+                            <TabsTrigger value="entrada" className="flex items-center space-x-2">
+                              <ArrowDown className="w-4 h-4" />
+                              <span>Entrada</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="mensal" className="flex items-center space-x-2">
+                              <Calendar className="w-4 h-4" />
+                              <span>Mensal</span>
+                            </TabsTrigger>
+                            <TabsTrigger value="rescisao" className="flex items-center space-x-2">
+                              <X className="w-4 h-4" />
+                              <span>Rescisão</span>
+                            </TabsTrigger>
+                          </TabsList>
+
+                          <TabsContent value="entrada" className="space-y-4 mt-0">
+                            {!contratoSelecionado?.primeira_prestacao ? (
+                              <div className="p-8 text-center">
+                                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800 max-w-md mx-auto">
+                                  <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
+                                  <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                                    Entrada não disponível
+                                  </h3>
+                                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                                    Este contrato já teve prestações anteriores. A opção de entrada só está disponível para a primeira prestação de um contrato.
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-blue-500" />
+                                  <span>Data de Entrada</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="date"
+                                  icon={Calendar}
+                                  value={contratoSelecionado?.data_inicio ? new Date(contratoSelecionado.data_inicio).toISOString().split('T')[0] : ''}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-blue-500" />
+                                  <span>Tipo de Cobrança</span>
+                                </Label>
+                                <Select defaultValue="proporcional-dias">
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="proporcional-dias">Proporcional aos dias utilizados</SelectItem>
+                                    <SelectItem value="dias-completo">Dias utilizados + mês completo</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </div>
-                            <h4 className="text-sm font-semibold text-foreground mb-1">
-                              {tipo.title}
-                            </h4>
-                            <p className="text-xs text-muted-foreground">
-                              {tipo.description}
-                            </p>
-                          </motion.div>
-                        ))}
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <DollarSign className="w-4 h-4 text-green-500" />
+                                  <span>Valor do Aluguel</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={DollarSign}
+                                  value={`R$ ${contratoSelecionado?.valor_aluguel || '0,00'}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-purple-500" />
+                                  <span>Dia de Vencimento</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={Calendar}
+                                  value={`Dia ${contratoSelecionado?.dia_vencimento || diaVencimento}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                              <p className="text-sm text-green-700 dark:text-green-300">
+                                <strong>Entrada:</strong> Será calculado baseado na data de entrada e tipo de cobrança selecionado
+                              </p>
+                            </div>
+                              </>
+                            )}
+                          </TabsContent>
+
+                          <TabsContent value="mensal" className="space-y-4 mt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-blue-500" />
+                                  <span>Mês de Referência</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="month"
+                                  icon={Calendar}
+                                  value={mesReferencia}
+                                  onChange={(e) => setMesReferencia(e.target.value)}
+                                  placeholder="YYYY-MM"
+                                  className="h-9"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-blue-500" />
+                                  <span>Tipo de Cobrança</span>
+                                </Label>
+                                <Select defaultValue="mes-completo" disabled>
+                                  <SelectTrigger className="h-9 bg-muted/50">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="mes-completo">Mês completo</SelectItem>
+                                    <SelectItem value="proporcional-dias">Proporcional aos dias utilizados</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <DollarSign className="w-4 h-4 text-green-500" />
+                                  <span>Valor do Aluguel</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={DollarSign}
+                                  value={`R$ ${contratoSelecionado?.valor_aluguel || '0,00'}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-purple-500" />
+                                  <span>Dia de Vencimento</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={Calendar}
+                                  value={`Dia ${contratoSelecionado?.dia_vencimento || diaVencimento}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                              <p className="text-sm text-blue-700 dark:text-blue-300">
+                                <strong>Mensal:</strong> Cobrança completa para o mês selecionado
+                              </p>
+                            </div>
+                          </TabsContent>
+
+                          <TabsContent value="rescisao" className="space-y-4 mt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-red-500" />
+                                  <span>Data de Rescisão</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="date"
+                                  icon={Calendar}
+                                  className="h-9"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-red-500" />
+                                  <span>Tipo de Cobrança</span>
+                                </Label>
+                                <Select defaultValue="proporcional-dias">
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="proporcional-dias">Proporcional aos dias utilizados</SelectItem>
+                                    <SelectItem value="dias-completo">Dias utilizados + mês completo</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <DollarSign className="w-4 h-4 text-green-500" />
+                                  <span>Valor do Aluguel</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={DollarSign}
+                                  value={`R$ ${contratoSelecionado?.valor_aluguel || '0,00'}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <Calendar className="w-4 h-4 text-purple-500" />
+                                  <span>Dia de Vencimento</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={Calendar}
+                                  value={`Dia ${contratoSelecionado?.dia_vencimento || diaVencimento}`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                  <AlertCircle className="w-4 h-4 text-orange-500" />
+                                  <span>Multa Rescisória (Contrato)</span>
+                                </Label>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={Percent}
+                                  value={`${contratoSelecionado?.multa_rescisoria || '2'}%`}
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="p-3 bg-red-50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-800">
+                              <p className="text-sm text-red-700 dark:text-red-300">
+                                <strong>Rescisão:</strong> Cálculo baseado no tipo de cobrança selecionado + multas e taxas
+                              </p>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     </div>
-                    
-                    {/* Parâmetros Condicionais por Tipo */}
-                    {tipoLancamento && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="space-y-4"
-                      >
-                        {/* Entrada de Imóvel */}
-                        {tipoLancamento === 'entrada' && (
-                          <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                            <div className="flex items-center space-x-2 mb-3">
-                              <span className="text-lg">🏠</span>
-                              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                                Primeira Cobrança do Contrato
-                              </h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-600 dark:text-blue-400">Caução/Depósito</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="R$ 0,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-blue-600 dark:text-blue-400">Taxa Administrativa</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="R$ 0,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                            </div>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">
-                              Inclui primeiro aluguel + caução + taxas de entrada
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Cobrança Mensal */}
-                        {tipoLancamento === 'mensal' && (
-                          <div className="p-4 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-                            <div className="flex items-center space-x-2 mb-3">
-                              <span className="text-lg">📅</span>
-                              <h4 className="text-sm font-semibold text-green-700 dark:text-green-300">
-                                Cobrança Mensal Recorrente
-                              </h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-xs text-green-600 dark:text-green-400">Correção IGPM (%)</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="0,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-green-600 dark:text-green-400">Multa Atraso (%)</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={encargos}
-                                  onChange={(e) => setEncargos(Number(e.target.value) || 0)}
-                                  placeholder="2,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-green-600 dark:text-green-400">Juros Mora (%/dia)</Label>
-                                <input
-                                  type="number"
-                                  step="0.001"
-                                  placeholder="0,033"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                            </div>
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-3">
-                              Aluguel base + correções + taxas mensais + encargos (se houver)
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Rescisão */}
-                        {tipoLancamento === 'rescisao' && (
-                          <div className="p-4 bg-orange-50/50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                            <div className="flex items-center space-x-2 mb-3">
-                              <span className="text-lg">📋</span>
-                              <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-300">
-                                Rescisão e Acertos Finais
-                              </h4>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label className="text-xs text-orange-600 dark:text-orange-400">Devolução Caução</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={deducoes}
-                                  onChange={(e) => setDeducoes(Number(e.target.value) || 0)}
-                                  placeholder="R$ 0,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs text-orange-600 dark:text-orange-400">Desconto Proporcional</Label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  placeholder="R$ 0,00"
-                                  className="w-full px-3 py-2 text-sm bg-background border border-border rounded-md"
-                                />
-                              </div>
-                            </div>
-                            <p className="text-xs text-orange-600 dark:text-orange-400 mt-3">
-                              Último aluguel proporcional + devolução de caução - descontos de danos
-                            </p>
-                          </div>
-                        )}
-                      </motion.div>
-                    )}
+
                   </CardContent>
                 </Card>
               </motion.div>
             )}
 
-            {/* 2.1. Proprietários do Imóvel */}
+
+            {/* 2.2. Lançamentos */}
             {isNovaPrestacao && contratoSelecionado && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.15 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
               >
-                <ProprietariosMultiplosForm
-                  proprietarios={proprietarios}
-                  onProprietariosChange={setProprietarios}
-                />
+                <Card className="card-glass">
+                  <CardContent className="p-8">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                          <Receipt className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-foreground">
+                            <span className="text-primary mr-2">5.</span>
+                            Lançamentos
+                          </h2>
+                          <p className="text-sm text-muted-foreground mt-1">Adicione lançamentos extras para esta prestação de contas</p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={() => setMostrandoFormulario(!mostrandoFormulario)} 
+                        className="btn-gradient"
+                      >
+                        {mostrandoFormulario ? 'Cancelar' : '+ Adicionar'}
+                      </Button>
+                    </div>
+                    
+                    {/* Formulário de Adição */}
+                    {mostrandoFormulario && (
+                      <div className="mb-6 p-4 bg-muted/30 rounded-lg border border-border">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-semibold text-foreground">Novo Lançamento</h4>
+                          <Button
+                            onClick={() => {
+                              setMostrandoFormulario(false);
+                              setNovoLancamento({ tipo: 'receita', descricao: '', valor: 0 });
+                            }}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <span>Tipo</span>
+                            </Label>
+                            <Select 
+                              value={novoLancamento.tipo} 
+                              onValueChange={(value) => setNovoLancamento({...novoLancamento, tipo: value})}
+                            >
+                              <SelectTrigger className="text-base font-medium h-12">
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="receita">Receita</SelectItem>
+                                <SelectItem value="despesa">Despesa</SelectItem>
+                                <SelectItem value="taxa">Taxa</SelectItem>
+                                <SelectItem value="desconto">Desconto</SelectItem>
+                                <SelectItem value="ajuste">Ajuste</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <span>Descrição</span>
+                            </Label>
+                            <InputWithIcon
+                              icon={FileText}
+                              value={novoLancamento.descricao}
+                              onChange={(e) => setNovoLancamento({...novoLancamento, descricao: e.target.value})}
+                              placeholder="Descreva o lançamento"
+                              className="text-base font-medium h-12"
+                            />
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <DollarSign className="w-4 h-4 text-green-500" />
+                              <span>Valor (R$)</span>
+                            </Label>
+                            <InputWithIcon
+                              icon={DollarSign}
+                              type="number"
+                              step="0.01"
+                              value={novoLancamento.valor}
+                              onChange={(e) => setNovoLancamento({...novoLancamento, valor: Number(e.target.value) || 0})}
+                              placeholder="0,00"
+                              className="text-base font-medium h-12"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 mt-6">
+                          <Button
+                            onClick={() => {
+                              setMostrandoFormulario(false);
+                              setNovoLancamento({ tipo: 'receita', descricao: '', valor: 0 });
+                            }}
+                            variant="outline"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (novoLancamento.descricao && novoLancamento.valor > 0) {
+                                setLancamentos([...lancamentos, {
+                                  ...novoLancamento,
+                                  data_lancamento: new Date().toISOString().split('T')[0]
+                                }]);
+                                setMostrandoFormulario(false);
+                                setNovoLancamento({ tipo: 'receita', descricao: '', valor: 0 });
+                              }
+                            }}
+                            disabled={!novoLancamento.descricao || novoLancamento.valor <= 0}
+                            className="btn-gradient"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Lista de Lançamentos */}
+                    <div className="space-y-4">
+                      {/* Valores Fixos do Contrato */}
+                      <div className="space-y-3">
+                        <div className="border-b pb-2 mb-3">
+                          <h4 className="text-sm font-medium text-muted-foreground">Valores Fixos do Contrato</h4>
+                        </div>
+
+{(() => {
+                          const valoresPorTipo = obterValoresPorTipo();
+                          return (
+                            <>
+                              {/* Aluguel - Valor Principal */}
+                              <div className="p-4 bg-background border border-border rounded-xl">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    <div className="p-2 rounded-lg">
+                                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300">
+                                        principal
+                                      </span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-foreground">Aluguel</p>
+                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                        <DollarSign className="w-3 h-3 mr-1" />
+                                        {tipoLancamento === 'entrada' ? 'Proporcional à entrada' : 
+                                         tipoLancamento === 'mensal' ? 'Valor mensal completo' : 
+                                         'Valor para rescisão'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="text-lg font-bold text-green-600">
+                                      +{formatCurrency(valoresPorTipo.valor_aluguel || 0)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Condomínio */}
+                              {valoresPorTipo.valor_condominio > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-200 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300">
+                                          {tipoLancamento}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">Condomínio</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-blue-600">
+                                        +{formatCurrency(valoresPorTipo.valor_condominio)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* FCI */}
+                              {valoresPorTipo.valor_fci > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-200 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300">
+                                          {tipoLancamento}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">FCI</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-purple-600">
+                                        +{formatCurrency(valoresPorTipo.valor_fci)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Seguro Fiança */}
+                              {valoresPorTipo.valor_seguro_fianca > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-orange-200 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300">
+                                          {tipoLancamento}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">Seguro Fiança</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-orange-600">
+                                        +{formatCurrency(valoresPorTipo.valor_seguro_fianca)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Seguro Incêndio */}
+                              {valoresPorTipo.valor_seguro_incendio > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-200 text-red-800 dark:bg-red-800/30 dark:text-red-300">
+                                          {tipoLancamento}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">Seguro Incêndio</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-red-600">
+                                        +{formatCurrency(valoresPorTipo.valor_seguro_incendio)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* IPTU */}
+                              {valoresPorTipo.valor_iptu > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-200 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300">
+                                          {tipoLancamento}
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">IPTU</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-indigo-600">
+                                        +{formatCurrency(valoresPorTipo.valor_iptu)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Multa Rescisória - apenas para rescisão */}
+                              {tipoLancamento === 'rescisao' && valoresPorTipo.multa_rescisoria > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-200 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300">
+                                          multa
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">Multa Rescisória</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {contratoSelecionado?.multa_rescisoria || 2}% do aluguel
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-yellow-600">
+                                        +{formatCurrency(valoresPorTipo.multa_rescisoria)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Desconto por Pontualidade - quando houver bonificação configurada */}
+                              {contratoSelecionado?.bonificacao > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300">
+                                          desconto
+                                        </span>
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="font-medium text-foreground">Desconto Pontualidade</p>
+                                        <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                          <CreditCard className="w-3 h-3 mr-1" />
+                                          Pagamento em dia
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-red-600">
+                                        -{formatCurrency(contratoSelecionado.bonificacao)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {lancamentos.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="border-t pt-3">
+                            <h4 className="text-sm font-medium text-muted-foreground mb-3">Lançamentos Extras</h4>
+                          </div>
+                          {lancamentos.map((lancamento, index) => (
+                            <div key={index} className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3 flex-1">
+                                  <div className={`p-2 rounded-lg ${
+                                    lancamento.tipo === 'receita' ? 'bg-green-50 dark:bg-green-950/20' :
+                                    lancamento.tipo === 'despesa' ? 'bg-red-50 dark:bg-red-950/20' :
+                                    lancamento.tipo === 'taxa' ? 'bg-blue-50 dark:bg-blue-950/20' :
+                                    lancamento.tipo === 'desconto' ? 'bg-orange-50 dark:bg-orange-950/20' :
+                                    'bg-purple-50 dark:bg-purple-950/20'
+                                  }`}>
+                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                      lancamento.tipo === 'receita' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                                      lancamento.tipo === 'despesa' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                                      lancamento.tipo === 'taxa' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                                      lancamento.tipo === 'desconto' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                                      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                                    }`}>
+                                      {lancamento.tipo}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-foreground">{lancamento.descricao}</p>
+                                    {lancamento.data_lancamento && (
+                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                        <Calendar className="w-3 h-3 mr-1" />
+                                        {formatDate(lancamento.data_lancamento)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                  <span className={`text-base font-bold ${
+                                    lancamento.tipo === 'desconto' || lancamento.tipo === 'ajuste' 
+                                      ? 'text-red-600' 
+                                      : 'text-foreground'
+                                  }`}>
+                                    {lancamento.tipo === 'desconto' || lancamento.tipo === 'ajuste' ? '-' : ''}
+                                    {formatCurrency(lancamento.valor)}
+                                  </span>
+                                  <Button
+                                    onClick={() => removerLancamento(index)}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {lancamentos.length === 0 && (
+                        <div className="text-center py-6 text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-muted-foreground/30">
+                          <Receipt className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm">Nenhum lançamento extra adicionado</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1">
+                            Clique em "Adicionar" para incluir receitas, despesas, taxas ou descontos
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Total Boleto */}
+                      <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Calculator className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-base font-semibold text-foreground">
+                              Total Boleto
+                            </span>
+                          </div>
+                          <span className="text-xl font-bold text-foreground">
+                            {formatCurrency((() => {
+                              const valoresPorTipo = obterValoresPorTipo();
+                              const totalFixos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => 
+                                total + (typeof valor === 'number' ? valor : 0), 0);
+                              const totalExtras = lancamentos.reduce((total, lanc) => 
+                                lanc.tipo === 'desconto' || lanc.tipo === 'ajuste' ? total - lanc.valor : total + lanc.valor, 0);
+                              const descontoPontualidade = contratoSelecionado?.bonificacao || 0;
+                              return totalFixos + totalExtras - descontoPontualidade;
+                            })())}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             )}
 
-            {/* 2.2. Configurações de Retenção */}
+            {/* 2.3. Retidos */}
             {isNovaPrestacao && contratoSelecionado && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: 0.18 }}
               >
-                <ConfiguracoesRetencaoForm
-                  configuracao={configuracaoRetencoes}
-                  onConfigChange={setConfiguracaoRetencoes}
-                  onSave={async () => {
-                    // Implementar salvamento das configurações
-                    toast.success('Configurações de retenção salvas com sucesso!');
-                  }}
-                />
+                <Card className="card-glass">
+                  <CardContent className="p-8">
+                    <div className="flex justify-between items-center mb-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                          <TrendingDown className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-foreground">
+                            <span className="text-primary mr-2">6.</span>
+                            Retidos
+                          </h2>
+                          <p className="text-sm text-muted-foreground mt-1">Gerencie valores retidos e antecipados do contrato</p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={() => setMostrandoFormularioRetidos(!mostrandoFormularioRetidos)} 
+                        className="btn-gradient"
+                      >
+                        {mostrandoFormularioRetidos ? 'Cancelar' : '+ Adicionar Extra'}
+                      </Button>
+                    </div>
+                    
+                    {/* Formulário para Retido Extra */}
+                    {mostrandoFormularioRetidos && (
+                      <div className="mb-6 p-4 bg-muted/30 rounded-lg border border-border">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-sm font-semibold text-foreground">Novo Retido Extra</h4>
+                          <Button
+                            onClick={() => {
+                              setMostrandoFormularioRetidos(false);
+                              setNovoRetido({ tipo: 'retido', descricao: '', valor: 0 });
+                            }}
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <span>Tipo</span>
+                            </Label>
+                            <Select 
+                              value={novoRetido.tipo} 
+                              onValueChange={(value) => setNovoRetido({...novoRetido, tipo: value})}
+                            >
+                              <SelectTrigger className="text-base font-medium h-12">
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="retido">Retido</SelectItem>
+                                <SelectItem value="antecipado">Antecipado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <FileText className="w-4 h-4 text-primary" />
+                              <span>Descrição</span>
+                            </Label>
+                            <InputWithIcon
+                              icon={FileText}
+                              value={novoRetido.descricao}
+                              onChange={(e) => setNovoRetido({...novoRetido, descricao: e.target.value})}
+                              placeholder="Descreva o retido/antecipado"
+                              className="text-base font-medium h-12"
+                            />
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
+                              <DollarSign className="w-4 h-4 text-red-500" />
+                              <span>Valor (R$)</span>
+                            </Label>
+                            <InputWithIcon
+                              icon={DollarSign}
+                              type="number"
+                              step="0.01"
+                              value={novoRetido.valor}
+                              onChange={(e) => setNovoRetido({...novoRetido, valor: Number(e.target.value) || 0})}
+                              placeholder="0,00"
+                              className="text-base font-medium h-12"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 mt-6">
+                          <Button
+                            onClick={() => {
+                              setMostrandoFormularioRetidos(false);
+                              setNovoRetido({ tipo: 'retido', descricao: '', valor: 0 });
+                            }}
+                            variant="outline"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (novoRetido.descricao && novoRetido.valor > 0) {
+                                setRetidosExtras([...retidosExtras, {
+                                  ...novoRetido,
+                                  data_lancamento: new Date().toISOString().split('T')[0]
+                                }]);
+                                setMostrandoFormularioRetidos(false);
+                                setNovoRetido({ tipo: 'retido', descricao: '', valor: 0 });
+                              }
+                            }}
+                            disabled={!novoRetido.descricao || novoRetido.valor <= 0}
+                            className="btn-gradient"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Adicionar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lista de Retidos */}
+                    <div className="space-y-4">
+                      {/* Valores de Retenção do Contrato */}
+                      <div className="space-y-3">
+                        <div className="border-b pb-2 mb-3">
+                          <h4 className="text-sm font-medium text-muted-foreground">Valores de Retenção do Contrato</h4>
+                        </div>
+
+                        {/* Retenções baseadas nos campos retido_* do contrato */}
+                        {contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-200 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300">
+                                    retenção
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Condomínio (Retido)</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado.valor_condominio)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg ">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-200 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300">
+                                    retenção
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">FCI (Retido)</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado.valor_fci)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg ">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-orange-200 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300">
+                                    retenção
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Seguro Fiança (Retido)</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado.valor_seguro_fianca)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg ">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-200 text-red-800 dark:bg-red-800/30 dark:text-red-300">
+                                    retenção
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Seguro Incêndio (Retido)</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado.valor_seguro_incendio)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg ">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-indigo-200 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300">
+                                    retenção
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">IPTU (Retido)</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado.valor_iptu)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Taxas Administrativas */}
+                      <div className="space-y-3">
+                        <div className="border-t pt-3">
+                          <h4 className="text-sm font-medium text-muted-foreground mb-3">Taxas Administrativas</h4>
+                        </div>
+
+                        {/* Taxa de Administração */}
+                        <div className="p-3 bg-background border border-border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3 flex-1">
+                              <div className="p-1.5 rounded-lg ">
+                                <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-200 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300">
+                                  taxa
+                                </span>
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-foreground">Taxa de Administração</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {contratoSelecionado?.taxa_administracao || 10}% do aluguel
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-green-600">
+                                +{formatCurrency(calcularTaxaAdministracao(contratoSelecionado))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Taxa de Boleto */}
+                        <div className="p-3 bg-background border border-border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3 flex-1">
+                              <div className="p-1.5 rounded-lg ">
+                                <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-200 text-emerald-800 dark:bg-emerald-800/30 dark:text-emerald-300">
+                                  taxa
+                                </span>
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-foreground">Taxa de Boleto</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Taxa fixa por boleto emitido
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-green-600">
+                                +{formatCurrency(configuracaoRetencoes.taxa_boleto)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Taxa de Transferência - só mostra se houver mais de 1 proprietário */}
+                        {(proprietarios.length > 1) && (
+                          <div className="p-3 bg-background border border-border rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-1.5 rounded-lg ">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-cyan-200 text-cyan-800 dark:bg-cyan-800/30 dark:text-cyan-300">
+                                    taxa
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Taxa de TED/PIX Adicional</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {proprietarios.length - 1} transferência(s) adicional(is) x R$ {configuracaoRetencoes.taxa_transferencia}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-green-600">
+                                  +{formatCurrency(configuracaoRetencoes.taxa_transferencia * (proprietarios.length - 1))}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Valores Extras */}
+                      <div className="space-y-3">
+                        {(contratoSelecionado?.valor_retido > 0 || contratoSelecionado?.valor_antecipado > 0 || retidosExtras.length > 0) && (
+                          <div className="border-t pt-3">
+                            <h4 className="text-sm font-medium text-muted-foreground mb-3">Valores Extras</h4>
+                          </div>
+                        )}
+                        
+                        {/* Valores Fixos do Contrato */}
+                        {(contratoSelecionado?.valor_retido > 0 || contratoSelecionado?.valor_antecipado > 0) && (
+                          <>
+                            {contratoSelecionado?.valor_retido > 0 && (
+                              <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/20">
+                                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
+                                        retido
+                                      </span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-foreground">Valor Retido do Contrato</p>
+                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                        <Calendar className="w-3 h-3 mr-1" />
+                                        Valor fixo do contrato
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-base font-bold text-green-600">
+                                      +{formatCurrency(contratoSelecionado?.valor_retido)}
+                                    </span>
+                                    <div className="w-8 h-8 flex items-center justify-center">
+                                      <span className="text-xs text-muted-foreground">Fixo</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {contratoSelecionado?.valor_antecipado > 0 && (
+                              <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3 flex-1">
+                                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                        antecipado
+                                      </span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-foreground">Valor Antecipado do Contrato</p>
+                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                        <Calendar className="w-3 h-3 mr-1" />
+                                        Valor fixo do contrato
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center space-x-3">
+                                    <span className="text-base font-bold text-green-600">
+                                      +{formatCurrency(contratoSelecionado?.valor_antecipado)}
+                                    </span>
+                                    <div className="w-8 h-8 flex items-center justify-center">
+                                      <span className="text-xs text-muted-foreground">Fixo</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        
+                        {/* Retidos Extras */}
+                        {retidosExtras.map((retido, index) => (
+                          <div key={index} className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className={`p-2 rounded-lg ${
+                                  retido.tipo === 'retido' ? 'bg-red-50 dark:bg-red-950/20' : 'bg-blue-50 dark:bg-blue-950/20'
+                                }`}>
+                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                    retido.tipo === 'retido' 
+                                      ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                  }`}>
+                                    {retido.tipo}
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">{retido.descricao}</p>
+                                  {retido.data_lancamento && (
+                                    <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                      <Calendar className="w-3 h-3 mr-1" />
+                                      {formatDate(retido.data_lancamento)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-base font-bold text-green-600">
+                                  +{formatCurrency(retido.valor)}
+                                </span>
+                                <Button
+                                  onClick={() => {
+                                    const novosRetidos = retidosExtras.filter((_, i) => i !== index);
+                                    setRetidosExtras(novosRetidos);
+                                  }}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Estado vazio */}
+                      {(contratoSelecionado?.valor_retido || 0) === 0 && 
+                       (contratoSelecionado?.valor_antecipado || 0) === 0 && 
+                       retidosExtras.length === 0 && 
+                       !contratoSelecionado?.retido_condominio &&
+                       !contratoSelecionado?.retido_fci &&
+                       !contratoSelecionado?.retido_seguro_fianca &&
+                       !contratoSelecionado?.retido_seguro_incendio &&
+                       !contratoSelecionado?.retido_iptu && (
+                        <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg border border-border">
+                          <TrendingDown className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                          <p className="text-sm">Nenhum valor retido ou antecipado</p>
+                          <p className="text-xs text-muted-foreground/70 mt-1">
+                            Clique em "Adicionar Extra" para incluir valores retidos ou antecipados
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Total Retido */}
+                      <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Calculator className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-base font-semibold text-foreground">
+                              Total Retido
+                            </span>
+                          </div>
+                          <span className="text-xl font-bold text-foreground">
+                            {formatCurrency((() => {
+                              let total = 0;
+                              
+                              // Valores de retenção do contrato
+                              if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0) {
+                                total += contratoSelecionado.valor_condominio;
+                              }
+                              if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0) {
+                                total += contratoSelecionado.valor_fci;
+                              }
+                              if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
+                                total += contratoSelecionado.valor_seguro_fianca;
+                              }
+                              if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
+                                total += contratoSelecionado.valor_seguro_incendio;
+                              }
+                              if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0) {
+                                total += contratoSelecionado.valor_iptu;
+                              }
+                              
+                              // Taxas administrativas
+                              total += calcularTaxaAdministracao(contratoSelecionado);
+                              total += configuracaoRetencoes.taxa_boleto;
+                              if (proprietarios.length > 1) {
+                                total += configuracaoRetencoes.taxa_transferencia * (proprietarios.length - 1);
+                              }
+                              
+                              // Valores extras
+                              total += contratoSelecionado?.valor_retido || 0;
+                              total += contratoSelecionado?.valor_antecipado || 0;
+                              total += retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
+                              
+                              return total;
+                            })())}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </motion.div>
             )}
 
@@ -1271,7 +2429,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
               </motion.div>
             )}
 
-            {/* 4. Configurações de Envio (nova seção separada) */}
+            {/* 4. Configurações do Locador */}
             {isNovaPrestacao && contratoSelecionado && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1282,493 +2440,294 @@ export const PrestacaoContasLancamento: React.FC = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-3 mb-6">
                       <div className="p-2 bg-blue-500/10 rounded-lg">
-                        <Mail className="w-5 h-5 text-blue-500" />
+                        <Crown className="w-5 h-5 text-blue-500" />
                       </div>
                       <div>
                         <h3 className="text-lg font-bold text-foreground">
                           <span className="text-blue-600 mr-2">4.</span>
-                          Configurações de Envio
+                          Configurações do Locador
                         </h3>
-                        <p className="text-sm text-muted-foreground">Configure quando e como enviar as faturas</p>
-                      </div>
-                    </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Envio para Email */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <Mail className="w-4 h-4 text-blue-500" />
-                            <span>Envio para Email</span>
-                          </Label>
-                          <div className="flex items-center space-x-3 h-12">
-                            <Checkbox
-                              checked={envioEmail}
-                              onCheckedChange={setEnvioEmail}
-                              id="envioEmail"
-                              className="w-5 h-5"
-                            />
-                            <label htmlFor="envioEmail" className="text-base text-foreground cursor-pointer">
-                              {envioEmail ? '📧 Ativado' : '❌ Desativado'}
-                            </label>
-                          </div>
-                        </div>
-                        
-                        {/* Dias Antes do Envio Email */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <Clock className="w-4 h-4 text-blue-500" />
-                            <span>Enviar Email (dias antes)</span>
-                          </Label>
-                          <Select 
-                            value={diasAntesEnvioEmail.toString()} 
-                            onValueChange={(value) => setDiasAntesEnvioEmail(Number(value))}
-                            disabled={!envioEmail}
-                          >
-                            <SelectTrigger className="h-12">
-                              <SelectValue placeholder="Selecione os dias" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1 dia antes</SelectItem>
-                              <SelectItem value="2">2 dias antes</SelectItem>
-                              <SelectItem value="3">3 dias antes</SelectItem>
-                              <SelectItem value="5">5 dias antes</SelectItem>
-                              <SelectItem value="7">7 dias antes</SelectItem>
-                              <SelectItem value="10">10 dias antes</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        
-                        {/* Envio para WhatsApp */}
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <MessageCircle className="w-4 h-4 text-green-500" />
-                            <span>Envio para WhatsApp</span>
-                          </Label>
-                          <div className="flex items-center space-x-3 h-12">
-                            <Checkbox
-                              checked={envioWhatsapp}
-                              onCheckedChange={setEnvioWhatsapp}
-                              id="envioWhatsapp"
-                              className="w-5 h-5"
-                            />
-                            <label htmlFor="envioWhatsapp" className="text-base text-foreground cursor-pointer">
-                              {envioWhatsapp ? '📱 Ativado' : '❌ Desativado'}
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Resumo das Configurações de Envio */}
-                      <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                        <h5 className="font-bold text-blue-900 dark:text-blue-100 mb-3 flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Resumo do Envio</span>
-                        </h5>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                          <div className="space-y-1">
-                            <p className="text-blue-700 dark:text-blue-300">
-                              <strong>Email:</strong> {envioEmail ? `${diasAntesEnvioEmail} dias antes` : 'Desabilitado'}
-                            </p>
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <p className="text-blue-700 dark:text-blue-300">
-                              <strong>WhatsApp:</strong> {envioWhatsapp ? 'Habilitado' : 'Desabilitado'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-            )}
-
-            {/* 5. Configuração de Repasses (nova seção separada) */}
-            {isNovaPrestacao && contratoSelecionado && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.4 }}
-              >
-                <Card className="card-glass">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2 bg-yellow-500/10 rounded-lg">
-                        <Crown className="w-5 h-5 text-yellow-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-foreground">
-                          <span className="text-yellow-600 mr-2">5.</span>
-                          Configuração de Repasses
-                        </h3>
-                        <p className="text-sm text-muted-foreground">Configure os repasses para o proprietário</p>
+                        <p className="text-sm text-muted-foreground">Dados do proprietário e configurações de envio</p>
                       </div>
                     </div>
 
                     {/* Dados do Proprietário */}
                     <div className="mb-6">
-                        <h5 className="text-md font-semibold text-foreground mb-3 flex items-center space-x-2">
-                          <Building className="w-4 h-4 text-yellow-500" />
-                          <span>Proprietário - {contratoSelecionado.locador_nome}</span>
-                        </h5>
-                        <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 dark:from-yellow-950/30 dark:to-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <div className="flex items-center space-x-2">
-                              <Mail className="w-4 h-4 text-yellow-600" />
-                              <span className="font-medium text-foreground">Email:</span>
-                              <span className="text-muted-foreground font-mono text-xs bg-background px-2 py-1 rounded">
-                                {contratoSelecionado.proprietario_email}
+                      <div className="flex items-center gap-3 mb-3">
+                        <motion.div 
+                          className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg shadow-md"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Building className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Proprietário
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Dados do proprietário do imóvel
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Seção Individual do Proprietário */}
+                      <div className="p-4 border border-border rounded-lg">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <Building className="w-4 h-4 text-blue-500" />
+                          </div>
+                          <div>
+                            <h4 className="text-base font-semibold text-foreground">{contratoSelecionado.locador_nome}</h4>
+                            <p className="text-xs text-muted-foreground">Proprietário principal</p>
+                          </div>
+                        </div>
+
+                        {/* Dados de Contato */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">Email</Label>
+                            <InputWithIcon
+                              type="email"
+                              value={contratoSelecionado.proprietario_email}
+                              placeholder="email@exemplo.com"
+                              icon={Mail}
+                              disabled
+                              className="bg-muted/50"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">Telefone</Label>
+                            <InputWithIcon
+                              type="tel"
+                              value={contratoSelecionado.proprietario_telefone}
+                              placeholder="(41) 99999-9999"
+                              icon={MessageCircle}
+                              disabled
+                              className="bg-muted/50"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">Porcentagem do Imóvel</Label>
+                            <InputWithIcon
+                              type="text"
+                              value={`${contratoSelecionado.porcentagem_proprietario || 100}%`}
+                              placeholder="100%"
+                              icon={Percent}
+                              disabled
+                              className="bg-muted/50"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Dados de Recebimento */}
+                        <div>
+                          <h5 className="text-sm font-medium text-foreground mb-3 flex items-center space-x-2">
+                            <CreditCard className="w-4 h-4 text-primary" />
+                            <span>Dados de Recebimento</span>
+                          </h5>
+                          
+                          {/* Exibição condicional baseada no tipo de recebimento */}
+                          {(contratoSelecionado.tipo_recebimento || 'PIX') === 'PIX' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Tipo de Recebimento</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value="PIX"
+                                  icon={DollarSign}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Chave PIX</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={contratoSelecionado.chave_pix || 'Não informado'}
+                                  placeholder="Chave PIX"
+                                  icon={CreditCard}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Tipo de Recebimento</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={contratoSelecionado.tipo_recebimento || 'TED'}
+                                  icon={DollarSign}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Banco</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={contratoSelecionado.banco_proprietario || 'Não informado'}
+                                  placeholder="Nome do banco"
+                                  icon={Building}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Agência</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={contratoSelecionado.agencia_proprietario || 'Não informado'}
+                                  placeholder="0000"
+                                  icon={Hash}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Conta</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={contratoSelecionado.conta_proprietario || 'Não informado'}
+                                  placeholder="00000-0"
+                                  icon={CreditCard}
+                                  disabled
+                                  className="bg-muted/50"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Configurações de Envio */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <motion.div 
+                          className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg shadow-md"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Mail className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Configurações de Envio
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Configure como enviar a prestação de contas
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Seção Unificada de Configurações */}
+                      <div className="p-4 border border-border rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Configuração de Email */}
+                          <div>
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                              <Mail className="w-4 h-4 text-blue-500" />
+                              <span>Envio por Email</span>
+                            </Label>
+                            <div className="flex items-center space-x-3 mb-3">
+                              <Checkbox
+                                checked={envioEmail}
+                                onCheckedChange={setEnvioEmail}
+                                id="envioEmail"
+                                className="w-4 h-4"
+                              />
+                              <label htmlFor="envioEmail" className="text-sm text-foreground cursor-pointer">
+                                {envioEmail ? 'Ativado' : 'Desativado'}
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Dias antes do envio (só aparece se email ativado) */}
+                          {envioEmail && (
+                            <div>
+                              <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                                <Clock className="w-4 h-4 text-blue-500" />
+                                <span>Enviar (dias antes)</span>
+                              </Label>
+                              <Select 
+                                value={diasAntesEnvioEmail.toString()} 
+                                onValueChange={(value) => setDiasAntesEnvioEmail(Number(value))}
+                              >
+                                <SelectTrigger className="h-9">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1 dia antes</SelectItem>
+                                  <SelectItem value="2">2 dias antes</SelectItem>
+                                  <SelectItem value="3">3 dias antes</SelectItem>
+                                  <SelectItem value="5">5 dias antes</SelectItem>
+                                  <SelectItem value="7">7 dias antes</SelectItem>
+                                  <SelectItem value="10">10 dias antes</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
+                          {/* Configuração de WhatsApp */}
+                          <div>
+                            <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
+                              <MessageCircle className="w-4 h-4 text-green-500" />
+                              <span>Envio por WhatsApp</span>
+                            </Label>
+                            <div className="flex items-center space-x-3 mb-3">
+                              <Checkbox
+                                checked={envioWhatsapp}
+                                onCheckedChange={setEnvioWhatsapp}
+                                id="envioWhatsapp"
+                                className="w-4 h-4"
+                              />
+                              <label htmlFor="envioWhatsapp" className="text-sm text-foreground cursor-pointer">
+                                {envioWhatsapp ? 'Ativado' : 'Desativado'}
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Resumo das Configurações - Integrado */}
+                        <div className="mt-4 pt-4 border-t border-border">
+                          <h5 className="text-sm font-medium text-foreground mb-2 flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-primary" />
+                            <span>Resumo das Configurações</span>
+                          </h5>
+                          
+                          <div className="flex flex-wrap gap-3">
+                            <div className="flex items-center space-x-2 text-sm">
+                              <Mail className="w-4 h-4 text-blue-500" />
+                              <span className="text-muted-foreground">Email:</span>
+                              <span className={`font-medium ${envioEmail ? 'text-green-600' : 'text-red-600'}`}>
+                                {envioEmail ? `${diasAntesEnvioEmail} dias antes` : 'Desativado'}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <MessageCircle className="w-4 h-4 text-green-600" />
-                              <span className="font-medium text-foreground">Telefone:</span>
-                              <span className="text-muted-foreground font-mono text-xs bg-background px-2 py-1 rounded">
-                                {contratoSelecionado.proprietario_telefone}
+                            
+                            <div className="flex items-center space-x-2 text-sm">
+                              <MessageCircle className="w-4 h-4 text-green-500" />
+                              <span className="text-muted-foreground">WhatsApp:</span>
+                              <span className={`font-medium ${envioWhatsapp ? 'text-green-600' : 'text-red-600'}`}>
+                                {envioWhatsapp ? 'Ativado' : 'Desativado'}
                               </span>
                             </div>
                           </div>
                         </div>
                       </div>
-
-                      {/* Configurações de Repasse */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <Percent className="w-4 h-4 text-yellow-500" />
-                            <span>Taxa Administração (%)</span>
-                          </Label>
-                          <InputWithIcon
-                            type="number"
-                            step="0.1"
-                            max="100"
-                            icon={Percent}
-                            value={10} // Valor padrão
-                            placeholder="10.0"
-                            className="text-base font-medium h-12"
-                          />
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <DollarSign className="w-4 h-4 text-green-500" />
-                            <span>Valor Aluguel</span>
-                          </Label>
-                          <InputWithIcon
-                            type="text"
-                            icon={DollarSign}
-                            value={formatCurrency((contratoSelecionado?.valor_aluguel || 1500))}
-                            readOnly
-                            className="text-base font-medium h-12 bg-muted/30"
-                          />
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <TrendingDown className="w-4 h-4 text-red-500" />
-                            <span>Taxa Retida (R$)</span>
-                          </Label>
-                          <InputWithIcon
-                            type="text"
-                            icon={DollarSign}
-                            value={formatCurrency((contratoSelecionado?.valor_aluguel || 1500) * 0.1)}
-                            readOnly
-                            className="text-base font-medium h-12 bg-red-50 dark:bg-red-950/20"
-                          />
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>Valor Líquido (R$)</span>
-                          </Label>
-                          <InputWithIcon
-                            type="text"
-                            icon={DollarSign}
-                            value={formatCurrency((contratoSelecionado?.valor_aluguel || 1500) * 0.9)}
-                            readOnly
-                            className="text-base font-medium h-12 bg-green-50 dark:bg-green-950/20 font-bold"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Resumo do Repasse */}
-                      <div className="mt-6 p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
-                        <h6 className="text-sm font-semibold text-foreground mb-3 flex items-center space-x-2">
-                          <Users className="w-4 h-4 text-blue-500" />
-                          <span>Resumo do Repasse</span>
-                        </h6>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                          <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded">
-                            <p className="font-medium text-blue-600">Valor Bruto</p>
-                            <p className="font-bold text-foreground">{formatCurrency((contratoSelecionado?.valor_aluguel || 1500))}</p>
-                          </div>
-                          <div className="text-center p-2 bg-red-50 dark:bg-red-950/20 rounded">
-                            <p className="font-medium text-red-600">Taxa (10%)</p>
-                            <p className="font-bold text-foreground">- {formatCurrency((contratoSelecionado?.valor_aluguel || 1500) * 0.1)}</p>
-                          </div>
-                          <div className="text-center p-2 bg-green-50 dark:bg-green-950/20 rounded">
-                            <p className="font-medium text-green-600">Valor Líquido</p>
-                            <p className="font-bold text-foreground">{formatCurrency((contratoSelecionado?.valor_aluguel || 1500) * 0.9)}</p>
-                          </div>
-                        </div>
-                      </div>
-
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
             )}
 
-            {/* 6. Dados Financeiros */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-            >
-              <Card className="card-glass">
-                <CardContent className="p-8">
-                  <div className="flex items-center space-x-3 mb-8">
-                    <div className="p-2 bg-orange-500/10 rounded-lg">
-                      <DollarSign className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <h3 className="text-lg font-bold text-foreground">
-                      <span className="text-orange-600 mr-2">6.</span>
-                      Dados Financeiros
-                    </h3>
-                  </div>
-                  
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <span>💰</span>
-                          <span>Valor Pago</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          icon={DollarSign}
-                          value={valorPago}
-                          onChange={(e) => setValorPago(Number(e.target.value) || 0)}
-                          placeholder="0,00"
-                          className="text-base font-medium h-12"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <span>⏰</span>
-                          <span>Valor Vencido</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          icon={DollarSign}
-                          value={valorVencido}
-                          onChange={(e) => setValorVencido(Number(e.target.value) || 0)}
-                          placeholder="0,00"
-                          className="text-base font-medium h-12"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <span>📈</span>
-                          <span>Encargos</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          icon={DollarSign}
-                          value={encargos}
-                          onChange={(e) => setEncargos(Number(e.target.value) || 0)}
-                          placeholder="0,00"
-                          className="text-base font-medium h-12"
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <span>📉</span>
-                          <span>Deduções</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          icon={DollarSign}
-                          value={deducoes}
-                          onChange={(e) => setDeducoes(Number(e.target.value) || 0)}
-                          placeholder="0,00"
-                          className="text-base font-medium h-12"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                        <span>📊</span>
-                        <span>Status do Lançamento</span>
-                      </Label>
-                      <Select value={statusLancamento} onValueChange={(value) => setStatusLancamento(value as any)}>
-                        <SelectTrigger className="h-12">
-                          <SelectValue placeholder="Selecione o status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pago">✅ Pago</SelectItem>
-                          <SelectItem value="pendente">⏳ Pendente</SelectItem>
-                          <SelectItem value="atrasado">⚠️ Atrasado</SelectItem>
-                          <SelectItem value="vencido">❌ Vencido</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  {/* Seção de Descontos e Ajustes */}
-                  <div className="mt-8 pt-8 border-t border-border">
-                    <DescontosAjustesForm
-                      descontos={descontosAjustes}
-                      onDescontosChange={setDescontosAjustes}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* 7. Lançamentos Detalhados */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-            >
-              <Card className="card-glass">
-                <CardContent className="p-8">
-                  <div className="flex justify-between items-center mb-8">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <FileText className="w-5 h-5 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-bold text-foreground">
-                        <span className="text-indigo-600 mr-2">7.</span>
-                        Lançamentos Extras
-                      </h3>
-                    </div>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button 
-                        onClick={adicionarLancamento} 
-                        className="btn-gradient px-6 py-3"
-                      >
-                        <Receipt className="w-5 h-5 mr-2" />
-                        Adicionar Lançamento
-                      </Button>
-                    </motion.div>
-                  </div>
-                  
-                  {lancamentos.length === 0 ? (
-                    <div className="p-12 text-center bg-gradient-to-br from-muted/30 to-muted/10 rounded-2xl border-2 border-dashed border-muted-foreground/30">
-                      <div className="p-4 bg-muted/50 rounded-full w-fit mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <h4 className="text-lg font-semibold text-foreground mb-2">Nenhum lançamento extra</h4>
-                      <p className="text-muted-foreground mb-4">Adicione taxas, descontos ou outros valores específicos</p>
-                      <Button onClick={adicionarLancamento} variant="outline" className="btn-outline">
-                        <Receipt className="w-4 h-4 mr-2" />
-                        Criar Primeiro Lançamento
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {lancamentos.map((lancamento, index) => (
-                        <motion.div 
-                          key={index}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ duration: 0.2 }}
-                          className="p-6 bg-gradient-to-br from-background to-muted/20 rounded-2xl border border-border shadow-lg"
-                        >
-                          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
-                                🏷️ Tipo
-                              </Label>
-                              <Select 
-                                value={lancamento.tipo} 
-                                onValueChange={(value) => atualizarLancamento(index, 'tipo', value)}
-                              >
-                                <SelectTrigger className="h-12">
-                                  <SelectValue placeholder="Tipo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="receita">💰 Receita</SelectItem>
-                                  <SelectItem value="despesa">💸 Despesa</SelectItem>
-                                  <SelectItem value="taxa">📋 Taxa</SelectItem>
-                                  <SelectItem value="desconto">🎯 Desconto</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            
-                            <div className="md:col-span-2 space-y-2">
-                              <Label className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                                📝 Descrição
-                              </Label>
-                              <InputWithIcon
-                                icon={FileText}
-                                value={lancamento.descricao}
-                                onChange={(e) => atualizarLancamento(index, 'descricao', e.target.value)}
-                                placeholder="Ex: Taxa de administração, desconto pontualidade..."
-                                className="h-12 text-lg"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide">
-                                💵 Valor (R$)
-                              </Label>
-                              <InputWithIcon
-                                icon={DollarSign}
-                                type="number"
-                                step="0.01"
-                                value={lancamento.valor}
-                                onChange={(e) => atualizarLancamento(index, 'valor', Number(e.target.value) || 0)}
-                                placeholder="0,00"
-                                className="h-12 text-lg font-semibold"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label className="text-sm font-semibold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
-                                📅 Data
-                              </Label>
-                              <input
-                                type="date"
-                                value={lancamento.data_lancamento || ''}
-                                onChange={(e) => atualizarLancamento(index, 'data_lancamento', e.target.value)}
-                                className="flex h-12 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-orange-500"
-                              />
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end mt-4">
-                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                              <Button 
-                                onClick={() => removerLancamento(index)} 
-                                variant="destructive"
-                                size="sm"
-                                className="rounded-xl"
-                              >
-                                🗑️ Remover
-                              </Button>
-                            </motion.div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* 6. Observações */}
+            {/* 7. Observações */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1781,7 +2740,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       <FileText className="w-5 h-5 text-primary" />
                     </div>
                     <h3 className="text-lg font-bold text-foreground">
-                      <span className="text-red-600 mr-2">8.</span>
+                      <span className="text-red-600 mr-2">7.</span>
                       Observações e Ajustes
                     </h3>
                   </div>
@@ -1808,7 +2767,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
           </div>
 
           {/* 9. Detalhamento do Boleto - DEBUG: sempre visível */}
-          {console.log('🔍 Debug - isNovaPrestacao:', isNovaPrestacao, 'contratoSelecionado:', !!contratoSelecionado)}
           {true && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1861,9 +2819,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       </div>
                       <h4 className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">Total Valor Retido</h4>
                       <p className="text-xl font-bold text-red-900 dark:text-red-100">
-                        {formatCurrency((contratoSelecionado?.valor_aluguel || 1500) * 0.1)}
+                        {formatCurrency(calcularTaxaAdministracao(contratoSelecionado))}
                       </p>
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">Taxa administração (10%)</p>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">Taxa administração ({contratoSelecionado?.taxa_administracao || 10}%)</p>
                     </div>
 
                     {/* Repasse ao Proprietário */}
@@ -1880,7 +2838,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           encargos + 
                           lancamentos.reduce((total, lanc) => total + lanc.valor, 0) + 
                           descontosAjustes.reduce((total, desc) => total + desc.valor, 0)) - 
-                          ((contratoSelecionado?.valor_aluguel || 1500) * 0.1) - 2.50 - 10.00
+                          calcularTaxaAdministracao(contratoSelecionado) - 2.50 - 10.00
                         )}
                       </p>
                       <p className="text-xs text-green-600 dark:text-green-400 mt-1">Valor líquido (descontadas todas as taxas)</p>

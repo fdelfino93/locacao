@@ -20,7 +20,8 @@ import {
   Mail,
   Loader2,
   Plus,
-  Eye
+  Eye,
+  Settings
 } from 'lucide-react';
 import { boletosApiService } from '../../services/boletosApi';
 import { apiService } from '../../services/api';
