@@ -9,13 +9,14 @@ import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContasModernaDebug } from './components/sections/PrestacaoContasModernaDebug';
 import PrestacaoContasLancamento from './components/pages/PrestacaoContasLancamento';
+import TesteEdicaoSimples from './components/pages/TesteEdicaoSimples';
 import Dashboard from './components/dashboard/Dashboard';
 import SearchModule from './components/search/SearchModule';
 // import TestCard from './components/debug/TestCard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 
-type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -27,6 +28,10 @@ function App() {
     
     if (path === '/prestacao-contas/lancamento') {
       return 'prestacao-contas-lancamento';
+    }
+    
+    if (path.startsWith('/prestacao-contas/editar/')) {
+      return 'edicao-fatura';
     }
     
     // Mapeamento de outras rotas se necessário
@@ -75,6 +80,7 @@ function App() {
         'contrato': '/contrato',
         'prestacao-contas': '/prestacao-contas',
         'prestacao-contas-lancamento': '/prestacao-contas/lancamento',
+        'edicao-fatura': '/prestacao-contas/editar',
         'dashboard': '/dashboard',
         'busca': '/busca'
       };
@@ -93,6 +99,12 @@ function App() {
 
   const handleFormChange = (form: 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'dashboard' | 'busca') => {
     handlePageChange(form as PageType);
+  };
+
+  const handleEditarFatura = (faturaId: number) => {
+    const url = `/prestacao-contas/editar/${faturaId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('edicao-fatura');
   };
 
   const renderCurrentContent = () => {
@@ -207,6 +219,18 @@ function App() {
             transition={{ duration: 0.3 }}
           >
             <PrestacaoContasLancamento />
+          </motion.div>
+        );
+      case 'edicao-fatura':
+        return (
+          <motion.div
+            key="edicao-fatura"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <TesteEdicaoSimples />
           </motion.div>
         );
       default:

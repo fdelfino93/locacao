@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { getMockData } from '@/data/mockData';
 import { 
   Search, 
   Users, 
@@ -22,29 +23,8 @@ const SimpleSearchModule: React.FC = () => {
     contratos: [] 
   });
 
-  // Dados de exemplo para fallback
-  const mockData = {
-    locadores: [
-      { id: 1, nome: 'João Silva', telefone: '(11) 99999-1111', email: 'joao@email.com', ativo: true },
-      { id: 2, nome: 'Maria Santos', telefone: '(11) 99999-2222', email: 'maria@email.com', ativo: true },
-      { id: 3, nome: 'Pedro Costa', telefone: '(11) 99999-3333', email: 'pedro@email.com', ativo: false }
-    ],
-    locatarios: [
-      { id: 1, nome: 'Fernanda Souza', telefone: '(11) 88888-1111', profissao: 'Engenheira', status_contrato: 'ativo' },
-      { id: 2, nome: 'Roberto Silva', telefone: '(11) 88888-2222', profissao: 'Professor', status_contrato: 'ativo' },
-      { id: 3, nome: 'Juliana Costa', telefone: '(11) 88888-3333', profissao: 'Médica', status_contrato: 'inativo' }
-    ],
-    imoveis: [
-      { id: 1, endereco: 'Av. Paulista, 1000', tipo: 'Apartamento', valor_aluguel: 2500, status: 'ocupado' },
-      { id: 2, endereco: 'Rua Augusta, 500', tipo: 'Casa', valor_aluguel: 3200, status: 'disponivel' },
-      { id: 3, endereco: 'Rua Consolação, 300', tipo: 'Kitnet', valor_aluguel: 1200, status: 'disponivel' }
-    ],
-    contratos: [
-      { id: 1, locatario: 'Fernanda Souza', imovel: 'Av. Paulista, 1000', valor_aluguel: 2500, status: 'ativo' },
-      { id: 2, locatario: 'Roberto Silva', imovel: 'Rua Augusta, 500', valor_aluguel: 3200, status: 'ativo' },
-      { id: 3, locatario: 'Ex-locatário', imovel: 'Rua Centro, 100', valor_aluguel: 1800, status: 'vencido' }
-    ]
-  };
+  // IMPORTANTE: Usando fonte única de dados mockados
+  const mockData = getMockData();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);

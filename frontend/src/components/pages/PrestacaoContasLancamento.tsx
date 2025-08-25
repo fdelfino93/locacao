@@ -99,14 +99,37 @@ export const PrestacaoContasLancamento: React.FC = () => {
     console.log('🔄 PrestacaoContasLancamento montado - Carregando dados...');
     
     try {
-      // Simplificar para debug - sempre nova prestação
-      console.log('⚠️ Modo debug - carregando como nova prestação');
-      setIsNovaPrestacao(true);
-      buscarContratos();
+      // Verificar se há dados de fatura no localStorage
+      const dadosTemp = localStorage.getItem('prestacao_dados_temp');
+      console.log('📦 Dados do localStorage:', dadosTemp);
+      
+      if (dadosTemp) {
+        const dados = JSON.parse(dadosTemp);
+        console.log('📊 Dados parsedos:', dados);
+        
+        if (dados.tipo === 'fatura_existente' && dados.fatura) {
+          console.log('✅ Carregando fatura existente:', dados.fatura);
+          setFaturaParaLancamento(dados.fatura);
+          setIsNovaPrestacao(false);
+          
+          // Carregar valores iniciais da fatura
+          setValorPago(dados.fatura.valor_total || 0);
+          
+        } else {
+          console.log('ℹ️ Carregando nova prestação');
+          setIsNovaPrestacao(true);
+          buscarContratos();
+        }
+      } else {
+        console.log('ℹ️ Sem dados no localStorage - nova prestação');
+        setIsNovaPrestacao(true);
+        buscarContratos();
+      }
       
     } catch (error) {
       console.error('❌ Erro ao carregar dados:', error);
       setIsNovaPrestacao(true);
+      buscarContratos();
     } finally {
       setLoading(false);
     }
@@ -132,12 +155,26 @@ export const PrestacaoContasLancamento: React.FC = () => {
     setContratosFiltrados(contratos);
   }, [contratos]);
 
-  // Reset tipo de lançamento quando contrato muda
+  // Reset tipo de lançamento quando contrato muda e carrega valores do contrato
   useEffect(() => {
     if (contratoSelecionado) {
       // Se não for primeira prestação e está em entrada, muda para mensal
       if (!contratoSelecionado.primeira_prestacao && tipoLancamento === 'entrada') {
         setTipoLancamento('mensal');
+      }
+      
+      // Carrega valores do contrato
+      if (contratoSelecionado.dia_vencimento) {
+        setDiaVencimento(contratoSelecionado.dia_vencimento);
+      }
+      if (contratoSelecionado.multa_rescisoria) {
+        setMultaPercentual(contratoSelecionado.multa_rescisoria);
+      }
+      
+      // Define mês de referência atual se não estiver definido
+      if (!mesReferencia) {
+        const hoje = new Date();
+        setMesReferencia(`${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`);
       }
     }
   }, [contratoSelecionado]);
@@ -189,135 +226,13 @@ export const PrestacaoContasLancamento: React.FC = () => {
     setLoadingContratos(true);
     
     try {
-      // Temporariamente desabilitado para debug
-      console.log('🔍 Carregando contratos mock (API desabilitada para debug)...');
+      console.log('🔍 Aguardando integração com banco de dados...');
       
-      const contratosMock = [
-        {
-          id: 1,
-          numero: 'CTR-2024-001',
-          locatario_nome: 'João Silva Santos',
-          locador_nome: 'Maria Oliveira Lima',
-          locador_id: 1,
-          locatario_email: 'joao.silva@email.com',
-          locatario_telefone: '(11) 99999-1111',
-          proprietario_email: 'maria.oliveira@email.com',
-          proprietario_telefone: '(11) 98765-4321',
-          imovel_endereco: 'Rua das Flores, 123 - Centro',
-          imovel_tipo: 'Apartamento',
-          // Valores Mensais
-          valor_aluguel: 1500.00,
-          valor_condominio: 280.00,
-          valor_fci: 35.00,
-          taxa_administracao: 10.0,
-          bonificacao: 0,
-          multa_atraso: 2.0,
-          // Seguros e IPTU
-          valor_seguro_fianca: 450.00,
-          valor_seguro_incendio: 120.00,
-          valor_iptu: 180.00,
-          // Retidos
-          retido_fci: true,
-          retido_iptu: true,
-          retido_condominio: false,
-          retido_seguro_fianca: true,
-          retido_seguro_incendio: true,
-          status: 'ativo',
-          data_inicio: '2024-01-15',
-          data_fim: '2024-12-15',
-          primeira_prestacao: false // Já teve prestações anteriores
-        },
-        {
-          id: 2,
-          numero: 'CTR-2024-002',
-          locatario_nome: 'Ana Paula Costa',
-          locador_nome: 'Carlos Eduardo Souza',
-          locador_id: 2,
-          locatario_email: 'ana.costa@email.com',
-          locatario_telefone: '(11) 99999-2222',
-          proprietario_email: 'carlos.souza@email.com',
-          proprietario_telefone: '(11) 91234-5678',
-          imovel_endereco: 'Av. Paulista, 456 - Bela Vista',
-          imovel_tipo: 'Casa',
-          // Valores Mensais
-          valor_aluguel: 2200.00,
-          valor_condominio: 420.00,
-          valor_fci: 45.00,
-          taxa_administracao: 8.5,
-          bonificacao: 50.00,
-          multa_atraso: 2.5,
-          // Seguros e IPTU
-          valor_seguro_fianca: 650.00,
-          valor_seguro_incendio: 180.00,
-          valor_iptu: 320.00,
-          // Retidos
-          retido_fci: false,
-          retido_iptu: true,
-          retido_condominio: true,
-          retido_seguro_fianca: false,
-          retido_seguro_incendio: true,
-          status: 'ativo',
-          data_inicio: '2024-03-01',
-          data_fim: '2025-02-28',
-          primeira_prestacao: false // Já teve prestações anteriores
-        },
-        {
-          id: 3,
-          numero: 'CTR-2024-003',
-          locatario_nome: 'Roberto Ferreira',
-          locador_nome: 'Luciana Martins',
-          locador_id: 3,
-          locatario_email: 'roberto.ferreira@email.com',
-          locatario_telefone: '(11) 99999-3333',
-          proprietario_email: 'luciana.martins@email.com',
-          proprietario_telefone: '(11) 95555-6666',
-          imovel_endereco: 'Rua Augusta, 789 - Jardins',
-          imovel_tipo: 'Kitnet',
-          // Valores Mensais
-          valor_aluguel: 900.00,
-          valor_condominio: 150.00,
-          valor_fci: 20.00,
-          taxa_administracao: 12.0,
-          bonificacao: 0,
-          multa_atraso: 3.0,
-          // Seguros e IPTU
-          valor_seguro_fianca: 270.00,
-          valor_seguro_incendio: 80.00,
-          valor_iptu: 120.00,
-          // Retidos
-          retido_fci: true,
-          retido_iptu: false,
-          retido_condominio: false,
-          retido_seguro_fianca: true,
-          retido_seguro_incendio: false,
-          status: 'ativo',
-          data_inicio: '2024-02-10',
-          primeira_prestacao: true // Primeira prestação - permite entrada
-        },
-        {
-          id: 4,
-          numero: 'CTR-2024-004',
-          locatario_nome: 'Pedro Santos',
-          locador_nome: 'Maria Oliveira Lima',
-          locador_id: 1,
-          locatario_email: 'pedro.santos@email.com',
-          locatario_telefone: '(11) 99999-4444',
-          proprietario_email: 'maria.oliveira@email.com',
-          proprietario_telefone: '(11) 98765-4321',
-          imovel_endereco: 'Rua das Acácias, 88 - Centro',
-          imovel_tipo: 'Apartamento',
-          valor_aluguel: 1200.00,
-          taxa_administracao: 9.0, // 9%
-          status: 'ativo',
-          data_inicio: '2024-04-01',
-          primeira_prestacao: true // Primeira prestação - permite entrada
-        }
-      ];
-      
-      setContratos(contratosMock);
-      console.log('✅ Contratos mock carregados:', contratosMock.length);
+      // Temporariamente vazio até conexão com banco real estar configurada
+      setContratos([]);
+      console.log('ℹ️ Sistema aguardando configuração do banco de dados');
     } catch (error) {
-      console.error('❌ Erro ao carregar contratos mock:', error);
+      console.error('❌ Erro ao carregar contratos:', error);
       setContratos([]);
     } finally {
       setLoadingContratos(false);
@@ -389,6 +304,19 @@ export const PrestacaoContasLancamento: React.FC = () => {
 
   // Função para obter valores baseados no tipo de cálculo selecionado
   const obterValoresPorTipo = () => {
+    // Se estamos editando uma fatura existente, usar valores originais da fatura
+    if (faturaParaLancamento && !isNovaPrestacao) {
+      console.log('📊 Usando valores da fatura original:', faturaParaLancamento);
+      return {
+        valor_aluguel: faturaParaLancamento.valor_aluguel || 0,
+        valor_condominio: faturaParaLancamento.valor_condominio || 0,
+        valor_fci: faturaParaLancamento.valor_fci || 0,
+        valor_seguro_fianca: faturaParaLancamento.valor_seguro_fianca || 0,
+        valor_seguro_incendio: faturaParaLancamento.valor_seguro_incendio || 0,
+        valor_iptu: faturaParaLancamento.valor_iptu || 0,
+      };
+    }
+    
     if (!contratoSelecionado) return {};
     
     switch (tipoLancamento) {
@@ -431,6 +359,20 @@ export const PrestacaoContasLancamento: React.FC = () => {
     }
   };
 
+  // Função auxiliar para calcular valor do boleto (sem dependência circular)
+  const calcularValorBoleto = () => {
+    const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
+    const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
+    const valoresPorTipo = obterValoresPorTipo();
+    
+    const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) + 
+      lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
+    const totalBruto = subtotalLancamentos + valorVencido;
+    const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
+    
+    return totalBruto - totalDescontos;
+  };
+
   const calcularTotais = () => {
     // Separar lançamentos por tipo para cálculo
     const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
@@ -455,7 +397,36 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const taxaBoleto = configuracaoRetencoes.taxa_boleto;
     // Taxa de transferência só se aplica para proprietários adicionais (além do primeiro)
     const taxaTransferencia = numProprietarios > 1 ? configuracaoRetencoes.taxa_transferencia * (numProprietarios - 1) : 0;
-    const totalRetido = taxaAdmin + taxaBoleto + taxaTransferencia;
+    
+    // Calcular TODOS os valores retidos (igual à seção Retidos)
+    let totalRetido = 0;
+    
+    // Valores de retenção do contrato
+    if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0) {
+      totalRetido += contratoSelecionado.valor_condominio;
+    }
+    if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0) {
+      totalRetido += contratoSelecionado.valor_fci;
+    }
+    if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
+      totalRetido += contratoSelecionado.valor_seguro_fianca;
+    }
+    if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
+      totalRetido += contratoSelecionado.valor_seguro_incendio;
+    }
+    if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0) {
+      totalRetido += contratoSelecionado.valor_iptu;
+    }
+    
+    // Taxas administrativas
+    totalRetido += taxaAdmin;
+    totalRetido += taxaBoleto;
+    totalRetido += taxaTransferencia;
+    
+    // Valores extras
+    totalRetido += contratoSelecionado?.valor_retido || 0;
+    totalRetido += contratoSelecionado?.valor_antecipado || 0;
+    totalRetido += retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
     
     // Valor final de repasse aos proprietários
     const valorRepasse = valorBoleto - totalRetido - deducoes;
@@ -589,6 +560,32 @@ export const PrestacaoContasLancamento: React.FC = () => {
           : 'Lançamento de fatura';
           
         toast.success(`${tipoMsg} processada com sucesso no SQL Server!`);
+        
+        // IMPORTANTE: Salvar dados editados da fatura para que apareçam na lista
+        if (!isNovaPrestacao && faturaParaLancamento) {
+          const dadosEditados = {
+            valor_total: totalBruto,
+            valor_liquido: totalLiquido,
+            status: statusLancamento,
+            data_pagamento: statusLancamento === 'pago' ? new Date().toISOString() : null
+          };
+          
+          // Carregar dados editados existentes
+          const faturasEditadas = JSON.parse(localStorage.getItem('faturas_editadas') || '{}');
+          faturasEditadas[faturaParaLancamento.id] = dadosEditados;
+          localStorage.setItem('faturas_editadas', JSON.stringify(faturasEditadas));
+          
+          console.log('💾 Dados editados salvos:', {
+            faturaId: faturaParaLancamento.id,
+            dadosEditados,
+            todasEdicoes: faturasEditadas
+          });
+          
+          // Notificar componente principal via event
+          window.dispatchEvent(new CustomEvent('fatura-atualizada', {
+            detail: { faturaId: faturaParaLancamento.id, dadosEditados }
+          }));
+        }
         
         // Limpar localStorage e voltar para lista
         localStorage.removeItem('prestacao_dados_temp');
@@ -1275,6 +1272,114 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Configurações de Cálculo */}
+                    <div className="mt-6">
+                      <div className="flex items-center gap-3 mb-3">
+                        <motion.div 
+                          className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg shadow-md"
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <Settings className="w-5 h-5 text-white" />
+                        </motion.div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">
+                            Configurações de Cálculo
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Parâmetros de geração e desconto
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="p-4 border border-border rounded-lg space-y-4">
+                        {/* Geração Automática */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Clock className="w-4 h-4 text-green-500" />
+                              <Label className="text-sm font-medium text-foreground">Geração Automática Mensal</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                checked={geracaoAutomatica}
+                                onCheckedChange={setGeracaoAutomatica}
+                                id="geracaoAutomatica"
+                                className="w-5 h-5"
+                              />
+                              <label htmlFor="geracaoAutomatica" className="text-sm text-muted-foreground cursor-pointer">
+                                {geracaoAutomatica ? 'Ativado' : 'Desativado'}
+                              </label>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {geracaoAutomatica 
+                              ? '✅ As faturas serão criadas automaticamente todo mês na lista de prestação de contas' 
+                              : '❌ As faturas precisarão ser criadas manualmente a cada mês'}
+                          </p>
+                        </div>
+
+                        {/* Desconto por Pagamento Antecipado */}
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-2">
+                            <TrendingDown className="w-4 h-4 text-green-500" />
+                            <Label className="text-sm font-medium text-foreground">Desconto por Pagamento Antecipado</Label>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-xs text-muted-foreground mb-1">Até o dia</Label>
+                              <Select value={descontoAteDia.toString()} onValueChange={(value) => setDescontoAteDia(Number(value))}>
+                                <SelectTrigger className="h-10">
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">Sem desconto</SelectItem>
+                                  {Array.from({ length: 10 }, (_, i) => i + 1).map(dia => (
+                                    <SelectItem key={dia} value={dia.toString()}>Dia {dia}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground mb-1">Percentual (%)</Label>
+                              <InputWithIcon
+                                type="number"
+                                icon={Percent}
+                                value={valorDesconto}
+                                onChange={(e) => setValorDesconto(Number(e.target.value) || 0)}
+                                placeholder="0.00"
+                                className="h-10"
+                                disabled={descontoAteDia === 0}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Resumo das Configurações */}
+                        <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-muted-foreground">Vencimento:</span>
+                              <span className="ml-2 font-medium">Dia {contratoSelecionado?.dia_vencimento || 10}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Multa:</span>
+                              <span className="ml-2 font-medium">{contratoSelecionado?.multa_rescisoria || 2}%</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Mês Ref.:</span>
+                              <span className="ml-2 font-medium">{mesReferencia}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Desconto:</span>
+                              <span className="ml-2 font-medium">
+                                {descontoAteDia > 0 ? `${valorDesconto}% até dia ${descontoAteDia}` : 'Não configurado'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1297,7 +1402,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
                         <div>
                           <h2 className="text-xl font-bold text-foreground">
-                            <span className="text-primary mr-2">5.</span>
+                            <span className="text-primary mr-2">3.</span>
                             Lançamentos
                           </h2>
                           <p className="text-sm text-muted-foreground mt-1">Adicione lançamentos extras para esta prestação de contas</p>
@@ -1737,7 +1842,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
                         <div>
                           <h2 className="text-xl font-bold text-foreground">
-                            <span className="text-primary mr-2">6.</span>
+                            <span className="text-primary mr-2">4.</span>
                             Retidos
                           </h2>
                           <p className="text-sm text-muted-foreground mt-1">Gerencie valores retidos e antecipados do contrato</p>
@@ -2216,8 +2321,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 total += contratoSelecionado.valor_iptu;
                               }
                               
-                              // Taxas administrativas
-                              total += calcularTaxaAdministracao(contratoSelecionado);
+                              // Taxas administrativas - usar o mesmo cálculo da função calcularTotais()
+                              const valorBoletoParcial = calcularValorBoleto();
+                              total += valorBoletoParcial * (configuracaoRetencoes.percentual_admin / 100);
                               total += configuracaoRetencoes.taxa_boleto;
                               if (proprietarios.length > 1) {
                                 total += configuracaoRetencoes.taxa_transferencia * (proprietarios.length - 1);
@@ -2239,197 +2345,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
               </motion.div>
             )}
 
-            {/* 3. Configuração da Fatura (quando há contrato selecionado) */}
-            {isNovaPrestacao && contratoSelecionado && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-              >
-                <Card className="card-glass">
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2 bg-purple-500/10 rounded-lg">
-                        <Settings className="w-5 h-5 text-purple-500" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-foreground">
-                          <span className="text-purple-600 mr-2">3.</span>
-                          Configuração da Fatura
-                        </h3>
-                        <p className="text-sm text-muted-foreground">Configure os dados de cobrança e repasse</p>
-                      </div>
-                    </div>
-
-                    {/* Dados de Cobrança do Locatário */}
-                    <div className="mb-8">
-                      <h4 className="text-md font-semibold text-foreground mb-4 flex items-center space-x-2">
-                        <User className="w-4 h-4 text-blue-500" />
-                        <span>Dados de Cobrança - {contratoSelecionado.locatario_nome}</span>
-                      </h4>
-                      <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <Mail className="w-4 h-4 text-blue-600" />
-                            <span className="font-medium text-foreground">Email:</span>
-                            <span className="text-muted-foreground font-mono text-xs bg-background px-2 py-1 rounded">
-                              {contratoSelecionado.locatario_email}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <MessageCircle className="w-4 h-4 text-green-600" />
-                            <span className="font-medium text-foreground">Telefone:</span>
-                            <span className="text-muted-foreground font-mono text-xs bg-background px-2 py-1 rounded">
-                              {contratoSelecionado.locatario_telefone}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                      {/* Dia de Vencimento */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <Calendar className="w-4 h-4 text-blue-500" />
-                          <span>Dia de Vencimento</span>
-                        </Label>
-                        <Select value={diaVencimento.toString()} onValueChange={(value) => setDiaVencimento(Number(value))}>
-                          <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Selecione o dia" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 31 }, (_, i) => i + 1).map(dia => (
-                              <SelectItem key={dia} value={dia.toString()}>Dia {dia}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* Mês de Referência */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <Calendar className="w-4 h-4 text-purple-500" />
-                          <span>Mês de Referência</span>
-                        </Label>
-                        <input
-                          type="month"
-                          value={mesReferencia}
-                          onChange={(e) => setMesReferencia(e.target.value)}
-                          className="flex h-12 w-full rounded-lg border border-input bg-background px-3 py-2 text-base font-medium focus:ring-2 focus:ring-primary"
-                        />
-                      </div>
-                      
-                      {/* Geração Automática */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-green-500" />
-                          <span>Geração Automática</span>
-                        </Label>
-                        <div className="flex items-center space-x-3 h-12">
-                          <Checkbox
-                            checked={geracaoAutomatica}
-                            onCheckedChange={setGeracaoAutomatica}
-                            id="geracaoAutomatica"
-                            className="w-5 h-5"
-                          />
-                          <label htmlFor="geracaoAutomatica" className="text-base text-foreground cursor-pointer">
-                            {geracaoAutomatica ? '✅ Ativado' : '❌ Desativado'}
-                          </label>
-                        </div>
-                      </div>
-                      
-                      {/* Desconto até Dia */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <CreditCard className="w-4 h-4 text-green-500" />
-                          <span>Desconto até Dia</span>
-                        </Label>
-                        <Select value={descontoAteDia.toString()} onValueChange={(value) => setDescontoAteDia(Number(value))}>
-                          <SelectTrigger className="h-12">
-                            <SelectValue placeholder="Selecione o dia" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Sem desconto</SelectItem>
-                            {Array.from({ length: 15 }, (_, i) => i + 1).map(dia => (
-                              <SelectItem key={dia} value={dia.toString()}>Até dia {dia}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* Valor do Desconto */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <Percent className="w-4 h-4 text-green-500" />
-                          <span>Valor do Desconto (%)</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          max="100"
-                          icon={Percent}
-                          value={valorDesconto}
-                          onChange={(e) => setValorDesconto(Number(e.target.value) || 0)}
-                          placeholder="0.00"
-                          className="text-base font-medium h-12"
-                          disabled={descontoAteDia === 0}
-                        />
-                      </div>
-                      
-                      {/* Multa Percentual */}
-                      <div className="space-y-3">
-                        <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                          <AlertCircle className="w-4 h-4 text-red-500" />
-                          <span>Multa Percentual (%)</span>
-                        </Label>
-                        <InputWithIcon
-                          type="number"
-                          step="0.01"
-                          max="100"
-                          icon={Percent}
-                          value={multaPercentual}
-                          onChange={(e) => setMultaPercentual(Number(e.target.value) || 0)}
-                          placeholder="2.00"
-                          className="text-base font-medium h-12"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Resumo da Configuração da Fatura */}
-                    <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
-                      <h5 className="font-bold text-purple-900 dark:text-purple-100 mb-3 flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4" />
-                        <span>Resumo da Fatura</span>
-                      </h5>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div className="space-y-1">
-                          <p className="text-purple-700 dark:text-purple-300">
-                            <strong>Vencimento:</strong> Todo dia {diaVencimento}
-                          </p>
-                          <p className="text-purple-700 dark:text-purple-300">
-                            <strong>Geração:</strong> {geracaoAutomatica ? 'Automática' : 'Manual'}
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <p className="text-purple-700 dark:text-purple-300">
-                            <strong>Desconto:</strong> {descontoAteDia > 0 ? `${valorDesconto}% até dia ${descontoAteDia}` : 'Não configurado'}
-                          </p>
-                          <p className="text-purple-700 dark:text-purple-300">
-                            <strong>Multa:</strong> {multaPercentual}% após vencimento
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* 4. Configurações do Locador */}
+            {/* 3. Configurações do Locador */}
             {isNovaPrestacao && contratoSelecionado && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -2727,373 +2643,224 @@ export const PrestacaoContasLancamento: React.FC = () => {
               </motion.div>
             )}
 
-            {/* 7. Observações */}
+            {/* 5. Observações e Ajustes */}
+            {(isNovaPrestacao && contratoSelecionado) || (!isNovaPrestacao && faturaParaLancamento) ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.4 }}
             >
               <Card className="card-glass">
-                <CardContent className="p-8">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <FileText className="w-5 h-5 text-primary" />
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-3 bg-primary/10 rounded-xl">
+                        <FileText className="w-6 h-6 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-foreground">
+                          <span className="text-primary mr-2">5.</span>
+                          Observações e Ajustes
+                        </h2>
+                        <p className="text-sm text-muted-foreground mt-1">Adicione informações complementares sobre este lançamento</p>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-bold text-foreground">
-                      <span className="text-red-600 mr-2">7.</span>
-                      Observações e Ajustes
-                    </h3>
                   </div>
                   
                   <div className="space-y-4">
-                    <Label className="text-sm font-medium text-foreground flex items-center space-x-2">
-                      <span>📝</span>
-                      <span>Observações Gerais</span>
-                    </Label>
-                    <Textarea
-                      value={observacoesLancamento}
-                      onChange={(e) => setObservacoesLancamento(e.target.value)}
-                      placeholder="Ex: Pagamento realizado com atraso de 3 dias, aplicado desconto de pontualidade, taxa extra de manutenção..."
-                      rows={5}
-                      className="text-lg resize-none"
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      💡 Adicione detalhes importantes sobre este lançamento que possam ser úteis para futuras consultas
-                    </p>
+                    <div>
+                      <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-3">
+                        <MessageCircle className="w-4 h-4 text-blue-500" />
+                        <span>Observações do Lançamento</span>
+                      </Label>
+                      <Textarea
+                        value={observacoesLancamento}
+                        onChange={(e) => setObservacoesLancamento(e.target.value)}
+                        placeholder="Adicione aqui observações relevantes sobre este lançamento, como detalhes de pagamento, acordos especiais, ou informações importantes..."
+                        rows={4}
+                        className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Estas observações serão salvas junto com o lançamento e poderão ser consultadas posteriormente
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
+            ) : null}
           </div>
 
-          {/* 9. Detalhamento do Boleto - DEBUG: sempre visível */}
-          {true && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.5 }}
-              className="mt-8"
-            >
-              <Card className="card-glass border-indigo-200 dark:border-indigo-800">
-                <CardContent className="p-6">
-                  <div className="flex items-center space-x-3 mb-6">
-                    <div className="p-2 bg-indigo-500/10 rounded-lg">
-                      <Receipt className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-foreground">
-                        <span className="text-indigo-600 mr-2">9.</span>
-                        Detalhamento do Boleto
-                      </h3>
-                      <p className="text-sm text-muted-foreground">Breakdown detalhado dos valores</p>
-                    </div>
-                  </div>
 
-                  {/* Cálculos dos valores */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Valor Total do Boleto */}
-                    <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl text-center">
-                      <div className="flex items-center justify-center mb-3">
-                        <div className="p-2 bg-blue-500/10 rounded-lg">
-                          <DollarSign className="w-6 h-6 text-blue-600" />
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Valor Total do Boleto</h4>
-                      <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
-                        {formatCurrency(
-                          (contratoSelecionado?.valor_aluguel || 1500) + 
-                          encargos + 
-                          lancamentos.reduce((total, lanc) => total + lanc.valor, 0) + 
-                          descontosAjustes.reduce((total, desc) => total + desc.valor, 0)
-                        )}
-                      </p>
-                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">Valor que o inquilino paga</p>
-                    </div>
-
-                    {/* Total Valor Retido */}
-                    <div className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-center">
-                      <div className="flex items-center justify-center mb-3">
-                        <div className="p-2 bg-red-500/10 rounded-lg">
-                          <TrendingDown className="w-6 h-6 text-red-600" />
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">Total Valor Retido</h4>
-                      <p className="text-xl font-bold text-red-900 dark:text-red-100">
-                        {formatCurrency(calcularTaxaAdministracao(contratoSelecionado))}
-                      </p>
-                      <p className="text-xs text-red-600 dark:text-red-400 mt-1">Taxa administração ({contratoSelecionado?.taxa_administracao || 10}%)</p>
-                    </div>
-
-                    {/* Repasse ao Proprietário */}
-                    <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/20 border border-green-200 dark:border-green-800 rounded-xl text-center">
-                      <div className="flex items-center justify-center mb-3">
-                        <div className="p-2 bg-green-500/10 rounded-lg">
-                          <CheckCircle className="w-6 h-6 text-green-600" />
-                        </div>
-                      </div>
-                      <h4 className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">Repasse ao Proprietário</h4>
-                      <p className="text-xl font-bold text-green-900 dark:text-green-100">
-                        {formatCurrency(
-                          ((contratoSelecionado?.valor_aluguel || 1500) + 
-                          encargos + 
-                          lancamentos.reduce((total, lanc) => total + lanc.valor, 0) + 
-                          descontosAjustes.reduce((total, desc) => total + desc.valor, 0)) - 
-                          calcularTaxaAdministracao(contratoSelecionado) - 2.50 - 10.00
-                        )}
-                      </p>
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">Valor líquido (descontadas todas as taxas)</p>
-                    </div>
-                  </div>
-
-                  {/* Breakdown detalhado */}
-                  <div className="mt-8 p-6 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
-                    <h5 className="text-md font-semibold text-foreground mb-4 flex items-center space-x-2">
-                      <Calculator className="w-4 h-4 text-indigo-500" />
-                      <span>Breakdown Detalhado</span>
-                    </h5>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-                      {/* Composição do Valor */}
-                      <div>
-                        <h6 className="font-medium text-foreground mb-3 text-blue-600">💰 Composição do Valor:</h6>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Valor Aluguel:</span>
-                            <span className="font-medium">{formatCurrency((contratoSelecionado?.valor_aluguel || 1500))}</span>
-                          </div>
-                          {encargos > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Encargos:</span>
-                              <span className="font-medium">{formatCurrency(encargos)}</span>
-                            </div>
-                          )}
-                          {lancamentos.length > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Lançamentos Extras:</span>
-                              <span className="font-medium">{formatCurrency(lancamentos.reduce((total, lanc) => total + lanc.valor, 0))}</span>
-                            </div>
-                          )}
-                          <div className="border-t pt-2 flex justify-between font-medium">
-                            <span className="text-purple-600">Subtotal dos Lançamentos:</span>
-                            <span className="text-purple-600">
-                              {formatCurrency(calcularTotais().subtotalLancamentos)}
-                            </span>
-                          </div>
-                          {valorVencido > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Acréscimos por Atraso:</span>
-                              <span className="font-medium text-red-600">{formatCurrency(valorVencido)}</span>
-                            </div>
-                          )}
-                          {descontosAjustes.length > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Descontos/Ajustes:</span>
-                              <span className="font-medium text-green-600">-{formatCurrency(descontosAjustes.reduce((total, desc) => total + desc.valor, 0))}</span>
-                            </div>
-                          )}
-                          <div className="border-t pt-2 font-bold flex justify-between">
-                            <span>Valor do Boleto:</span>
-                            <span className="text-blue-600">
-                              {formatCurrency(calcularTotais().valorBoleto)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Valor Total a Repassar */}
-                      <div>
-                        <h6 className="font-medium text-foreground mb-3 text-green-600">📊 Valor Total a Repassar:</h6>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Valor do Boleto:</span>
-                            <span className="font-medium">{formatCurrency(calcularTotais().valorBoleto)}</span>
-                          </div>
-                          <div className="border-t pt-2 text-red-600 font-medium">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Taxa Administração ({configuracaoRetencoes.percentual_admin}%):</span>
-                              <span>-{formatCurrency(calcularTotais().taxaAdmin)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Taxa Registro Boleto:</span>
-                              <span>-{formatCurrency(calcularTotais().taxaBoleto)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Taxa Transferência ({proprietarios.length || 1}x):</span>
-                              <span>-{formatCurrency(calcularTotais().taxaTransferencia)}</span>
-                            </div>
-                          </div>
-                          <div className="border-t pt-2 font-bold flex justify-between">
-                            <span className="text-green-700">Total Retido:</span>
-                            <span className="text-red-600">-{formatCurrency(calcularTotais().totalRetido)}</span>
-                          </div>
-                          <div className="border-t pt-2 font-bold flex justify-between text-lg">
-                            <span className="text-green-700">Valor Total a Repassar:</span>
-                            <span className="text-green-600">{formatCurrency(calcularTotais().valorRepasse)}</span>
-                          </div>
-                          <div className="border-t pt-2 text-xs text-muted-foreground">
-                            <p>• Para {proprietarios.length || 1} proprietário(s)</p>
-                            <p>• Margem efetiva: {calcularTotais().valorBoleto > 0 ? ((calcularTotais().totalRetido / calcularTotais().valorBoleto) * 100).toFixed(2) : '0.00'}%</p>
-                            <p>• Este é o valor que será repassado aos proprietários</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
-          {/* Resumo Financeiro - Seção Final */}
+          {/* 6. Resumo Final */}
+          {(isNovaPrestacao && contratoSelecionado) || (!isNovaPrestacao && faturaParaLancamento) ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.6 }}
+            transition={{ duration: 0.4, delay: 0.5 }}
             className="mt-8"
           >
-            <Card className="card-glass border-primary/30 shadow-2xl">
-              <CardContent className="p-8">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="p-3 bg-gradient-to-br from-primary to-primary/80 rounded-2xl shadow-lg">
-                    <Calculator className="w-8 h-8 text-white" />
+            <Card className="card-glass">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-3 bg-primary/10 rounded-xl">
+                    <Calculator className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">
-                      <span className="text-primary mr-2">10. 📊</span>
-                      Resumo Final - Valor a Repassar
-                    </h3>
-                    <p className="text-sm text-muted-foreground mt-1">Conferência dos valores de repasse aos proprietários</p>
+                    <h2 className="text-xl font-bold text-foreground">
+                      <span className="text-primary mr-2">6.</span>
+                      Resumo Final
+                    </h2>
+                    <p className="text-sm text-muted-foreground mt-1">Valores finais da prestação de contas</p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Grid de Valores Principais */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   {/* Valor do Boleto */}
-                  <motion.div 
-                    className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 rounded-2xl border-2 border-blue-200 dark:border-blue-800 shadow-lg"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-bold text-blue-700 dark:text-blue-300 text-lg">💰 Valor do Boleto</p>
-                      <div className="p-2 bg-blue-200 dark:bg-blue-800 rounded-lg">
-                        <Receipt className="w-5 h-5 text-blue-700 dark:text-blue-300" />
-                      </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Receipt className="w-5 h-5 text-blue-600" />
+                      <h3 className="text-sm font-medium text-blue-900 dark:text-blue-100">Valor do Boleto</h3>
                     </div>
-                    <p className="text-2xl font-black text-blue-900 dark:text-blue-100">
+                    <p className="text-base font-bold text-blue-600">
                       {formatCurrency(calcularTotais().valorBoleto)}
                     </p>
-                    <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                      Total bruto - descontos
-                    </p>
-                  </motion.div>
+                    <p className="text-xs text-blue-500 mt-1">Total que o locatário pagará</p>
+                  </div>
                   
                   {/* Total Retido */}
-                  <motion.div 
-                    className="p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20 rounded-2xl border-2 border-red-200 dark:border-red-800 shadow-lg"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-bold text-red-700 dark:text-red-300 text-lg">🏦 Total Retido</p>
-                      <div className="p-2 bg-red-200 dark:bg-red-800 rounded-lg">
-                        <TrendingDown className="w-5 h-5 text-red-700 dark:text-red-300" />
-                      </div>
+                  <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <TrendingDown className="w-5 h-5 text-red-600" />
+                      <h3 className="text-sm font-medium text-red-900 dark:text-red-100">Total Retido</h3>
                     </div>
-                    <p className="text-2xl font-black text-red-900 dark:text-red-100">
+                    <p className="text-base font-bold text-red-600">
                       {formatCurrency(calcularTotais().totalRetido)}
                     </p>
-                    <div className="text-xs text-red-600 dark:text-red-400 mt-2 space-y-1">
-                      <p>Admin: {formatCurrency(calcularTotais().taxaAdmin)}</p>
-                      <p>Boleto: {formatCurrency(calcularTotais().taxaBoleto)}</p>
-                      <p>Transfer.: {formatCurrency(calcularTotais().taxaTransferencia)}</p>
-                    </div>
-                  </motion.div>
+                    <p className="text-xs text-red-500 mt-1">Taxas de administração</p>
+                  </div>
                   
-                  {/* Valor Repasse */}
-                  <motion.div 
-                    className="p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/20 rounded-2xl border-2 border-green-200 dark:border-green-800 shadow-lg"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-bold text-green-700 dark:text-green-300 text-lg">💎 Valor Repasse</p>
-                      <div className="p-2 bg-green-200 dark:bg-green-800 rounded-lg">
-                        <Crown className="w-5 h-5 text-green-700 dark:text-green-300" />
-                      </div>
+                  {/* Valor de Repasse */}
+                  <div className="p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-xl">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Crown className="w-5 h-5 text-green-600" />
+                      <h3 className="text-sm font-medium text-green-900 dark:text-green-100">Valor de Repasse</h3>
                     </div>
-                    <p className="text-2xl font-black text-green-900 dark:text-green-100">
+                    <p className="text-base font-bold text-green-600">
                       {formatCurrency(calcularTotais().valorRepasse)}
                     </p>
-                    <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-                      Para {proprietarios.length || 1} proprietário(s)
-                    </p>
-                  </motion.div>
-                  
-                  {/* Margem Efetiva */}
-                  <motion.div 
-                    className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 rounded-2xl border-2 border-purple-200 dark:border-purple-800 shadow-lg"
-                    whileHover={{ scale: 1.02 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="font-bold text-purple-700 dark:text-purple-300 text-lg">📊 Margem</p>
-                      <div className="p-2 bg-purple-200 dark:bg-purple-800 rounded-lg">
-                        <Percent className="w-5 h-5 text-purple-700 dark:text-purple-300" />
-                      </div>
-                    </div>
-                    <p className="text-2xl font-black text-purple-900 dark:text-purple-100">
-                      {calcularTotais().valorBoleto > 0 ? ((calcularTotais().totalRetido / calcularTotais().valorBoleto) * 100).toFixed(2) : '0.00'}%
-                    </p>
-                    <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
-                      Efetiva sobre boleto
-                    </p>
-                  </motion.div>
+                    <p className="text-xs text-green-500 mt-1">Líquido para o proprietário</p>
+                  </div>
                 </div>
-                
-                {/* Status e Informações Adicionais */}
-                <div className="mt-6 p-6 bg-muted/30 rounded-2xl border border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-3">
-                        <span className={`text-2xl font-bold ${
-                          statusLancamento === 'pago' ? 'text-green-500' :
-                          statusLancamento === 'pendente' ? 'text-yellow-500' :
-                          statusLancamento === 'atrasado' ? 'text-orange-500' :
-                          'text-red-500'
-                        }`}>
-                          {statusLancamento === 'pago' ? '✅' :
-                           statusLancamento === 'pendente' ? '⏳' :
-                           statusLancamento === 'atrasado' ? '⚠️' : '❌'}
-                        </span>
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            Status: {statusLancamento.charAt(0).toUpperCase() + statusLancamento.slice(1)}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {lancamentos.length > 0 ? `${lancamentos.length} lançamento(s) extra(s)` : 'Sem lançamentos extras'}
-                          </p>
-                        </div>
+
+                {/* Detalhamento das Retenções */}
+                <div className="p-4 bg-muted/30 rounded-xl border border-border">
+                  <h4 className="text-sm font-medium text-foreground mb-3 flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span>Detalhamento das Retenções</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Taxas Administrativas</h5>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Taxa Administração ({configuracaoRetencoes.percentual_admin}%):</span>
+                        <span className="text-xs font-medium text-red-600">-{formatCurrency(calcularTotais().taxaAdmin)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Taxa Boleto:</span>
+                        <span className="text-xs font-medium text-red-600">-{formatCurrency(calcularTotais().taxaBoleto)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-xs text-muted-foreground">Taxa Transferência:</span>
+                        <span className="text-xs font-medium text-red-600">-{formatCurrency(calcularTotais().taxaTransferencia)}</span>
                       </div>
                     </div>
-                    
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">
-                        {faturaParaLancamento ? '📄 Editando fatura existente' : '🆕 Criando nova prestação'}
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Valores do Contrato</h5>
+                      {contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Condomínio (Retido):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_condominio)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">FCI (Retido):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_fci)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Seguro Fiança (Retido):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_fianca)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Seguro Incêndio (Retido):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_incendio)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">IPTU (Retido):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_iptu)}</span>
+                        </div>
+                      )}
+                      {((contratoSelecionado?.valor_retido || 0) + (contratoSelecionado?.valor_antecipado || 0) + retidosExtras.reduce((sum, retido) => sum + retido.valor, 0)) > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Valores Extras:</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency((contratoSelecionado?.valor_retido || 0) + (contratoSelecionado?.valor_antecipado || 0) + retidosExtras.reduce((sum, retido) => sum + retido.valor, 0))}</span>
+                        </div>
+                      )}
+                      <div className="border-t pt-2 flex justify-between">
+                        <span className="text-xs text-muted-foreground font-medium">Margem Efetiva:</span>
+                        <span className="text-xs font-medium text-purple-600">
+                          {calcularTotais().valorBoleto > 0 ? ((calcularTotais().totalRetido / calcularTotais().valorBoleto) * 100).toFixed(2) : '0.00'}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="mt-4 flex items-center justify-between p-3 bg-background border border-border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <span className={`text-lg ${
+                      statusLancamento === 'pago' ? 'text-green-500' :
+                      statusLancamento === 'pendente' ? 'text-yellow-500' :
+                      statusLancamento === 'atrasado' ? 'text-orange-500' :
+                      'text-red-500'
+                    }`}>
+                      {statusLancamento === 'pago' ? '✅' :
+                       statusLancamento === 'pendente' ? '⏳' :
+                       statusLancamento === 'atrasado' ? '⚠️' : '❌'}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Status: {statusLancamento.charAt(0).toUpperCase() + statusLancamento.slice(1)}
                       </p>
                       {isNovaPrestacao && contratoSelecionado && (
-                        <p className="text-sm text-muted-foreground">
-                          📋 {contratoSelecionado.numero} - {contratoSelecionado.locatario_nome}
+                        <p className="text-xs text-muted-foreground">
+                          {contratoSelecionado.numero} - {contratoSelecionado.locatario_nome}
                         </p>
                       )}
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">
+                      {faturaParaLancamento ? 'Editando fatura existente' : 'Nova prestação de contas'}
+                    </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
+          ) : null}
 
           {/* Botões de Ação */}
+          {(isNovaPrestacao && contratoSelecionado) || (!isNovaPrestacao && faturaParaLancamento) ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -3150,6 +2917,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
               </CardContent>
             </Card>
           </motion.div>
+          ) : null}
         </motion.div>
       </div>
     </div>

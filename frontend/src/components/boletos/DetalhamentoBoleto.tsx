@@ -56,6 +56,12 @@ interface DetalhamentoBoletoProps {
 }
 
 export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, className = "" }) => {
+  console.log('🎯 DetalhamentoBoleto recebeu dados:', {
+    numero_boleto: boleto.numero_boleto,
+    valor_total: boleto.valor_total,
+    valores_base: boleto.valores_base
+  });
+  
   const formatMoney = (value: number) => 
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 

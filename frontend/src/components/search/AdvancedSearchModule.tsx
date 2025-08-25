@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getMockData } from '@/data/mockData';
 import { 
   Search, 
   Users, 
@@ -39,8 +40,8 @@ interface SearchData {
   contratos: any[];
 }
 
-// Dados mockados para fallback
-const mockData = {
+// IMPORTANTE: Usando fonte única de dados mockados
+const mockData = getMockData(); /* DADOS ANTIGOS: {
   locadores: [
     { id: 1, nome: 'João Silva', cpf_cnpj: '123.456.789-00', telefone: '(11) 99999-1111', email: 'joao@email.com', endereco: 'Rua A, 123', ativo: true, qtd_imoveis: 3, contratos_ativos: 2 },
     { id: 2, nome: 'Maria Santos', cpf_cnpj: '987.654.321-00', telefone: '(11) 99999-2222', email: 'maria@email.com', endereco: 'Rua B, 456', ativo: true, qtd_imoveis: 1, contratos_ativos: 1 },
@@ -69,7 +70,7 @@ const mockData = {
     { id: 4, data_inicio: '2024-02-20', data_fim: '2025-02-20', valor_aluguel: 4500, status: 'ativo', locatario: { nome: 'Diego Santos' }, imovel: { endereco: 'Av. Faria Lima, 800' }, tipo_garantia: 'Fiador', vencimento_dia: 20 },
     { id: 5, data_inicio: '2024-04-01', data_fim: '2025-04-01', valor_aluguel: 8000, status: 'ativo', locatario: { nome: 'Patrícia Lima' }, imovel: { endereco: 'Rua Oscar Freire, 200' }, tipo_garantia: 'Caução', vencimento_dia: 1 }
   ]
-};
+}; */
 
 // Hook de debounce
 const useDebounce = (value: string, delay: number) => {

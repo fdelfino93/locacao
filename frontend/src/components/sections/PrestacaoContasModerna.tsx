@@ -25,7 +25,10 @@ import {
   ArrowDown,
   MoreVertical,
   Receipt,
-  Calculator
+  Calculator,
+  X,
+  Edit3,
+  Save
 } from 'lucide-react';
 import type { Fatura, FaturaStats, FaturaFilters, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
@@ -76,6 +79,8 @@ export const PrestacaoContasModerna: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState('data_vencimento');
   const [sortDirection, setSortDirection] = useState<'ASC' | 'DESC'>('DESC');
+  
+  // Estados removidos - agora usa página separada para edição
 
   // Função para buscar faturas da API (sem useCallback)
   const buscarFaturas = async () => {
@@ -200,6 +205,34 @@ export const PrestacaoContasModerna: React.FC = () => {
       setSortDirection('DESC');
     }
   };
+
+  // Função para redirecionar para página de edição
+  const abrirDetalhes = (fatura: Fatura) => {
+    console.log('🔄 CLICOU NO BOTÃO - ID da fatura:', fatura.id);
+    console.log('📊 Dados da fatura:', fatura);
+    
+    try {
+      const url = `/prestacao-contas/editar/${fatura.id}`;
+      console.log('🌐 URL que será navegada:', url);
+      
+      // Testar se a fatura tem ID válido
+      if (!fatura.id) {
+        console.error('❌ ERRO: Fatura não tem ID válido!');
+        alert('Erro: Fatura não tem ID válido!');
+        return;
+      }
+      
+      console.log('✅ Fazendo navegação...');
+      window.location.href = url;
+      console.log('✅ Comando de navegação executado');
+      
+    } catch (error) {
+      console.error('❌ ERRO ao navegar:', error);
+      alert('Erro ao navegar: ' + error);
+    }
+  };
+
+  // Funções do modal removidas - agora usa página separada
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
@@ -566,9 +599,37 @@ export const PrestacaoContasModerna: React.FC = () => {
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center space-x-2">
-                                    <Button size="sm" variant="outline" className="btn-outline">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('🔥 BOTÃO CLICADO! Fatura ID:', fatura?.id || 'ID não encontrado');
+                                        console.log('📊 Fatura completa:', fatura);
+                                        
+                                        const faturaId = fatura?.id || Math.floor(Math.random() * 1000); // fallback para teste
+                                        const url = `/prestacao-contas/editar/${faturaId}`;
+                                        console.log('🌐 Navegando para:', url);
+                                        
+                                        // Forçar navegação direta
+                                        window.location.replace(url);
+                                      }}
+                                      style={{
+                                        padding: '6px 12px',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '6px',
+                                        backgroundColor: 'white',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                                      onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                      title="Editar Fatura"
+                                    >
                                       <Eye className="w-4 h-4" />
-                                    </Button>
+                                      <span style={{ fontSize: '12px' }}>Editar</span>
+                                    </button>
                                     <Button size="sm" variant="outline" className="btn-outline">
                                       <Receipt className="w-4 h-4" />
                                     </Button>
@@ -589,6 +650,333 @@ export const PrestacaoContasModerna: React.FC = () => {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Modal de Detalhes da Fatura - Versão Simples */}
+        {modalDetalhesAberto && (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999
+            }}
+            onClick={fecharDetalhes}
+          >
+            <div 
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '800px',
+                width: '90%',
+                maxHeight: '80vh',
+                overflow: 'auto',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header Simples */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+                borderBottom: '1px solid #e2e8f0',
+                paddingBottom: '16px'
+              }}>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                  color: '#1f2937'
+                }}>
+                  Detalhes da Fatura - {faturaDetalhes?.numero_fatura}
+                </h2>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {!modoEdicao && (
+                    <button 
+                      onClick={() => setModoEdicao(true)} 
+                      style={{ 
+                        backgroundColor: '#3b82f6', 
+                        color: 'white',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        fontSize: '14px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Editar
+                    </button>
+                  )}
+                  {modoEdicao && (
+                    <>
+                      <button 
+                        onClick={salvarEdicoes}
+                        style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          marginRight: '8px'
+                        }}
+                      >
+                        Salvar
+                      </button>
+                      <button 
+                        onClick={() => setModoEdicao(false)}
+                        style={{ 
+                          backgroundColor: 'white', 
+                          color: '#374151',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          border: '1px solid #d1d5db',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          marginRight: '8px'
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                  <button 
+                    onClick={fecharDetalhes}
+                    style={{ 
+                      backgroundColor: 'transparent', 
+                      color: '#6b7280',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      fontSize: '14px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {/* Conteúdo Simples */}
+              {faturaDetalhes && (
+                <div>
+                  {/* Informações Básicas */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '8px'
+                    }}>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>Número</p>
+                      <p style={{ fontSize: '16px', fontWeight: 'bold' }}>{faturaDetalhes.numero_fatura}</p>
+                    </div>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '8px'
+                    }}>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>Valor Total</p>
+                      <p style={{ fontSize: '16px', fontWeight: 'bold' }}>{formatCurrency(faturaDetalhes.valor_total)}</p>
+                    </div>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '8px'
+                    }}>
+                      <p style={{ fontSize: '14px', color: '#6b7280' }}>Status</p>
+                      <div style={{ marginTop: '4px' }}>{getStatusBadge(faturaDetalhes.status)}</div>
+                    </div>
+                  </div>
+
+                  {/* Seção de Lançamentos Simplificada */}
+                  <div style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '20px'
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '16px'
+                    }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                        Lançamentos da Fatura
+                      </h3>
+                      {modoEdicao && (
+                        <button 
+                          onClick={() => setMostrandoFormulario(!mostrandoFormulario)}
+                          style={{ 
+                            backgroundColor: '#3b82f6', 
+                            color: 'white',
+                            padding: '8px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            fontSize: '14px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {mostrandoFormulario ? 'Cancelar' : '+ Adicionar'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Lista de Lançamentos */}
+                    {lancamentosEdicao.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {lancamentosEdicao.map((lancamento, index) => (
+                          <div 
+                            key={index} 
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '12px',
+                              backgroundColor: '#f9fafb',
+                              borderRadius: '6px',
+                              border: '1px solid #e5e7eb'
+                            }}
+                          >
+                            <div>
+                              <p style={{ fontWeight: '500' }}>{lancamento.descricao}</p>
+                              <p style={{ fontSize: '12px', color: '#6b7280' }}>{lancamento.tipo}</p>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontWeight: 'bold', color: '#10b981' }}>
+                                {formatCurrency(lancamento.valor)}
+                              </span>
+                              {modoEdicao && (
+                                <button
+                                  onClick={() => removerLancamento(index)}
+                                  style={{ 
+                                    backgroundColor: 'transparent',
+                                    color: '#ef4444',
+                                    padding: '4px',
+                                    borderRadius: '4px',
+                                    border: 'none',
+                                    fontSize: '14px',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        textAlign: 'center',
+                        padding: '40px',
+                        color: '#6b7280'
+                      }}>
+                        <p>Nenhum lançamento encontrado</p>
+                        <p style={{ fontSize: '12px', marginTop: '4px' }}>
+                          {modoEdicao ? 'Clique em "Adicionar" para incluir lançamentos' : 'Esta fatura não possui lançamentos extras'}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Formulário Simples */}
+                    {modoEdicao && mostrandoFormulario && (
+                      <div style={{
+                        marginTop: '20px',
+                        padding: '16px',
+                        backgroundColor: '#f3f4f6',
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb'
+                      }}>
+                        <h4 style={{ marginBottom: '16px', fontWeight: '600' }}>Novo Lançamento</h4>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gap: '12px',
+                          marginBottom: '16px'
+                        }}>
+                          <div>
+                            <Label>Tipo</Label>
+                            <Select 
+                              value={novoLancamento.tipo} 
+                              onValueChange={(value) => setNovoLancamento({...novoLancamento, tipo: value})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="receita">Receita</SelectItem>
+                                <SelectItem value="despesa">Despesa</SelectItem>
+                                <SelectItem value="taxa">Taxa</SelectItem>
+                                <SelectItem value="desconto">Desconto</SelectItem>
+                                <SelectItem value="ajuste">Ajuste</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Descrição</Label>
+                            <input
+                              type="text"
+                              value={novoLancamento.descricao}
+                              onChange={(e) => setNovoLancamento({...novoLancamento, descricao: e.target.value})}
+                              placeholder="Descreva o lançamento"
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px'
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <Label>Valor (R$)</Label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={novoLancamento.valor}
+                              onChange={(e) => setNovoLancamento({...novoLancamento, valor: Number(e.target.value) || 0})}
+                              placeholder="0,00"
+                              style={{
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px'
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <button onClick={adicionarLancamento} style={{ 
+                          backgroundColor: '#10b981', 
+                          color: 'white',
+                          padding: '10px 20px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          width: '100%'
+                        }}>
+                          Adicionar Lançamento
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

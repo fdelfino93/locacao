@@ -60,7 +60,10 @@
       "Bash(start http://localhost:3005/prestacao-contas/lancamento)",
       "Bash(pip install:*)",
       "Bash(start http://localhost:3007/prestacao-contas/lancamento)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(start http://localhost:3005/prestacao-contas/editar/123)",
+      "Bash(start http://localhost:3005/prestacao-contas/editar/1)",
+      "Bash(start http://localhost:3005/prestacao-contas/editar/3)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

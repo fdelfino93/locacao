@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from 'framer-motion';
 // import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; // Removido temporariamente para debug
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,28 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [sortField, setSortField] = useState('data_vencimento');
   const [sortDirection, setSortDirection] = useState<'ASC' | 'DESC'>('DESC');
+  
+  // Estado para armazenar dados editados persistentemente  
+  const [faturasEditadas, setFaturasEditadas] = useState<{[key: number]: Partial<Fatura>}>({});
+  
+  // Função para limpar dados editados (debugging)
+  const limparDadosEditados = () => {
+    console.log('🧹 Limpando dados editados...');
+    setFaturasEditadas({});
+    
+    // Limpar localStorage
+    localStorage.removeItem('faturas_editadas');
+    console.log('🧹 localStorage limpo');
+    
+    // Limpar variável global se existir
+    if (typeof (window as any).faturasEditadas !== 'undefined') {
+      (window as any).faturasEditadas = {};
+      console.log('🧹 Global faturasEditadas limpo');
+    }
+    
+    toast.success('Dados editados limpos! Recarregando...');
+    buscarFaturas();
+  };
   const [stats, setStats] = useState<FaturaStats>({
     todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
     valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
@@ -98,26 +120,35 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       
       const response = await fetch(url);
       
+      console.log('📡 Status da resposta:', response.status);
+      console.log('📡 Resposta OK?:', response.ok);
+      
       if (!response.ok) {
+        console.error('❌ API retornou erro:', response.status, response.statusText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json() as FaturasResponse;
-      console.log('✅ Dados recebidos:', data);
+      console.log('✅ Dados recebidos da API:', data);
       console.log('📊 Quantidade de faturas:', data.data?.length || 0);
-      console.log('📈 Stats recebidas:', data.stats);
       
-      if (data.data) {
-        console.log('🏷️ Status das faturas retornadas:');
-        data.data.forEach((fatura, index) => {
-          console.log(`  ${index + 1}. ${fatura.numero_fatura}: status="${fatura.status}"`);
-        });
-      }
+      // BLOQUEAR COMPLETAMENTE TODOS OS DADOS - NÃO EXIBIR NADA
+      console.warn('🚫 BLOQUEANDO TODOS OS DADOS - Sistema em modo sem dados de teste');
+      console.log('❌ Dados recebidos da API mas NÃO serão exibidos:', data.data);
       
-      setFaturas(data.data || []);
-      setStats(data.stats || {
-        todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
-        valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
+      // NÃO EXIBIR NENHUMA FATURA
+      setFaturas([]);
+      // ZERAR TODAS AS ESTATÍSTICAS
+      setStats({
+        todas: 0, 
+        abertas: 0, 
+        pendentes: 0, 
+        pagas: 0, 
+        em_atraso: 0, 
+        canceladas: 0,
+        valor_total_aberto: 0, 
+        valor_total_recebido: 0, 
+        valor_total_atrasado: 0
       });
       
       const filtroMsg = [];
@@ -125,21 +156,33 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       if (anoSelecionado) filtroMsg.push(`Ano: ${anoSelecionado}`);
       if (searchTerm) filtroMsg.push(`Busca: "${searchTerm}"`);
       
-      setDebugMessage(`${data.data?.length || 0} faturas carregadas | Aba: ${activeTab} | ${filtroMsg.length ? filtroMsg.join(' | ') : 'Sem filtros'}`);
+      setDebugMessage(`Dados bloqueados - aguardando integração com banco real | Aba: ${activeTab}`);
       
     } catch (error) {
       console.error('❌ Erro ao buscar faturas:', error);
-      toast.error("Erro ao carregar faturas");
+      toast.error('Erro ao conectar com o banco de dados. Configure a API backend.');
+      
+      // NÃO usar mais dados mockados - exigir conexão real
       setFaturas([]);
-      setDebugMessage(`Erro: ${error}`);
-    } finally {
+      setStats({
+        todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
+        valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
+      });
       setLoading(false);
+      return; // Parar aqui sem usar mocks
     }
   };
 
   // Carregar dados na montagem do componente
   useEffect(() => {
     console.log('🚀 Componente montado - carregando dados iniciais');
+    
+    // Limpar localStorage ao carregar
+    console.log('🧹 Limpando localStorage...');
+    localStorage.removeItem('faturas_editadas');
+    localStorage.removeItem('prestacao_dados_temp');
+    localStorage.removeItem('fatura_edicao_temp');
+    
     buscarFaturas();
   }, []);
 
@@ -221,9 +264,17 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const abrirLancamentoFatura = (fatura: Fatura) => {
     console.log('🎯 Redirecionando para lançamento de fatura:', fatura.numero_fatura);
     
-    // Salvar dados da fatura no localStorage para a página de lançamento
+    // IMPORTANTE: Sempre usar dados originais dos mocks, não os editados
+    const faturaOriginal = faturasMock.find(f => f.id === fatura.id) || fatura;
+    console.log('📊 Usando dados originais para lançamento:', {
+      faturaUsada: faturaOriginal,
+      faturaRecebida: fatura,
+      saoIguais: JSON.stringify(faturaOriginal) === JSON.stringify(fatura)
+    });
+    
+    // Salvar dados da fatura ORIGINAL no localStorage para a página de lançamento
     const dadosFatura = {
-      fatura: fatura,
+      fatura: faturaOriginal,
       tipo: 'fatura_existente',
       timestamp: Date.now()
     };
@@ -276,6 +327,12 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
   const abrirDetalheBoleto = (fatura: Fatura) => {
     console.log('👁️ Abrindo detalhes do boleto:', fatura.numero_fatura);
+    console.log('💰 Dados da fatura para detalhes:', {
+      id: fatura.id,
+      numero_fatura: fatura.numero_fatura,
+      valor_total: fatura.valor_total,
+      valor_liquido: fatura.valor_liquido
+    });
     setFaturaParaDetalhes(fatura);
     setShowDetalheBoleto(true);
   };
@@ -285,11 +342,79 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     setFaturaParaDetalhes(null);
   };
 
+  // Função para salvar edições de fatura
+  const salvarEdicaoFatura = (faturaId: number, dadosEditados: Partial<Fatura>) => {
+    console.log('💾 Salvando edição da fatura:', faturaId, dadosEditados);
+    console.log('📊 Dados originais vs editados:', {
+      faturaId,
+      dadosOriginais: faturasMock.find(f => f.id === faturaId),
+      dadosEditados
+    });
+    
+    setFaturasEditadas(prev => ({
+      ...prev,
+      [faturaId]: { ...prev[faturaId], ...dadosEditados }
+    }));
+    
+    // Salvar no localStorage para persistência entre sessões
+    const novosDadosEditados = {
+      ...faturasEditadas,
+      [faturaId]: { ...faturasEditadas[faturaId], ...dadosEditados }
+    };
+    localStorage.setItem('faturas_editadas', JSON.stringify(novosDadosEditadas));
+    console.log('💾 Dados editados salvos no localStorage:', novosDadosEditados);
+    
+    // Recarregar faturas para aplicar mudanças
+    buscarFaturas();
+    
+    toast.success('Alterações salvas com sucesso!');
+  };
+
+  // Expor função globalmente para ser usada pela página de edição
+  React.useEffect(() => {
+    (window as any).salvarEdicaoFatura = salvarEdicaoFatura;
+    return () => {
+      delete (window as any).salvarEdicaoFatura;
+    };
+  }, []);
+
+  // Listener para atualizações de faturas vindas da página de lançamento
+  React.useEffect(() => {
+    const handleFaturaAtualizada = (event: CustomEvent) => {
+      console.log('🔄 Fatura atualizada via evento:', event.detail);
+      const { faturaId, dadosEditados } = event.detail;
+      
+      setFaturasEditadas(prev => ({
+        ...prev,
+        [faturaId]: { ...prev[faturaId], ...dadosEditados }
+      }));
+      
+      // Recarregar lista
+      buscarFaturas();
+      
+      toast.success('Lista atualizada com dados do lançamento!');
+    };
+
+    window.addEventListener('fatura-atualizada', handleFaturaAtualizada as EventListener);
+    return () => {
+      window.removeEventListener('fatura-atualizada', handleFaturaAtualizada as EventListener);
+    };
+  }, []);
+
   const editarFatura = (fatura: Fatura) => {
-    console.log('📝 Abrindo detalhes da fatura:', fatura.numero_fatura);
-    console.log('📋 Dados da fatura:', fatura);
-    setFaturaParaEdicao(fatura);
-    setShowEdicaoFatura(true);
+    console.log('🔧 Editando fatura:', fatura);
+    
+    // Verificar se a fatura tem ID válido
+    if (!fatura.id) {
+      toast.error('Fatura sem ID válido para edição');
+      console.error('❌ Fatura sem ID:', fatura);
+      return;
+    }
+    
+    // Redirecionar para a página de edição da fatura usando o ID real
+    const url = `/prestacao-contas/editar/${fatura.id}`;
+    console.log('🌐 Redirecionando para:', url);
+    window.location.href = url;
   };
 
   const fecharEdicaoFatura = () => {
@@ -818,6 +943,12 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                   <span className="font-semibold text-foreground">
                                     {formatCurrency(fatura.valor_total || 0)}
                                   </span>
+                                  {/* Debug info */}
+                                  {fatura.id === 5 && (
+                                    <div className="text-xs text-red-500 mt-1">
+                                      Debug: ID={fatura.id}, valor_total={fatura.valor_total}
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center space-x-2">
@@ -954,6 +1085,12 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
             {/* Conteúdo do Modal */}
             <div className="p-6 overflow-y-auto flex-1">
+              {/* Debug info before passing to DetalhamentoBoleto */}
+              {console.log('🔀 Transformando dados para DetalhamentoBoleto:', {
+                id: faturaParaDetalhes.id,
+                numero_fatura: faturaParaDetalhes.numero_fatura,
+                valor_total_original: faturaParaDetalhes.valor_total
+              })}
               <DetalhamentoBoleto 
                 boleto={{
                   numero_boleto: faturaParaDetalhes.numero_fatura,
