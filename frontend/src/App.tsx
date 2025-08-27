@@ -11,6 +11,9 @@ import { PrestacaoContasModernaDebug } from './components/sections/PrestacaoCont
 import PrestacaoContasLancamento from './components/pages/PrestacaoContasLancamento';
 import TesteEdicaoSimples from './components/pages/TesteEdicaoSimples';
 import Dashboard from './components/dashboard/Dashboard';
+import DashboardEnhanced from './components/dashboard/DashboardEnhanced';
+import DashboardPro from './components/dashboard/DashboardPro';
+import DashboardSimple from './components/dashboard/DashboardSimple';
 import SearchModule from './components/search/SearchModule';
 // import TestCard from './components/debug/TestCard';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -194,7 +197,7 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <Dashboard />
+            <DashboardPro />
           </motion.div>
         );
       case 'busca':

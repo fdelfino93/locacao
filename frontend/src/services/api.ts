@@ -142,15 +142,25 @@ class ApiService {
     return response.json();
   }
 
-  async obterAlertasDashboard(ativosApenas: boolean = true): Promise<DashboardAlerta[]> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/alertas?ativos_apenas=${ativosApenas}`);
+  async obterAlertasDashboard(): Promise<DashboardAlerta[]> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/alertas`);
     if (!response.ok) throw new Error('Erro ao buscar alertas');
     return response.json();
   }
 
-  async obterDashboardCompleto(): Promise<DashboardCompleto> {
-    const response = await fetch(`${API_BASE_URL}/dashboard`);
+  async obterDashboardCompleto(mes?: number, ano?: number): Promise<DashboardCompleto> {
+    const params = new URLSearchParams();
+    if (mes) params.append('mes', mes.toString());
+    if (ano) params.append('ano', ano.toString());
+    
+    const response = await fetch(`${API_BASE_URL}/dashboard/completo?${params}`);
     if (!response.ok) throw new Error('Erro ao buscar dashboard');
+    return response.json();
+  }
+
+  async obterAlertasDashboardFiltrados(ativosApenas: boolean = true): Promise<DashboardAlerta[]> {
+    const response = await fetch(`${API_BASE_URL}/dashboard/alertas?ativos_apenas=${ativosApenas}`);
+    if (!response.ok) throw new Error('Erro ao buscar alertas');
     return response.json();
   }
 
@@ -170,3 +180,4 @@ class ApiService {
 }
 
 export const apiService = new ApiService();
+export default apiService;
