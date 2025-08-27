@@ -32,7 +32,8 @@ import {
   MapPin,
   Home,
   Trash2,
-  Plus
+  Plus,
+  ArrowLeft
 } from 'lucide-react';
 import type { Locador, Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa } from '../../types';
 import { apiService } from '../../services/api';
@@ -46,13 +47,111 @@ const tiposLocador = ['Proprietário', 'Administrador', 'Procurador', 'Outro'];
 const regimesBens = ['Comunhão Total de Bens', 'Comunhão Parcial de Bens', 'Separação Total de Bens', 'Outros'];
 const formasRecebimento = ['PIX', 'TED', 'Boleto', 'Transferência'];
 
-export const ModernLocadorFormV2: React.FC = () => {
+interface ModernLocadorFormV2Props {
+  onBack?: () => void;
+  isEditing?: boolean;
+  isViewing?: boolean;
+}
+
+export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack, isEditing = false, isViewing = false }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
+
+  // Hook para carregar dados do locador quando em modo de edição ou visualização
+  React.useEffect(() => {
+    if (isEditing || isViewing) {
+      const pathParts = window.location.pathname.split('/');
+      const locadorId = pathParts[pathParts.length - 1];
+      if (locadorId && locadorId !== 'editar' && locadorId !== 'visualizar') {
+        carregarDadosLocador(parseInt(locadorId));
+      }
+    }
+  }, [isEditing, isViewing]);
+
+  const carregarDadosLocador = async (locadorId: number) => {
+    setLoadingData(true);
+    try {
+      console.log('🔍 Carregando locador ID:', locadorId);
+      
+      // Primeiro tentar API específica por ID
+      let response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`);
+      
+      if (!response.ok) {
+        // Se não funcionar, usar busca geral e filtrar pelo ID exato
+        console.log('⚠️ API específica falhou, usando busca geral');
+        response = await fetch(`http://localhost:8000/api/busca?query=*&tipo=locadores`);
+      }
+      
+      const data = await response.json();
+      console.log('📦 Dados recebidos:', data);
+      
+      let locador = null;
+      
+      if (data.success) {
+        if (data.data && !data.data.locadores) {
+          // Resposta da API específica
+          locador = data.data;
+        } else if (data.data && data.data.locadores) {
+          // Resposta da busca geral - filtrar pelo ID exato
+          locador = data.data.locadores.find((loc: any) => loc.id === locadorId);
+          console.log('🎯 Locador encontrado por ID:', locador);
+        }
+      }
+      
+      if (locador) {
+        console.log('📋 Preenchendo dados do locador:', locador);
+        
+        // Preencher os dados do formulário com os dados do locador
+        setFormData({
+          ...formData,
+          nome: locador.nome || '',
+          cpf_cnpj: locador.cpf_cnpj || '',
+          telefone: locador.telefone || '',
+          email: locador.email || '',
+          rg: locador.rg || '',
+          nacionalidade: locador.nacionalidade || 'Brasileira',
+          estado_civil: locador.estado_civil || 'Solteiro',
+          profissao: locador.profissao || '',
+          tipo_recebimento: locador.tipo_recebimento || 'PIX'
+        });
+        
+        // Sincronizar arrays de contato
+        if (locador.telefone) {
+          console.log('📞 Carregando telefone:', locador.telefone);
+          setTelefones([locador.telefone]);
+        }
+        
+        if (locador.email) {
+          console.log('📧 Carregando email:', locador.email);
+          setEmails([locador.email]);
+        }
+        
+        if (locador.endereco) {
+          setEndereco({
+            rua: locador.endereco || '',
+            numero: '',
+            complemento: '',
+            bairro: '',
+            cidade: '',
+            estado: 'PR',
+            cep: ''
+          });
+        }
+      } else {
+        console.error('❌ Locador não encontrado');
+        setApiError(`Locador com ID ${locadorId} não encontrado`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados do locador:', error);
+      setApiError('Erro ao carregar dados do locador');
+    } finally {
+      setLoadingData(false);
+    }
+  };
   
   // Estados para múltiplos contatos
   const [telefones, setTelefones] = useState<string[]>(['']);
@@ -217,18 +316,37 @@ export const ModernLocadorFormV2: React.FC = () => {
         existe_conjuge: showConjuge ? 1 : 0
       };
 
-      const response = await apiService.criarLocador(dadosParaEnvio);
+      let response;
+      
+      if (isEditing) {
+        // Modo edição - obter ID da URL
+        const pathParts = window.location.pathname.split('/');
+        const locadorId = pathParts[pathParts.length - 1];
+        console.log('💾 Salvando alterações do locador ID:', locadorId);
+        
+        // Chamar API de atualização
+        response = await apiService.atualizarLocador(parseInt(locadorId), dadosParaEnvio);
+      } else {
+        // Modo cadastro
+        response = await apiService.criarLocador(dadosParaEnvio);
+      }
       
       if (response.success) {
-        setMessage({ type: 'success', text: response.message || 'Locador cadastrado com sucesso!' });
+        const mensagem = isEditing 
+          ? (response.message || 'Alterações salvas com sucesso!') 
+          : (response.message || 'Locador cadastrado com sucesso!');
+          
+        setMessage({ type: 'success', text: mensagem });
         
-        // Reset form após sucesso (implementar conforme necessário)
-        
-        setShowConjuge(false);
-        setShowRepresentante(false);
+        // Reset form apenas no cadastro
+        if (!isEditing) {
+          setShowConjuge(false);
+          setShowRepresentante(false);
+        }
         
       } else {
-        setMessage({ type: 'error', text: 'Erro ao cadastrar locador' });
+        const mensagem = isEditing ? 'Erro ao salvar alterações' : 'Erro ao cadastrar locador';
+        setMessage({ type: 'error', text: mensagem });
       }
     } catch (error: any) {
       const errorMessage = error.response?.data?.detail || 'Erro ao cadastrar locador';
@@ -239,6 +357,7 @@ export const ModernLocadorFormV2: React.FC = () => {
   };
 
   const isPJ = formData.tipo_pessoa === 'PJ';
+  const isReadOnly = isViewing;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
@@ -251,11 +370,26 @@ export const ModernLocadorFormV2: React.FC = () => {
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary-foreground/20 rounded-xl">
-                <User className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                  <User className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold text-primary-foreground">
+                  {isViewing ? 'Visualizar Locador' : isEditing ? 'Editar Locador' : 'Cadastro de Locador'}
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Locador</h1>
+              {onBack && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBack}
+                  className="text-primary-foreground hover:bg-primary-foreground/20 transition-all duration-200 pointer-events-auto"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -310,9 +444,9 @@ export const ModernLocadorFormV2: React.FC = () => {
               </motion.div>
             )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className={`space-y-8 ${isReadOnly ? 'pointer-events-none opacity-75' : ''}`}>
             <Tabs defaultValue="dados-basicos" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-4 pointer-events-auto opacity-100">
                 <TabsTrigger value="dados-basicos">Dados Básicos</TabsTrigger>
                 <TabsTrigger value="documentos">Documentos</TabsTrigger>
                 <TabsTrigger value="observacoes">Observações</TabsTrigger>
@@ -382,6 +516,7 @@ export const ModernLocadorFormV2: React.FC = () => {
                           handleInputChange('tipo_pessoa', value);
                           setShowRepresentante(value === 'PJ');
                         }}
+                        disabled={isReadOnly}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -462,6 +597,7 @@ export const ModernLocadorFormV2: React.FC = () => {
                         placeholder={formData.tipo_pessoa === 'PJ' ? 'Nome da empresa' : 'João Silva'}
                         icon={formData.tipo_pessoa === 'PJ' ? Building : User}
                         required
+                        disabled={isReadOnly}
                       />
                     </div>
 
@@ -477,6 +613,7 @@ export const ModernLocadorFormV2: React.FC = () => {
                         placeholder={formData.tipo_pessoa === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                         icon={CreditCard}
                         required
+                        disabled={isReadOnly}
                       />
                     </div>
                     
@@ -492,6 +629,7 @@ export const ModernLocadorFormV2: React.FC = () => {
                             onChange={(e) => handleInputChange('rg', e.target.value)}
                             placeholder="12.345.678-9"
                             icon={CreditCard}
+                            disabled={isReadOnly}
                           />
                         </div>
                         
@@ -1609,36 +1747,38 @@ export const ModernLocadorFormV2: React.FC = () => {
               </TabsContent>
             </Tabs>
 
-            {/* Submit Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className="pt-6"
-            >
+            {/* Submit Button - Only show when not in viewing mode */}
+            {!isViewing && (
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="pt-6"
               >
-                <Button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  {loading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                      <span>Cadastrando...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <User className="w-5 h-5" />
-                      <span>Cadastrar Locador</span>
-                    </div>
-                  )}
-                </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={loading || isReadOnly}
+                    className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        <span>{isEditing ? 'Salvando...' : 'Cadastrando...'}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <User className="w-5 h-5" />
+                        <span>{isEditing ? 'Salvar Alterações' : 'Cadastrar Locador'}</span>
+                      </div>
+                    )}
+                  </Button>
+                </motion.div>
               </motion.div>
-            </motion.div>
+            )}
           </form>
           </div>
         </motion.div>

@@ -83,6 +83,13 @@ class ApiService {
     });
   }
 
+  async atualizarLocador(id: number, locador: Locador): Promise<ApiResponse<any>> {
+    return this.request(`/locadores/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(locador),
+    });
+  }
+
   async listarLocadores(): Promise<ApiResponse<any[]>> {
     return this.request('/locadores');
   }

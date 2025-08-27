@@ -19,8 +19,9 @@ import SearchModernPro from './components/search/SearchModernPro';
 // import TestCard from './components/debug/TestCard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
+import LocadoresIndex from './components/pages/LocadoresIndex';
 
-type PageType = 'hero' | 'locador' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -38,11 +39,20 @@ function App() {
       return 'edicao-fatura';
     }
     
+    if (path.startsWith('/locador/visualizar/')) {
+      return 'locador-visualizar';
+    }
+    
+    if (path.startsWith('/locador/editar/')) {
+      return 'locador-edicao';
+    }
+    
     // Mapeamento de outras rotas se necessário
     const routeMap: {[key: string]: PageType} = {
       '/': 'hero',
       '/hero': 'hero',
       '/locador': 'locador',
+      '/locador/cadastro': 'locador-cadastro',
       '/locatario': 'locatario',
       '/imovel': 'imovel',
       '/contrato': 'contrato',
@@ -79,6 +89,9 @@ function App() {
       const urlMap: {[key in PageType]: string} = {
         'hero': '/',
         'locador': '/locador',
+        'locador-cadastro': '/locador/cadastro',
+        'locador-visualizar': '/locador/visualizar',
+        'locador-edicao': '/locador/editar',
         'locatario': '/locatario',
         'imovel': '/imovel',
         'contrato': '/contrato',
@@ -111,6 +124,22 @@ function App() {
     setCurrentPage('edicao-fatura');
   };
 
+  const handleNavigateToLocadorCadastro = () => {
+    handlePageChange('locador-cadastro');
+  };
+
+  const handleNavigateToLocadorDetalhes = (locadorId: number) => {
+    const url = `/locador/visualizar/${locadorId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('locador-visualizar');
+  };
+
+  const handleNavigateToLocadorEdicao = (locadorId: number) => {
+    const url = `/locador/editar/${locadorId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('locador-edicao');
+  };
+
   const renderCurrentContent = () => {
     switch (currentPage) {
       case 'hero':
@@ -138,7 +167,47 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernLocadorFormV2 />
+            <LocadoresIndex
+              onNavigateToCadastro={handleNavigateToLocadorCadastro}
+              onNavigateToDetalhes={handleNavigateToLocadorDetalhes}
+              onNavigateToEdicao={handleNavigateToLocadorEdicao}
+            />
+          </motion.div>
+        );
+      case 'locador-cadastro':
+        return (
+          <motion.div
+            key="locador-cadastro"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocadorFormV2 onBack={() => handlePageChange('locador')} />
+          </motion.div>
+        );
+      case 'locador-visualizar':
+        return (
+          <motion.div
+            key="locador-visualizar"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocadorFormV2 onBack={() => handlePageChange('locador')} isViewing={true} />
+          </motion.div>
+        );
+      case 'locador-edicao':
+        return (
+          <motion.div
+            key="locador-edicao"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocadorFormV2 onBack={() => handlePageChange('locador')} isEditing={true} />
           </motion.div>
         );
       case 'locatario':

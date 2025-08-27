@@ -42,53 +42,105 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
             if buscar_todos:
                 cursor.execute("""
                     SELECT TOP 50 
-                        id, nome, cpf_cnpj, telefone, email, endereco,
-                        tipo_recebimento, rg, nacionalidade, estado_civil, profissao
-                    FROM Locadores 
-                    ORDER BY nome
+                        l.id, l.nome, l.cpf_cnpj, l.telefone, l.email, l.endereco,
+                        l.tipo_recebimento, l.rg, l.nacionalidade, l.estado_civil, l.profissao, 
+                        COALESCE(l.ativo, 1) as ativo,
+                        COUNT(DISTINCT i.id) as qtd_imoveis,
+                        COUNT(DISTINCT CASE WHEN c.data_fim >= GETDATE() THEN c.id END) as contratos_ativos,
+                        ISNULL(SUM(CASE WHEN c.data_fim >= GETDATE() THEN c.valor_aluguel END), 0) as receita_mensal_bruta
+                    FROM Locadores l
+                    LEFT JOIN Imoveis i ON l.id = i.id_locador
+                    LEFT JOIN Contratos c ON i.id = c.id_imovel
+                    GROUP BY l.id, l.nome, l.cpf_cnpj, l.telefone, l.email, l.endereco,
+                             l.tipo_recebimento, l.rg, l.nacionalidade, l.estado_civil, l.profissao, l.ativo
+                    ORDER BY l.nome
                 """)
             else:
+                # Consulta simplificada primeiro para pegar os locadores
                 cursor.execute("""
-                    SELECT TOP 50 
-                        id, nome, cpf_cnpj, telefone, email, endereco,
-                        tipo_recebimento, rg, nacionalidade, estado_civil, profissao
-                    FROM Locadores 
+                    SELECT 
+                        l.id, l.nome, l.cpf_cnpj, l.telefone, l.email, l.endereco,
+                        l.tipo_recebimento, l.rg, l.nacionalidade, l.estado_civil, l.profissao, 
+                        COALESCE(l.ativo, 1) as ativo
+                    FROM Locadores l
                     WHERE 
-                        LOWER(nome) LIKE ? OR
-                        LOWER(cpf_cnpj) LIKE ? OR
-                        LOWER(email) LIKE ? OR
-                        LOWER(telefone) LIKE ? OR
-                        LOWER(endereco) LIKE ?
-                    ORDER BY nome
+                        LOWER(l.nome) LIKE ? OR
+                        LOWER(l.cpf_cnpj) LIKE ? OR
+                        LOWER(l.email) LIKE ? OR
+                        LOWER(l.telefone) LIKE ? OR
+                        LOWER(l.endereco) LIKE ?
+                    ORDER BY l.nome
                 """, (f'%{query_lower}%',) * 5)
-            
-            columns = [column[0] for column in cursor.description]
-            for row in cursor.fetchall():
-                locador = dict(zip(columns, row))
-                resultado['locadores'].append(locador)
+                
+                # Buscar dados e depois adicionar métricas
+                locadores_raw = cursor.fetchall()
+                
+                for row in locadores_raw:
+                    locador = dict(zip([column[0] for column in cursor.description], row))
+                    # Adicionar métricas zero por padrão
+                    locador['qtd_imoveis'] = 0
+                    locador['contratos_ativos'] = 0
+                    locador['receita_mensal_bruta'] = 0.0
+                    
+                    # Converter campo ativo para boolean, mantendo null como true por padrão
+                    if 'ativo' in locador:
+                        if locador['ativo'] is None:
+                            locador['ativo'] = True  # Default para registros antigos
+                        else:
+                            locador['ativo'] = bool(locador['ativo'])
+                    else:
+                        locador['ativo'] = True  # Fallback se não encontrar a coluna
+                    
+                    resultado['locadores'].append(locador)
+            else:
+                # Para busca com filtros (query_lower != '*')
+                columns = [column[0] for column in cursor.description]
+                for row in cursor.fetchall():
+                    locador = dict(zip(columns, row))
+                    # Converter campo ativo para boolean, mantendo null como true por padrão
+                    if 'ativo' in locador:
+                        if locador['ativo'] is None:
+                            locador['ativo'] = True  # Default para registros antigos
+                        else:
+                            locador['ativo'] = bool(locador['ativo'])
+                    else:
+                        locador['ativo'] = True  # Fallback se não encontrar a coluna
+                    resultado['locadores'].append(locador)
         
         # Buscar Locatários
         if not tipo or tipo == 'locatarios':
             if buscar_todos:
                 cursor.execute("""
                     SELECT TOP 50 
-                        id, nome, cpf_cnpj, telefone, email,
-                        tipo_garantia, rg, nacionalidade, estado_civil, profissao
-                    FROM Locatarios 
-                    ORDER BY nome
+                        l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
+                        l.tipo_garantia, l.rg, l.nacionalidade, l.estado_civil, l.profissao,
+                        COUNT(DISTINCT CASE WHEN c.data_fim >= GETDATE() THEN c.id END) as contratos_ativos,
+                        COUNT(DISTINCT CASE WHEN c.data_fim >= GETDATE() THEN i.id END) as imoveis_alugados
+                    FROM Locatarios l
+                    LEFT JOIN Contratos c ON l.id = c.id_locatario
+                    LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                    GROUP BY l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
+                             l.tipo_garantia, l.rg, l.nacionalidade, l.estado_civil, l.profissao
+                    ORDER BY l.nome
                 """)
             else:
                 cursor.execute("""
                     SELECT TOP 50 
-                        id, nome, cpf_cnpj, telefone, email,
-                        tipo_garantia, rg, nacionalidade, estado_civil, profissao
-                    FROM Locatarios 
+                        l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
+                        l.tipo_garantia, l.rg, l.nacionalidade, l.estado_civil, l.profissao,
+                        COUNT(DISTINCT CASE WHEN c.data_fim >= GETDATE() THEN c.id END) as contratos_ativos,
+                        COUNT(DISTINCT CASE WHEN c.data_fim >= GETDATE() THEN i.id END) as imoveis_alugados
+                    FROM Locatarios l
+                    LEFT JOIN Contratos c ON l.id = c.id_locatario
+                    LEFT JOIN Imoveis i ON c.id_imovel = i.id
                     WHERE 
-                        LOWER(nome) LIKE ? OR
-                        LOWER(cpf_cnpj) LIKE ? OR
-                        LOWER(email) LIKE ? OR
-                        LOWER(telefone) LIKE ?
-                    ORDER BY nome
+                        LOWER(l.nome) LIKE ? OR
+                        LOWER(l.cpf_cnpj) LIKE ? OR
+                        LOWER(l.email) LIKE ? OR
+                        LOWER(l.telefone) LIKE ?
+                    GROUP BY l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
+                             l.tipo_garantia, l.rg, l.nacionalidade, l.estado_civil, l.profissao
+                    ORDER BY l.nome
                 """, (f'%{query_lower}%',) * 4)
             
             columns = [column[0] for column in cursor.description]
@@ -276,7 +328,7 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
         # Buscar imóveis por locador
         if (not tipo or tipo == 'imoveis') and locador_id:
             cursor.execute("""
-                SELECT i.id, i.endereco, i.tipo, i.valor_aluguel, i.quartos, i.area_total, i.status
+                SELECT i.id, i.endereco, i.tipo, i.valor_aluguel, i.quartos, i.metragem_total, i.status
                 FROM Imoveis i 
                 WHERE i.id_locador = ?
                 ORDER BY i.endereco
@@ -289,19 +341,19 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
                     'tipo': row.tipo,
                     'valor_aluguel': float(row.valor_aluguel) if row.valor_aluguel else 0,
                     'quartos': row.quartos,
-                    'area_total': float(row.area_total) if row.area_total else 0,
+                    'metragem_total': float(row.metragem_total) if row.metragem_total else 0,
                     'status': row.status
                 })
         
         # Buscar contratos por locador
         if (not tipo or tipo == 'contratos') and locador_id:
             cursor.execute("""
-                SELECT c.id, c.data_inicio, c.data_fim, c.valor_aluguel, c.status,
+                SELECT c.id, c.data_inicio, c.data_fim, c.vencimento_dia, c.tipo_garantia,
                        lt.nome as locatario_nome, i.endereco as imovel_endereco
                 FROM Contratos c
                 LEFT JOIN Locatarios lt ON c.id_locatario = lt.id
                 LEFT JOIN Imoveis i ON c.id_imovel = i.id
-                WHERE c.id_locador = ?
+                WHERE i.id_locador = ?
                 ORDER BY c.data_inicio DESC
             """, (locador_id,))
             
@@ -310,8 +362,8 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
                     'id': row.id,
                     'data_inicio': row.data_inicio.isoformat() if row.data_inicio else None,
                     'data_fim': row.data_fim.isoformat() if row.data_fim else None,
-                    'valor_aluguel': float(row.valor_aluguel) if row.valor_aluguel else 0,
-                    'status': row.status,
+                    'vencimento_dia': row.vencimento_dia,
+                    'tipo_garantia': row.tipo_garantia,
                     'locatario_nome': row.locatario_nome,
                     'imovel_endereco': row.imovel_endereco
                 })
@@ -319,11 +371,11 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
         # Buscar contratos por locatário
         if (not tipo or tipo == 'contratos') and locatario_id:
             cursor.execute("""
-                SELECT c.id, c.data_inicio, c.data_fim, c.valor_aluguel, c.status,
+                SELECT c.id, c.data_inicio, c.data_fim, c.vencimento_dia, c.tipo_garantia,
                        l.nome as locador_nome, i.endereco as imovel_endereco
                 FROM Contratos c
-                LEFT JOIN Locadores l ON c.id_locador = l.id
                 LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                LEFT JOIN Locadores l ON i.id_locador = l.id
                 WHERE c.id_locatario = ?
                 ORDER BY c.data_inicio DESC
             """, (locatario_id,))
@@ -333,8 +385,8 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
                     'id': row.id,
                     'data_inicio': row.data_inicio.isoformat() if row.data_inicio else None,
                     'data_fim': row.data_fim.isoformat() if row.data_fim else None,
-                    'valor_aluguel': float(row.valor_aluguel) if row.valor_aluguel else 0,
-                    'status': row.status,
+                    'vencimento_dia': row.vencimento_dia,
+                    'tipo_garantia': row.tipo_garantia,
                     'locador_nome': row.locador_nome,
                     'imovel_endereco': row.imovel_endereco
                 })
@@ -342,10 +394,11 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
         # Buscar contratos por imóvel
         if (not tipo or tipo == 'contratos') and imovel_id:
             cursor.execute("""
-                SELECT c.id, c.data_inicio, c.data_fim, c.valor_aluguel, c.status,
+                SELECT c.id, c.data_inicio, c.data_fim, c.vencimento_dia, c.tipo_garantia,
                        l.nome as locador_nome, lt.nome as locatario_nome
                 FROM Contratos c
-                LEFT JOIN Locadores l ON c.id_locador = l.id
+                LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                LEFT JOIN Locadores l ON i.id_locador = l.id
                 LEFT JOIN Locatarios lt ON c.id_locatario = lt.id
                 WHERE c.id_imovel = ?
                 ORDER BY c.data_inicio DESC
@@ -356,8 +409,8 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
                     'id': row.id,
                     'data_inicio': row.data_inicio.isoformat() if row.data_inicio else None,
                     'data_fim': row.data_fim.isoformat() if row.data_fim else None,
-                    'valor_aluguel': float(row.valor_aluguel) if row.valor_aluguel else 0,
-                    'status': row.status,
+                    'vencimento_dia': row.vencimento_dia,
+                    'tipo_garantia': row.tipo_garantia,
                     'locador_nome': row.locador_nome,
                     'locatario_nome': row.locatario_nome
                 })

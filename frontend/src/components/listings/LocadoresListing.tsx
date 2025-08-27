@@ -12,13 +12,16 @@ import {
   MoreVertical,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Select } from '../ui/select';
+import { apiService } from '../../services/api';
 
 interface Locador {
   id: number;
@@ -56,6 +59,20 @@ const LocadoresListing: React.FC<LocadoresListingProps> = ({
     hasFilters,
     removeFilter
   } = useAdvancedSearch();
+
+  const handleStatusChange = async (locadorId: number, novoStatus: boolean) => {
+    try {
+      await apiService.requestPublic(`locadores/${locadorId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ ativo: novoStatus })
+      });
+      
+      // Recarregar os dados
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+    }
+  };
 
   // Combinar termo de busca com filtros
   const searchFilters = {
@@ -310,20 +327,37 @@ const LocadoresListing: React.FC<LocadoresListingProps> = ({
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                       
-                      <div className="absolute right-0 top-full mt-1 bg-white rounded-md shadow-lg border py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                      <div className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
                         <button
                           onClick={() => onLocadorClick?.(locador)}
-                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 w-full text-left"
+                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left"
                         >
                           <Eye className="w-3 h-3" />
                           Ver detalhes
                         </button>
                         <button
                           onClick={() => onLocadorEdit?.(locador)}
-                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 w-full text-left"
+                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left"
                         >
                           <Edit3 className="w-3 h-3" />
                           Editar
+                        </button>
+                        <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                        <button
+                          onClick={() => handleStatusChange(locador.id, true)}
+                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left disabled:opacity-50"
+                          disabled={locador.ativo === true}
+                        >
+                          <UserCheck className="w-3 h-3" />
+                          Ativo
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange(locador.id, false)}
+                          className="flex items-center gap-2 px-3 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left disabled:opacity-50"
+                          disabled={locador.ativo === false}
+                        >
+                          <UserX className="w-3 h-3" />
+                          Inativo
                         </button>
                       </div>
                     </div>

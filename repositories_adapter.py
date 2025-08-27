@@ -105,6 +105,186 @@ from locacao.repositories.contrato_repository import inserir_contrato
 def inserir_locador(**kwargs):
     return inserir_cliente(**kwargs)
 
+def atualizar_locador(locador_id, **kwargs):
+    """Atualiza um locador na tabela Locadores"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Primeiro verificar se o locador existe
+        cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", locador_id)
+        locador_existente = cursor.fetchone()
+        
+        if not locador_existente:
+            print(f"Locador ID {locador_id} não encontrado na tabela Locadores")
+            
+            # Verificar se existe na tabela Clientes
+            cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
+            cliente_existente = cursor.fetchone()
+            
+            if cliente_existente:
+                print(f"Locador ID {locador_id} encontrado na tabela Clientes: {cliente_existente[1]}")
+                print("Tentando atualizar na tabela Clientes...")
+                return atualizar_cliente(locador_id, **kwargs)
+            else:
+                print(f"ID {locador_id} não encontrado nem em Locadores nem em Clientes")
+                conn.close()
+                return False
+        
+        print(f"Locador encontrado: ID {locador_existente[0]}, Nome: {locador_existente[1]}")
+        
+        # Listar campos que podem ser atualizados
+        campos_atualizaveis = [
+            'nome', 'cpf_cnpj', 'telefone', 'email', 'endereco', 
+            'tipo_recebimento', 'rg', 'nacionalidade', 'estado_civil', 
+            'profissao', 'deseja_fci', 'deseja_seguro_fianca', 
+            'deseja_seguro_incendio', 'existe_conjuge', 'nome_conjuge', 
+            'cpf_conjuge', 'rg_conjuge', 'endereco_conjuge', 
+            'telefone_conjuge', 'tipo_cliente', 'data_nascimento'
+        ]
+        
+        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        campos_para_atualizar = {}
+        for campo, valor in kwargs.items():
+            if campo in campos_atualizaveis and valor is not None:
+                # Converter valores string para int quando necessário
+                if campo in ['deseja_fci', 'deseja_seguro_fianca', 'deseja_seguro_incendio', 'existe_conjuge']:
+                    original_valor = valor
+                    if isinstance(valor, str):
+                        if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
+                            valor = 1
+                        elif valor.upper() in ['NAO', 'N', 'FALSE', '0', 'NÃO']:
+                            valor = 0
+                        else:
+                            valor = int(valor) if valor.isdigit() else 0
+                    elif isinstance(valor, bool):
+                        valor = 1 if valor else 0
+                campos_para_atualizar[campo] = valor
+        
+        if not campos_para_atualizar:
+            print("Nenhum campo válido para atualizar")
+            return False
+            
+        # Construir query de UPDATE dinamicamente
+        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
+        query = f"UPDATE Locadores SET {set_clause} WHERE id = ?"
+        
+        valores = list(campos_para_atualizar.values()) + [locador_id]
+        
+        print(f"Executando UPDATE: {query}")
+        print(f"Valores: {valores}")
+        
+        cursor.execute(query, valores)
+        linhas_afetadas = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        if linhas_afetadas > 0:
+            print(f"Locador {locador_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
+            return True
+        else:
+            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode não existir")
+            return False
+            
+    except Exception as e:
+        print(f"Erro ao atualizar locador {locador_id}: {e}")
+        return False
+
+def alterar_status_locador(locador_id, ativo):
+    """Altera o status ativo/inativo de um locador"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Primeiro verificar se o locador existe
+        cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", locador_id)
+        locador_existente = cursor.fetchone()
+        
+        if not locador_existente:
+            print(f"Locador ID {locador_id} não encontrado na tabela Locadores")
+            
+            # Verificar se existe na tabela Clientes
+            cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
+            cliente_existente = cursor.fetchone()
+            
+            if cliente_existente:
+                print(f"Atualizando status na tabela Clientes para locador {locador_id}")
+                cursor.execute("UPDATE Clientes SET ativo = ? WHERE id = ?", (1 if ativo else 0, locador_id))
+            else:
+                print(f"ID {locador_id} não encontrado nem em Locadores nem em Clientes")
+                conn.close()
+                return False
+        else:
+            print(f"Atualizando status na tabela Locadores para locador {locador_id}")
+            cursor.execute("UPDATE Locadores SET ativo = ? WHERE id = ?", (1 if ativo else 0, locador_id))
+        
+        linhas_afetadas = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        if linhas_afetadas > 0:
+            status_texto = "ativo" if ativo else "inativo"
+            print(f"Locador {locador_id} marcado como {status_texto} ({linhas_afetadas} linha(s))")
+            return True
+        else:
+            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode não existir")
+            return False
+            
+    except Exception as e:
+        print(f"Erro ao alterar status do locador {locador_id}: {e}")
+        return False
+
+def atualizar_cliente(cliente_id, **kwargs):
+    """Atualiza um cliente na tabela Clientes (para compatibilidade com locadores)"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Campos que podem ser atualizados na tabela Clientes
+        campos_atualizaveis = [
+            'nome', 'cpf_cnpj', 'telefone', 'email', 'endereco', 
+            'tipo_recebimento', 'conta_bancaria', 'rg', 'nacionalidade', 
+            'estado_civil', 'profissao', 'deseja_fci', 'deseja_seguro_fianca', 
+            'deseja_seguro_incendio', 'existe_conjuge', 'nome_conjuge', 
+            'cpf_conjuge', 'rg_conjuge', 'endereco_conjuge', 
+            'telefone_conjuge', 'tipo_cliente', 'data_nascimento'
+        ]
+        
+        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        campos_para_atualizar = {}
+        for campo, valor in kwargs.items():
+            if campo in campos_atualizaveis and valor is not None:
+                campos_para_atualizar[campo] = valor
+        
+        if not campos_para_atualizar:
+            print("Nenhum campo válido para atualizar")
+            return False
+            
+        # Construir query de UPDATE dinamicamente
+        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
+        query = f"UPDATE Clientes SET {set_clause} WHERE id = ?"
+        
+        valores = list(campos_para_atualizar.values()) + [cliente_id]
+        
+        print(f"🔄 Executando UPDATE na tabela Clientes: {query}")
+        print(f"📋 Valores: {valores}")
+        
+        cursor.execute(query, valores)
+        linhas_afetadas = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        if linhas_afetadas > 0:
+            print(f"✅ Cliente {cliente_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
+            return True
+        else:
+            print(f"⚠️ Nenhuma linha foi atualizada - cliente {cliente_id} pode não existir")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Erro ao atualizar cliente {cliente_id}: {e}")
+        return False
+
 def inserir_locatario(dados):
     return inserir_inquilino(dados)
 

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 # Importar repositórios existentes via adapter
 from repositories_adapter import (
-    inserir_locador, buscar_locadores,
+    inserir_locador, buscar_locadores, atualizar_locador,
     inserir_locatario, buscar_locatarios,
     inserir_imovel, buscar_imoveis,
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador,
@@ -161,6 +161,62 @@ async def criar_locador(locador: LocadorCreate):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
 
+@app.put("/api/locadores/{locador_id}")
+async def atualizar_locador_endpoint(locador_id: int, locador: LocadorCreate):
+    try:
+        print(f"ENDPOINT: Iniciando atualização de locador ID: {locador_id}")
+        print(f"ENDPOINT: Dados recebidos: {locador.model_dump()}")
+        
+        # Primeiro verificar se conseguimos buscar o locador
+        print(f"ENDPOINT: Tentando buscar locador {locador_id} antes da atualização...")
+        locadores = buscar_locadores()
+        locador_existente = next((loc for loc in locadores if loc.get('id') == locador_id), None)
+        
+        if locador_existente:
+            print(f"ENDPOINT: Locador encontrado na busca: {locador_existente.get('nome')}")
+        else:
+            print(f"ENDPOINT: Locador {locador_id} não encontrado na busca geral")
+        
+        # Chamar função de atualização real
+        print(f"ENDPOINT: Chamando atualizar_locador({locador_id}, **kwargs)")
+        sucesso = atualizar_locador(locador_id, **locador.model_dump())
+        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
+        
+        if not sucesso:
+            raise HTTPException(status_code=404, detail="Locador não encontrado ou erro na atualização")
+            
+        locador_atualizado = {"id": locador_id, **locador.model_dump()}
+        
+        return {
+            "data": locador_atualizado, 
+            "success": True, 
+            "message": f"Locador {locador_id} atualizado com sucesso!"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ENDPOINT ERROR: Erro geral ao atualizar locador: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
+
+@app.get("/api/locadores/{locador_id}")
+async def buscar_locador_por_id(locador_id: int):
+    try:
+        print(f"Buscando locador ID: {locador_id}")
+        
+        # Por enquanto, usar busca geral e filtrar
+        locadores = buscar_locadores()
+        locador = next((loc for loc in locadores if loc.get('id') == locador_id), None)
+        
+        if not locador:
+            raise HTTPException(status_code=404, detail="Locador não encontrado")
+            
+        return {"data": locador, "success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erro ao buscar locador: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar locador: {str(e)}")
+
 @app.get("/api/locadores")
 async def listar_locadores():
     try:
@@ -168,6 +224,23 @@ async def listar_locadores():
         return {"data": locadores, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores: {str(e)}")
+
+class StatusRequest(BaseModel):
+    ativo: bool
+
+@app.put("/api/locadores/{locador_id}/status")
+async def alterar_status_locador(locador_id: int, request: StatusRequest):
+    try:
+        from repositories_adapter import alterar_status_locador as alterar_status_db
+        resultado = alterar_status_db(locador_id, request.ativo)
+        
+        if resultado:
+            status_texto = "ativo" if request.ativo else "inativo"
+            return {"message": f"Locador {locador_id} marcado como {status_texto}", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Locador não encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status do locador: {str(e)}")
 
 # Rotas para Locatarios
 @app.post("/api/locatarios")
