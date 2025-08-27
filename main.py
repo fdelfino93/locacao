@@ -22,6 +22,14 @@ from dashboard_sql_server import (
     obter_vencimentos_dashboard,
     obter_alertas_dashboard
 )
+
+# Importar funções de busca
+from search_api import (
+    buscar_global,
+    obter_estatisticas_busca,
+    buscar_sugestoes,
+    buscar_relacionados
+)
 from datetime import datetime
 
 load_dotenv()
@@ -349,6 +357,48 @@ async def dashboard_completo(mes: Optional[int] = None, ano: Optional[int] = Non
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar dashboard: {str(e)}")
+
+# Endpoints de Busca
+@app.get("/api/busca")
+async def buscar_dados(
+    query: str, 
+    tipo: Optional[str] = None,
+    locador_id: Optional[int] = None,
+    locatario_id: Optional[int] = None,
+    imovel_id: Optional[int] = None
+):
+    """Endpoint para busca global com filtros relacionais"""
+    try:
+        if not query or (len(query) < 2 and query != '*'):
+            return {"data": {"locadores": [], "locatarios": [], "imoveis": [], "contratos": []}, "success": True}
+        
+        # Se houver filtros relacionais, usar busca específica
+        if locador_id or locatario_id or imovel_id:
+            resultado = buscar_relacionados(query, tipo, locador_id, locatario_id, imovel_id)
+        else:
+            resultado = buscar_global(query, tipo)
+            
+        return {"data": resultado, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na busca: {str(e)}")
+
+@app.get("/api/busca/stats")
+async def estatisticas_busca(query: str):
+    """Endpoint para estatísticas de busca"""
+    try:
+        stats = obter_estatisticas_busca(query)
+        return {"data": stats, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter estatísticas: {str(e)}")
+
+@app.get("/api/busca/sugestoes")
+async def sugestoes_busca():
+    """Endpoint para sugestões de busca"""
+    try:
+        sugestoes = buscar_sugestoes()
+        return {"data": sugestoes, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter sugestões: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

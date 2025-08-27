@@ -162,7 +162,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
           transition={{ duration: 0.8, delay: 0.8 }}
           className="mt-24"
         >
-          <div className="grid-cards max-w-6xl mx-auto">
+          <div className="grid-cards max-w-4xl mx-auto">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}

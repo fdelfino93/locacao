@@ -15,6 +15,7 @@ import DashboardEnhanced from './components/dashboard/DashboardEnhanced';
 import DashboardPro from './components/dashboard/DashboardPro';
 import DashboardSimple from './components/dashboard/DashboardSimple';
 import SearchModule from './components/search/SearchModule';
+import SearchModernPro from './components/search/SearchModernPro';
 // import TestCard from './components/debug/TestCard';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
@@ -209,7 +210,7 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <SearchModule />
+            <SearchModernPro />
           </motion.div>
         );
       case 'prestacao-contas-lancamento':

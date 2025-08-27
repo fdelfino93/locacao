@@ -67,7 +67,7 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
 
   return (
     <section className="py-20 bg-gradient-to-b from-background to-muted">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
