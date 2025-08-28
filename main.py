@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Importar repositórios existentes via adapter
 from repositories_adapter import (
     inserir_locador, buscar_locadores, atualizar_locador,
-    inserir_locatario, buscar_locatarios,
+    inserir_locatario, buscar_locatarios, atualizar_locatario,
     inserir_imovel, buscar_imoveis,
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura
@@ -77,18 +77,18 @@ class LocatarioCreate(BaseModel):
     cpf_cnpj: str
     telefone: str
     email: str
-    tipo_garantia: str
-    responsavel_pgto_agua: str
-    responsavel_pgto_luz: str
-    responsavel_pgto_gas: str
-    rg: str
-    dados_empresa: str
-    representante: str
-    nacionalidade: str
-    estado_civil: str
-    profissao: str
-    dados_moradores: str
-    Endereco_inq: str
+    tipo_garantia: Optional[str] = None
+    responsavel_pgto_agua: Optional[str] = None
+    responsavel_pgto_luz: Optional[str] = None
+    responsavel_pgto_gas: Optional[str] = None
+    rg: Optional[str] = None
+    dados_empresa: Optional[str] = None
+    representante: Optional[str] = None
+    nacionalidade: Optional[str] = "Brasileira"
+    estado_civil: Optional[str] = "Solteiro"
+    profissao: Optional[str] = None
+    dados_moradores: Optional[str] = None
+    Endereco_inq: Optional[str] = None
     responsavel_inq: Optional[int] = None
     dependentes_inq: Optional[int] = None
     qtd_dependentes_inq: int = 0
@@ -100,6 +100,44 @@ class LocatarioCreate(BaseModel):
     rg_conjuge: Optional[str] = None
     endereco_conjuge: Optional[str] = None
     telefone_conjuge: Optional[str] = None
+
+class LocatarioUpdate(BaseModel):
+    nome: Optional[str] = None
+    cpf_cnpj: Optional[str] = None
+    telefone: Optional[str] = None
+    email: Optional[str] = None
+    tipo_pessoa: Optional[str] = None
+    rg: Optional[str] = None
+    data_nascimento: Optional[date] = None
+    nacionalidade: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profissao: Optional[str] = None
+    endereco_rua: Optional[str] = None
+    endereco_numero: Optional[str] = None
+    endereco_complemento: Optional[str] = None
+    endereco_bairro: Optional[str] = None
+    endereco_cidade: Optional[str] = None
+    endereco_estado: Optional[str] = None
+    endereco_cep: Optional[str] = None
+    possui_conjuge: Optional[bool] = None
+    conjuge_nome: Optional[str] = None
+    cpf_conjuge: Optional[str] = None
+    nome_conjuge: Optional[str] = None
+    rg_conjuge: Optional[str] = None
+    endereco_conjuge: Optional[str] = None
+    telefone_conjuge: Optional[str] = None
+    possui_inquilino_solidario: Optional[bool] = None
+    possui_fiador: Optional[bool] = None
+    qtd_pets: Optional[int] = None
+    observacoes: Optional[str] = None
+    ativo: Optional[bool] = None
+    responsavel_pgto_agua: Optional[str] = None
+    responsavel_pgto_luz: Optional[str] = None
+    responsavel_pgto_gas: Optional[str] = None
+    dados_empresa: Optional[str] = None
+    representante: Optional[str] = None
+    tem_fiador: Optional[bool] = None
+    tem_moradores: Optional[bool] = None
 
 class ImovelCreate(BaseModel):
     id_locador: int
@@ -258,6 +296,66 @@ async def listar_locatarios():
         return {"data": locatarios, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locatários: {str(e)}")
+
+@app.put("/api/locatarios/{locatario_id}")
+async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUpdate):
+    try:
+        print(f"ENDPOINT: Iniciando atualização de locatário ID: {locatario_id}")
+        print(f"ENDPOINT: Dados recebidos: {locatario.model_dump()}")
+        
+        # Chamar função de atualização
+        print(f"ENDPOINT: Chamando atualizar_locatario({locatario_id}, **kwargs)")
+        sucesso = atualizar_locatario(locatario_id, **locatario.model_dump())
+        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
+        
+        if not sucesso:
+            raise HTTPException(status_code=404, detail="Locatário não encontrado ou erro na atualização")
+            
+        locatario_atualizado = {"id": locatario_id, **locatario.model_dump()}
+        
+        return {
+            "data": locatario_atualizado, 
+            "success": True, 
+            "message": f"Locatário {locatario_id} atualizado com sucesso!"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ENDPOINT ERROR: Erro geral ao atualizar locatário: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar locatário: {str(e)}")
+
+@app.get("/api/locatarios/{locatario_id}")
+async def buscar_locatario_por_id(locatario_id: int):
+    try:
+        print(f"Buscando locatário ID: {locatario_id}")
+        
+        # Usar busca geral e filtrar
+        locatarios = buscar_locatarios()
+        locatario = next((loc for loc in locatarios if loc.get('id') == locatario_id), None)
+        
+        if not locatario:
+            raise HTTPException(status_code=404, detail="Locatário não encontrado")
+            
+        return {"data": locatario, "success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erro ao buscar locatário: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar locatário: {str(e)}")
+
+@app.put("/api/locatarios/{locatario_id}/status")
+async def alterar_status_locatario(locatario_id: int, request: StatusRequest):
+    try:
+        from repositories_adapter import alterar_status_locatario as alterar_status_db
+        resultado = alterar_status_db(locatario_id, request.ativo)
+        
+        if resultado:
+            status_texto = "ativo" if request.ativo else "inativo"
+            return {"message": f"Locatário {locatario_id} marcado como {status_texto}", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Locatário não encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status do locatário: {str(e)}")
 
 # Rotas para Imóveis
 @app.post("/api/imoveis")

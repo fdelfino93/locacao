@@ -20,8 +20,9 @@ import SearchModernPro from './components/search/SearchModernPro';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 import LocadoresIndex from './components/pages/LocadoresIndex';
+import { LocatariosIndex } from './components/pages/LocatariosIndex';
 
-type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -47,6 +48,14 @@ function App() {
       return 'locador-edicao';
     }
     
+    if (path.startsWith('/locatario/visualizar/')) {
+      return 'locatario-visualizar';
+    }
+    
+    if (path.startsWith('/locatario/editar/')) {
+      return 'locatario-edicao';
+    }
+    
     // Mapeamento de outras rotas se necessário
     const routeMap: {[key: string]: PageType} = {
       '/': 'hero',
@@ -54,6 +63,7 @@ function App() {
       '/locador': 'locador',
       '/locador/cadastro': 'locador-cadastro',
       '/locatario': 'locatario',
+      '/locatario/cadastro': 'locatario-cadastro',
       '/imovel': 'imovel',
       '/contrato': 'contrato',
       '/prestacao-contas': 'prestacao-contas',
@@ -219,7 +229,53 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernLocatarioFormV2 />
+            <LocatariosIndex 
+              onNavigateToCadastro={() => handlePageChange('locatario-cadastro')}
+              onNavigateToDetalhes={(locatarioId) => {
+                window.history.pushState(null, '', `/locatario/visualizar/${locatarioId}`);
+                handlePageChange('locatario-visualizar');
+              }}
+              onNavigateToEdicao={(locatarioId) => {
+                window.history.pushState(null, '', `/locatario/editar/${locatarioId}`);
+                handlePageChange('locatario-edicao');
+              }}
+            />
+          </motion.div>
+        );
+      case 'locatario-cadastro':
+        return (
+          <motion.div
+            key="locatario-cadastro"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocatarioFormV2 onBack={() => handlePageChange('locatario')} />
+          </motion.div>
+        );
+      case 'locatario-visualizar':
+        return (
+          <motion.div
+            key="locatario-visualizar"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocatarioFormV2 onBack={() => handlePageChange('locatario')} isViewing={true} />
+          </motion.div>
+        );
+      case 'locatario-edicao':
+        return (
+          <motion.div
+            key="locatario-edicao"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernLocatarioFormV2 onBack={() => handlePageChange('locatario')} isEditing={true} />
           </motion.div>
         );
       case 'imovel':

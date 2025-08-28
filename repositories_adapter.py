@@ -960,3 +960,128 @@ def alterar_status_fatura(fatura_id, novo_status, motivo=None):
     except Exception as e:
         print(f"Erro ao alterar status da fatura {fatura_id}: {e}")
         return False
+
+def atualizar_locatario(locatario_id, **kwargs):
+    """Atualiza um locatário na tabela Locatarios"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Iniciando atualização do locatário ID: {locatario_id}")
+        print(f"Dados recebidos: {kwargs}")
+        
+        # Primeiro verificar se o locatário existe
+        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
+        locatario_existente = cursor.fetchone()
+        
+        if not locatario_existente:
+            print(f"Locatário ID {locatario_id} não encontrado na tabela Locatarios")
+            conn.close()
+            return False
+        
+        print(f"Locatário encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
+        
+        # Listar campos que podem ser atualizados baseados na estrutura da tabela
+        campos_atualizaveis = [
+            'nome', 'cpf_cnpj', 'telefone', 'email', 'tipo_pessoa', 'rg', 
+            'data_nascimento', 'nacionalidade', 'estado_civil', 'profissao',
+            'endereco_rua', 'endereco_numero', 'endereco_complemento', 'endereco_bairro',
+            'endereco_cidade', 'endereco_estado', 'endereco_cep', 'possui_conjuge',
+            'conjuge_nome', 'cpf_conjuge', 'nome_conjuge', 'rg_conjuge', 'endereco_conjuge',
+            'telefone_conjuge', 'possui_inquilino_solidario', 'possui_fiador', 
+            'qtd_pets', 'observacoes', 'ativo', 'responsavel_pgto_agua',
+            'responsavel_pgto_luz', 'responsavel_pgto_gas', 'dados_empresa',
+            'representante', 'tem_fiador', 'tem_moradores'
+        ]
+        
+        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        campos_para_atualizar = {}
+        for campo, valor in kwargs.items():
+            if campo in campos_atualizaveis and valor is not None:
+                # Converter valores string para int/bool quando necessário
+                if campo in ['possui_conjuge', 'possui_inquilino_solidario', 'possui_fiador', 'ativo', 'tem_fiador', 'tem_moradores']:
+                    if isinstance(valor, str):
+                        if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
+                            valor = 1
+                        elif valor.upper() in ['NAO', 'N', 'FALSE', '0', 'NÃO']:
+                            valor = 0
+                        else:
+                            valor = int(valor) if valor.isdigit() else 0
+                    elif isinstance(valor, bool):
+                        valor = 1 if valor else 0
+                campos_para_atualizar[campo] = valor
+        
+        if not campos_para_atualizar:
+            print("Nenhum campo válido para atualizar")
+            conn.close()
+            return False
+            
+        # Construir query de UPDATE dinamicamente
+        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
+        valores = list(campos_para_atualizar.values())
+        valores.append(locatario_id)  # Para o WHERE
+        
+        query = f"UPDATE Locatarios SET {set_clause} WHERE id = ?"
+        
+        print(f"Query: {query}")
+        print(f"Valores: {valores}")
+        
+        cursor.execute(query, valores)
+        
+        # Verificar se alguma linha foi afetada
+        if cursor.rowcount == 0:
+            print("Nenhuma linha foi afetada pela atualização")
+            conn.close()
+            return False
+        
+        conn.commit()
+        print(f"Locatário {locatario_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
+        
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"Erro ao atualizar locatário {locatario_id}: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return False
+
+def alterar_status_locatario(locatario_id, ativo):
+    """Altera o status ativo/inativo de um locatário"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Alterando status do locatário {locatario_id} para {'ativo' if ativo else 'inativo'}")
+        
+        # Primeiro verificar se o locatário existe
+        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
+        locatario_existente = cursor.fetchone()
+        
+        if not locatario_existente:
+            print(f"Locatário ID {locatario_id} não encontrado na tabela Locatarios")
+            conn.close()
+            return False
+        
+        print(f"Locatário encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
+        
+        # Atualizar o status
+        cursor.execute("UPDATE Locatarios SET ativo = ? WHERE id = ?", (ativo, locatario_id))
+        
+        # Verificar se alguma linha foi afetada
+        if cursor.rowcount == 0:
+            print("Nenhuma linha foi afetada pela atualização de status")
+            conn.close()
+            return False
+        
+        conn.commit()
+        print(f"Status do locatário {locatario_id} alterado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
+        
+        conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"Erro ao alterar status do locatário {locatario_id}: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return False

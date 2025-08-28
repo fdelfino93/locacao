@@ -92,7 +92,7 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
                         locador['ativo'] = True  # Fallback se não encontrar a coluna
                     
                     resultado['locadores'].append(locador)
-            else:
+        else:
                 # Para busca com filtros (query_lower != '*')
                 columns = [column[0] for column in cursor.description]
                 for row in cursor.fetchall():

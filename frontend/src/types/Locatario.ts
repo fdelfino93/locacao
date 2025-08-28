@@ -10,7 +10,6 @@ export interface Locatario {
   tipo_pessoa: 'PF' | 'PJ';
   representante_legal?: RepresentanteLegal;
   documentos_empresa?: DocumentosEmpresa;
-  tipo_garantia: string;
   tem_fiador: boolean;
   fiador?: Fiador;
   responsavel_pgto_agua: string;

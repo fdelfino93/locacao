@@ -30,14 +30,23 @@ import {
   Plus,
   Trash2,
   Users,
-  MapPin
+  MapPin,
+  ArrowLeft,
+  CheckCircle,
+  CheckSquare
 } from 'lucide-react';
 import type { Locatario, Endereco, DadosBancarios, Fiador, Morador } from '../../types';
 import { apiService } from '../../services/api';
 import { EnderecoForm } from './EnderecoForm';
 import { DadosBancariosForm } from './DadosBancariosForm';
 
-export const ModernLocatarioFormV2: React.FC = () => {
+interface ModernLocatarioFormV2Props {
+  onBack?: () => void;
+  isEditing?: boolean;
+  isViewing?: boolean;
+}
+
+export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ onBack, isEditing = false, isViewing = false }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
@@ -92,6 +101,110 @@ export const ModernLocatarioFormV2: React.FC = () => {
   });
 
   const [moradores, setMoradores] = useState<Morador[]>([]);
+  
+  // Hook para carregar dados do locatário quando em modo de edição ou visualização
+  React.useEffect(() => {
+    if (isEditing || isViewing) {
+      const pathParts = window.location.pathname.split('/');
+      const locatarioId = pathParts[pathParts.length - 1];
+      if (locatarioId && locatarioId !== 'editar' && locatarioId !== 'visualizar') {
+        carregarDadosLocatario(parseInt(locatarioId));
+      }
+    }
+  }, [isEditing, isViewing]);
+
+  const carregarDadosLocatario = async (locatarioId: number) => {
+    setLoadingData(true);
+    try {
+      console.log('🔍 Carregando locatário ID:', locatarioId);
+      
+      // Primeiro tentar API específica por ID
+      let response = await fetch(`http://localhost:8000/api/locatarios/${locatarioId}`);
+      
+      if (!response.ok) {
+        // Se não funcionar, usar busca geral e filtrar pelo ID exato
+        console.log('⚠️ API específica falhou, usando busca geral');
+        response = await fetch('http://localhost:8000/api/locatarios');
+      }
+      
+      const data = await response.json();
+      console.log('📦 Dados recebidos:', data);
+      
+      let locatario = null;
+      
+      if (data.success) {
+        if (data.data && !Array.isArray(data.data)) {
+          // Resposta da API específica
+          locatario = data.data;
+        } else if (data.data && Array.isArray(data.data)) {
+          // Resposta da busca geral - filtrar pelo ID exato
+          locatario = data.data.find((loc: any) => loc.id === locatarioId);
+        }
+      }
+      
+      if (locatario) {
+        console.log('✅ Locatário encontrado:', locatario);
+        
+        // Preencher os dados do formulário
+        setFormData({
+          ...formData,
+          nome: locatario.nome || '',
+          cpf_cnpj: locatario.cpf_cnpj || '',
+          telefone: locatario.telefone || '',
+          email: locatario.email || '',
+          rg: locatario.rg || '',
+          nacionalidade: locatario.nacionalidade || 'Brasileiro(a)',
+          estado_civil: locatario.estado_civil || 'Solteiro(a)',
+          profissao: locatario.profissao || '',
+          tipo_pessoa: locatario.tipo_pessoa || 'PF',
+          renda_mensal: locatario.renda_mensal || 0,
+          empresa: locatario.empresa || '',
+          telefone_comercial: locatario.telefone_comercial || '',
+          observacoes: locatario.observacoes || ''
+        });
+        
+        // Preencher endereço se existir
+        if (locatario.endereco) {
+          setEndereco(locatario.endereco);
+        }
+        
+        // Preencher dados bancários se existir
+        if (locatario.dados_bancarios) {
+          setDadosBancarios(locatario.dados_bancarios);
+        }
+        
+        // Preencher fiador se existir
+        if (locatario.fiador) {
+          setShowFiador(true);
+          setFiador(locatario.fiador);
+        }
+        
+        // Preencher moradores se existirem
+        if (locatario.moradores && locatario.moradores.length > 0) {
+          setShowMoradores(true);
+          setMoradores(locatario.moradores);
+        }
+        
+        // Preencher múltiplos telefones e emails
+        if (locatario.telefones && locatario.telefones.length > 0) {
+          setTelefones(locatario.telefones);
+        }
+        if (locatario.emails && locatario.emails.length > 0) {
+          setEmails(locatario.emails);
+        }
+        
+        setMessage({ type: 'success', text: 'Dados carregados com sucesso!' });
+      } else {
+        console.error('❌ Locatário não encontrado com ID:', locatarioId);
+        setMessage({ type: 'error', text: 'Locatário não encontrado' });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar locatário:', error);
+      setMessage({ type: 'error', text: 'Erro ao carregar dados do locatário' });
+    } finally {
+      setLoadingData(false);
+    }
+  };
   
   const [formData, setFormData] = useState<Locatario>({
     nome: '',
@@ -241,6 +354,8 @@ export const ModernLocatarioFormV2: React.FC = () => {
     setMoradores(novosmoradores);
   };
 
+  const isReadOnly = isViewing;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -276,17 +391,36 @@ export const ModernLocatarioFormV2: React.FC = () => {
         existe_conjuge: showConjuge ? 1 : 0
       };
 
-      const response = await apiService.criarLocatario(dadosParaEnvio);
+      let response;
+      
+      if (isEditing) {
+        // Modo edição - obter ID da URL
+        const pathParts = window.location.pathname.split('/');
+        const locatarioId = pathParts[pathParts.length - 1];
+        console.log('💾 Salvando alterações do locatário ID:', locatarioId);
+        
+        // Chamar API de atualização
+        response = await apiService.atualizarLocatario(parseInt(locatarioId), dadosParaEnvio);
+      } else {
+        // Modo cadastro
+        response = await apiService.criarLocatario(dadosParaEnvio);
+      }
       
       if (response.success) {
-        setMessage({ type: 'success', text: response.message || 'Locatario cadastrado com sucesso!' });
+        const successMessage = isEditing 
+          ? 'Locatário atualizado com sucesso!'
+          : 'Locatário cadastrado com sucesso!';
+        setMessage({ type: 'success', text: response.message || successMessage });
         // Reset form após sucesso
         // ... (código de reset similar ao cliente)
       } else {
-        setMessage({ type: 'error', text: 'Erro ao cadastrar inquilino' });
+        const errorMessage = isEditing 
+          ? 'Erro ao atualizar locatário'
+          : 'Erro ao cadastrar locatário';
+        setMessage({ type: 'error', text: errorMessage });
       }
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Erro ao cadastrar inquilino';
+      const errorMessage = error.response?.data?.detail || (isEditing ? 'Erro ao atualizar locatário' : 'Erro ao cadastrar locatário');
       setMessage({ type: 'error', text: errorMessage });
     } finally {
       setLoading(false);
@@ -327,11 +461,26 @@ export const ModernLocatarioFormV2: React.FC = () => {
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary-foreground/20 rounded-xl">
-                <Home className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                  <Home className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold text-primary-foreground">
+                  {isViewing ? 'Visualização de Locatário' : isEditing ? 'Edição de Locatário' : 'Cadastro de Locatário'}
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Locatário</h1>
+              {onBack && (
+                <Button
+                  onClick={onBack}
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary-foreground hover:bg-primary-foreground/20"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -470,6 +619,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             handleInputChange('tipo_pessoa', value);
                             setShowRepresentante(value === 'PJ');
                           }}
+                          disabled={isReadOnly}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -530,6 +680,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           placeholder={formData.tipo_pessoa === 'PJ' ? 'Nome da empresa' : 'João Silva'}
                           icon={formData.tipo_pessoa === 'PJ' ? Building : User}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -545,6 +696,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           placeholder={formData.tipo_pessoa === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
                           icon={CreditCard}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
                       
@@ -560,6 +712,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('rg', e.target.value)}
                               placeholder="12.345.678-9"
                               icon={CreditCard}
+                              disabled={isReadOnly}
                             />
                           </div>
                           
@@ -568,6 +721,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             <Select 
                               value={formData.estado_civil} 
                               onValueChange={(value) => handleInputChange('estado_civil', value)}
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger>
                                 <SelectValue />
@@ -591,6 +745,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('profissao', e.target.value)}
                               placeholder="Ex: Engenheiro"
                               icon={UserCheck}
+                              disabled={isReadOnly}
                             />
                           </div>
                           
@@ -603,12 +758,13 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('nacionalidade', e.target.value)}
                               placeholder="Brasileira"
                               icon={User}
+                              disabled={isReadOnly}
                             />
                           </div>
                           
                           <div>
                             <Label className="text-sm font-medium text-foreground">Possui cônjuge/companheiro(a)?</Label>
-                            <Select onValueChange={handleConjugeChange}>
+                            <Select onValueChange={handleConjugeChange} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
@@ -636,6 +792,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('nome_fantasia', e.target.value)}
                               placeholder="Nome fantasia da empresa"
                               icon={Building}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -648,6 +805,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('inscricao_estadual', e.target.value)}
                               placeholder="000.000.000.000"
                               icon={FileText}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -660,6 +818,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('inscricao_municipal', e.target.value)}
                               placeholder="000000000"
                               icon={FileText}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -672,6 +831,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('atividade_principal', e.target.value)}
                               placeholder="Ex: Comércio varejista"
                               icon={Building}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -683,6 +843,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               value={formData.data_constituicao || ''}
                               onChange={(e) => handleInputChange('data_constituicao', e.target.value)}
                               icon={Heart}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -695,6 +856,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('capital_social', e.target.value)}
                               placeholder="R$ 10.000,00"
                               icon={CreditCard}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -703,6 +865,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             <Select 
                               value={formData.porte_empresa || ''} 
                               onValueChange={(value) => handleInputChange('porte_empresa', value)}
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o porte" />
@@ -722,6 +885,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             <Select 
                               value={formData.regime_tributario || ''} 
                               onValueChange={(value) => handleInputChange('regime_tributario', value)}
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o regime" />
@@ -773,6 +937,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           <Select 
                             value={formData.regime_bens || ''} 
                             onValueChange={(value) => handleInputChange('regime_bens', value)}
+                            disabled={isReadOnly}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o regime de bens" />
@@ -799,6 +964,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('nome_conjuge', e.target.value)}
                               placeholder="Maria Silva"
                               icon={User}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -812,6 +978,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               placeholder="000.000.000-00"
                               icon={CreditCard}
                               maxLength={14}
+                              disabled={isReadOnly}
                             />
                           </div>
                         </div>
@@ -826,6 +993,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('rg_conjuge', e.target.value)}
                               placeholder="00.000.000-0"
                               icon={CreditCard}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -838,6 +1006,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('telefone_conjuge', e.target.value)}
                               placeholder="(41) 99999-9999"
                               icon={Phone}
+                              disabled={isReadOnly}
                             />
                           </div>
                         </div>
@@ -883,6 +1052,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('nome_representante', e.target.value)}
                               placeholder="João Silva"
                               icon={User}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -896,6 +1066,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               placeholder="000.000.000-00"
                               icon={CreditCard}
                               maxLength={14}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -908,6 +1079,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('rg_representante', e.target.value)}
                               placeholder="00.000.000-0"
                               icon={CreditCard}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -920,6 +1092,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('cargo_representante', e.target.value)}
                               placeholder="Ex: Diretor, Sócio"
                               icon={UserCheck}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -932,6 +1105,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('telefone_representante', e.target.value)}
                               placeholder="(41) 99999-9999"
                               icon={Phone}
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -944,6 +1118,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               onChange={(e) => handleInputChange('email_representante', e.target.value)}
                               placeholder="representante@empresa.com"
                               icon={Mail}
+                              disabled={isReadOnly}
                             />
                           </div>
                         </div>
@@ -964,6 +1139,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, rua: e.target.value })}
                                 placeholder="Rua das Flores"
                                 icon={MapPin}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -976,6 +1152,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, numero: e.target.value })}
                                 placeholder="123"
                                 icon={Home}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -988,6 +1165,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, complemento: e.target.value })}
                                 placeholder="Apto 45"
                                 icon={Building}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1000,6 +1178,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, bairro: e.target.value })}
                                 placeholder="Centro"
                                 icon={MapPin}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1012,6 +1191,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => handleInputChange('endereco_representante', { ...formData.endereco_representante, cidade: e.target.value })}
                                 placeholder="Curitiba"
                                 icon={Building2}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1020,6 +1200,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               <Select 
                                 value={formData.endereco_representante?.estado || ''} 
                                 onValueChange={(value) => handleInputChange('endereco_representante', { ...formData.endereco_representante, estado: value })}
+                                disabled={isReadOnly}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione o estado" />
@@ -1066,6 +1247,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 placeholder="00000-000"
                                 icon={MapPin}
                                 maxLength={9}
+                                disabled={isReadOnly}
                               />
                             </div>
                           </div>
@@ -1117,6 +1299,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                   onChange={(e) => updateTelefone(index, e.target.value)}
                                   placeholder="(41) 99999-9999"
                                   icon={Phone}
+                                  disabled={isReadOnly}
                                 />
                               </div>
                               <Button
@@ -1124,7 +1307,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeTelefone(index)}
-                                disabled={telefones.length === 1}
+                                disabled={telefones.length === 1 || isReadOnly}
                                 className="px-3 hover:bg-destructive hover:text-destructive-foreground"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1138,6 +1321,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             size="sm"
                             onClick={addTelefone}
                             className="w-full border-dashed hover:border-primary hover:text-primary"
+                            disabled={isReadOnly}
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Adicionar Telefone
@@ -1161,6 +1345,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                   onChange={(e) => updateEmail(index, e.target.value)}
                                   placeholder="locatario@email.com"
                                   icon={Mail}
+                                  disabled={isReadOnly}
                                 />
                               </div>
                               <Button
@@ -1168,7 +1353,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeEmail(index)}
-                                disabled={emails.length === 1}
+                                disabled={emails.length === 1 || isReadOnly}
                                 className="px-3 hover:bg-destructive hover:text-destructive-foreground"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1182,6 +1367,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             size="sm"
                             onClick={addEmail}
                             className="w-full border-dashed hover:border-primary hover:text-primary"
+                            disabled={isReadOnly}
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Adicionar E-mail
@@ -1227,6 +1413,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           onChange={(e) => setEndereco(prev => ({ ...prev, rua: e.target.value }))}
                           placeholder="Rua das Flores"
                           icon={MapPin}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -1239,6 +1426,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           onChange={(e) => setEndereco(prev => ({ ...prev, numero: e.target.value }))}
                           placeholder="123"
                           icon={Home}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -1251,6 +1439,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           onChange={(e) => setEndereco(prev => ({ ...prev, complemento: e.target.value }))}
                           placeholder="Apto 45"
                           icon={Building}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -1263,6 +1452,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           onChange={(e) => setEndereco(prev => ({ ...prev, bairro: e.target.value }))}
                           placeholder="Centro"
                           icon={MapPin}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -1275,6 +1465,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           onChange={(e) => setEndereco(prev => ({ ...prev, cidade: e.target.value }))}
                           placeholder="Curitiba"
                           icon={Building2}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -1283,6 +1474,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                         <Select 
                           value={endereco.estado} 
                           onValueChange={(value) => setEndereco(prev => ({ ...prev, estado: value }))}
+                          disabled={isReadOnly}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -1329,6 +1521,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           placeholder="00000-000"
                           icon={MapPin}
                           maxLength={9}
+                          disabled={isReadOnly}
                         />
                       </div>
                     </div>
@@ -1387,6 +1580,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('CPF:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="RG"
@@ -1394,6 +1588,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('RG:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Comprovante de Renda"
@@ -1401,12 +1596,14 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('Renda:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Comprovante de Estado Civil"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Estado Civil:', file)}
+                            disabled={isReadOnly}
                           />
                         </>
                       ) : (
@@ -1417,6 +1614,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('Contrato Social:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="CNPJ Atualizado"
@@ -1424,6 +1622,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('CNPJ:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Cartão CNPJ"
@@ -1431,12 +1630,14 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             maxSize={5}
                             onFileSelect={(file) => console.log('Cartão CNPJ:', file)}
                             required
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Última Alteração Contratual"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Alteração:', file)}
+                            disabled={isReadOnly}
                           />
                         </>
                       )}
@@ -1447,6 +1648,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                         maxSize={5}
                         onFileSelect={(file) => console.log('Endereço:', file)}
                         required
+                        disabled={isReadOnly}
                       />
                       
                       {formData.tipo_pessoa === 'PJ' && (
@@ -1456,6 +1658,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           maxSize={5}
                           onFileSelect={(file) => console.log('RG Representante:', file)}
                           required
+                          disabled={isReadOnly}
                         />
                       )}
                     </div>
@@ -1488,24 +1691,28 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Casamento:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Comprovante de Bens"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Bens:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Declaração de Imposto de Renda"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('IR:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="RG do Cônjuge"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('RG Cônjuge:', file)}
+                            disabled={isReadOnly}
                           />
                         </>
                       ) : (
@@ -1515,24 +1722,28 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Balanço:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Demonstração de Resultado"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('DRE:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Certidão Negativa de Débitos"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Certidão:', file)}
+                            disabled={isReadOnly}
                           />
                           <FileUpload
                             label="Procuração (se aplicável)"
                             accept=".pdf,.jpg,.jpeg,.png"
                             maxSize={5}
                             onFileSelect={(file) => console.log('Procuração:', file)}
+                            disabled={isReadOnly}
                           />
                         </>
                       )}
@@ -1542,6 +1753,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                         accept=".pdf,.jpg,.jpeg,.png"
                         maxSize={5}
                         onFileSelect={(file) => console.log('Outros:', file)}
+                        disabled={isReadOnly}
                       />
                     </div>
                   </motion.div>
@@ -1605,6 +1817,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                             <Select 
                               value={forma.tipo} 
                               onValueChange={(value) => updateFormaEnvio(index, 'tipo', value)}
+                              disabled={isReadOnly}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione..." />
@@ -1630,6 +1843,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
                                 placeholder="Ex: Deixar na portaria"
                                 icon={Home}
+                                disabled={isReadOnly}
                               />
                             ) : forma.tipo === 'email' ? (
                               <InputWithIcon
@@ -1638,6 +1852,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
                                 placeholder="email@exemplo.com"
                                 icon={Mail}
+                                disabled={isReadOnly}
                               />
                             ) : forma.tipo === 'whatsapp' ? (
                               <InputWithIcon
@@ -1646,6 +1861,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                                 onChange={(e) => updateFormaEnvio(index, 'contato', e.target.value)}
                                 placeholder="(41) 99999-9999"
                                 icon={Phone}
+                                disabled={isReadOnly}
                               />
                             ) : (
                               <InputWithIcon
@@ -1665,7 +1881,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => removeFormaEnvio(index)}
-                              disabled={formasEnvio.length === 1}
+                              disabled={formasEnvio.length === 1 || isReadOnly}
                               className="px-3 hover:bg-destructive hover:text-destructive-foreground"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1679,6 +1895,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                         variant="outline"
                         onClick={addFormaEnvio}
                         className="w-full border-dashed hover:border-primary hover:text-primary"
+                        disabled={isReadOnly}
                       >
                         <Plus className="w-4 h-4 mr-2" />
                         Adicionar Forma de Envio
@@ -1751,6 +1968,7 @@ export const ModernLocatarioFormV2: React.FC = () => {
                           placeholder="Digite aqui informações adicionais sobre o locatário, como características especiais, histórico, preferências ou qualquer detalhe importante para o cadastro..."
                           rows={8}
                           className="resize-none"
+                          disabled={isReadOnly}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           Utilize este espaço para registrar informações que não se encaixam nos outros campos
@@ -1787,35 +2005,37 @@ export const ModernLocatarioFormV2: React.FC = () => {
               </Tabs>
 
             {/* Submit Button */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className="pt-6"
-            >
+            {!isViewing && (
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className="pt-6"
               >
-                <Button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  {loading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                      <span>Cadastrando...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Home className="w-5 h-5" />
-                      <span>Cadastrar Locatário</span>
-                    </div>
-                  )}
-                </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        <span>{isEditing ? 'Salvando...' : 'Cadastrando...'}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <Home className="w-5 h-5" />
+                        <span>{isEditing ? 'Salvar Alterações' : 'Cadastrar Locatário'}</span>
+                      </div>
+                    )}
+                  </Button>
+                </motion.div>
               </motion.div>
-            </motion.div>
+            )}
           </form>
           </div>
         </motion.div>
