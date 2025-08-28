@@ -21,8 +21,9 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
 import LocadoresIndex from './components/pages/LocadoresIndex';
 import { LocatariosIndex } from './components/pages/LocatariosIndex';
+import { ImoveisIndex } from './components/pages/ImoveisIndex';
 
-type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'imovel-cadastro' | 'imovel-visualizar' | 'imovel-edicao' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -56,6 +57,14 @@ function App() {
       return 'locatario-edicao';
     }
     
+    if (path.startsWith('/imovel-visualizar/')) {
+      return 'imovel-visualizar';
+    }
+    
+    if (path.startsWith('/imovel-edicao/')) {
+      return 'imovel-edicao';
+    }
+    
     // Mapeamento de outras rotas se necessário
     const routeMap: {[key: string]: PageType} = {
       '/': 'hero',
@@ -65,6 +74,8 @@ function App() {
       '/locatario': 'locatario',
       '/locatario/cadastro': 'locatario-cadastro',
       '/imovel': 'imovel',
+      '/imoveis': 'imovel',
+      '/imovel/cadastro': 'imovel-cadastro',
       '/contrato': 'contrato',
       '/prestacao-contas': 'prestacao-contas',
       '/dashboard': 'dashboard',
@@ -103,7 +114,13 @@ function App() {
         'locador-visualizar': '/locador/visualizar',
         'locador-edicao': '/locador/editar',
         'locatario': '/locatario',
+        'locatario-cadastro': '/locatario/cadastro',
+        'locatario-visualizar': '/locatario/visualizar',
+        'locatario-edicao': '/locatario/editar',
         'imovel': '/imovel',
+        'imovel-cadastro': '/imovel/cadastro',
+        'imovel-visualizar': '/imovel/visualizar',
+        'imovel-edicao': '/imovel/editar',
         'contrato': '/contrato',
         'prestacao-contas': '/prestacao-contas',
         'prestacao-contas-lancamento': '/prestacao-contas/lancamento',
@@ -148,6 +165,23 @@ function App() {
     const url = `/locador/editar/${locadorId}`;
     window.history.pushState({}, '', url);
     setCurrentPage('locador-edicao');
+  };
+
+  // Handlers para Imóveis
+  const handleNavigateToImovelCadastro = () => {
+    handlePageChange('imovel-cadastro');
+  };
+
+  const handleNavigateToImovelDetalhes = (imovelId: number) => {
+    const url = `/imovel/visualizar/${imovelId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('imovel-visualizar');
+  };
+
+  const handleNavigateToImovelEdicao = (imovelId: number) => {
+    const url = `/imovel/editar/${imovelId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('imovel-edicao');
   };
 
   const renderCurrentContent = () => {
@@ -287,7 +321,47 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernImovelFormV2 />
+            <ImoveisIndex
+              onNavigateToCadastro={handleNavigateToImovelCadastro}
+              onNavigateToDetalhes={handleNavigateToImovelDetalhes}
+              onNavigateToEdicao={handleNavigateToImovelEdicao}
+            />
+          </motion.div>
+        );
+      case 'imovel-cadastro':
+        return (
+          <motion.div
+            key="imovel-cadastro"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernImovelFormV2 onBack={() => handlePageChange('imovel')} />
+          </motion.div>
+        );
+      case 'imovel-visualizar':
+        return (
+          <motion.div
+            key="imovel-visualizar"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernImovelFormV2 onBack={() => handlePageChange('imovel')} isViewing={true} />
+          </motion.div>
+        );
+      case 'imovel-edicao':
+        return (
+          <motion.div
+            key="imovel-edicao"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernImovelFormV2 onBack={() => handlePageChange('imovel')} isEditing={true} />
           </motion.div>
         );
       case 'contrato':

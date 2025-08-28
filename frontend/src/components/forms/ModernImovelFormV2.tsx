@@ -36,7 +36,8 @@ import {
   Trash2,
   Mail,
   Phone,
-  CreditCard
+  CreditCard,
+  ArrowLeft
 } from 'lucide-react';
 import type { Imovel, Endereco, InformacoesIPTU, DadosGeraisImovel } from '../../types';
 import { apiService } from '../../services/api';
@@ -65,13 +66,22 @@ const simNaoOptions: RadioOption[] = [
   { value: 'false', label: 'Não' }
 ];
 
-export const ModernImovelFormV2: React.FC = () => {
+interface ModernImovelFormV2Props {
+  onBack?: () => void;
+  isEditing?: boolean;
+  isViewing?: boolean;
+}
+
+export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, isEditing = false, isViewing = false }) => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [clientes, setClientes] = useState<any[]>([]);
   const [inquilinos, setInquilinos] = useState<any[]>([]);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Controle de modo de visualização
+  const isReadOnly = isViewing;
 
   // Estados separados para melhor organização
   const [endereco, setEndereco] = useState<Endereco>({
@@ -181,6 +191,155 @@ export const ModernImovelFormV2: React.FC = () => {
 
     loadData();
   }, []);
+
+  // Hook para carregar dados do imóvel quando em modo de edição ou visualização
+  useEffect(() => {
+    if (isEditing || isViewing) {
+      const pathParts = window.location.pathname.split('/');
+      const imovelId = pathParts[pathParts.length - 1];
+      if (imovelId && imovelId !== 'editar' && imovelId !== 'visualizar') {
+        carregarDadosImovel(parseInt(imovelId));
+      }
+    }
+  }, [isEditing, isViewing]);
+
+  const carregarDadosImovel = async (imovelId: number) => {
+    setLoadingData(true);
+    try {
+      console.log('🔍 Carregando imóvel ID:', imovelId);
+      
+      // Primeiro tentar API específica por ID
+      let response = await fetch(`http://localhost:8000/api/imoveis/${imovelId}`);
+      
+      if (!response.ok) {
+        // Se não funcionar, usar busca geral e filtrar pelo ID exato
+        console.log('⚠️ API específica falhou, usando busca geral');
+        response = await fetch(`http://localhost:8000/api/imoveis`);
+      }
+      
+      const data = await response.json();
+      console.log('📦 Dados recebidos:', data);
+      
+      let imovel = null;
+      
+      if (data.success) {
+        if (data.data && !Array.isArray(data.data)) {
+          // Resposta da API específica
+          imovel = data.data;
+        } else if (data.data && Array.isArray(data.data)) {
+          // Resposta da busca geral - filtrar pelo ID exato
+          imovel = data.data.find((im: any) => im.id === imovelId);
+        }
+      }
+      
+      if (imovel) {
+        console.log('✅ Imóvel encontrado:', imovel);
+        preencherFormularioComDados(imovel);
+      } else {
+        console.error('❌ Imóvel não encontrado');
+        setApiError(`Imóvel com ID ${imovelId} não foi encontrado.`);
+      }
+    } catch (error) {
+      console.error('💥 Erro ao carregar imóvel:', error);
+      setApiError('Erro ao carregar dados do imóvel.');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const preencherFormularioComDados = (imovel: any) => {
+    // Preencher endereço se disponível
+    if (imovel.endereco_estruturado) {
+      // Priorizar endereço estruturado com campos separados
+      setEndereco({
+        rua: imovel.endereco_estruturado.rua || '',
+        numero: imovel.endereco_estruturado.numero || '',
+        complemento: imovel.endereco_estruturado.complemento || '',
+        bairro: imovel.endereco_estruturado.bairro || '',
+        cidade: imovel.endereco_estruturado.cidade || '',
+        estado: imovel.endereco_estruturado.estado || 'PR',
+        cep: imovel.endereco_estruturado.cep || ''
+      });
+    } else if (imovel.endereco) {
+      // Se endereco é uma string, usar apenas como rua
+      if (typeof imovel.endereco === 'string') {
+        setEndereco(prev => ({
+          ...prev,
+          rua: imovel.endereco
+        }));
+      } else {
+        // Se endereco é um objeto, usar todos os campos
+        setEndereco({
+          rua: imovel.endereco.rua || '',
+          numero: imovel.endereco.numero || '',
+          complemento: imovel.endereco.complemento || '',
+          bairro: imovel.endereco.bairro || '',
+          cidade: imovel.endereco.cidade || '',
+          estado: imovel.endereco.estado || 'PR',
+          cep: imovel.endereco.cep || ''
+        });
+      }
+    }
+
+    // Preencher dados gerais do imóvel
+    setDadosGerais({
+      quartos: imovel.quartos || 0,
+      suites: imovel.suites || 0,
+      banheiros: imovel.banheiros || 0,
+      salas: imovel.salas || 0,
+      cozinha: imovel.cozinha || 0,
+      tem_garagem: imovel.vagas_garagem > 0 || false,
+      qtd_garagem: imovel.vagas_garagem || undefined,
+      area_total: imovel.metragem_total || '',
+      area_construida: imovel.metragem_construida || '',
+      ano_construcao: imovel.ano_construcao || '',
+      elevador: imovel.elevador || false,
+      andar: imovel.andar || ''
+    });
+
+    // Preencher informações do IPTU
+    if (imovel.info_iptu) {
+      setInformacoesIPTU({
+        titular: imovel.info_iptu.titular || '',
+        inscricao_imobiliaria: imovel.info_iptu.inscricao_imobiliaria || '',
+        indicacao_fiscal: imovel.info_iptu.indicacao_fiscal || ''
+      });
+    }
+
+    // Preencher dados principais do formulário
+    setFormData({
+      id_cliente: imovel.id_locador || 0,
+      id_inquilino: imovel.id_locatario || 0,
+      tipo: imovel.tipo || 'Apartamento',
+      valor_aluguel: imovel.valor_aluguel || 0,
+      iptu: imovel.iptu || 0,
+      condominio: imovel.condominio || 0,
+      taxa_incendio: imovel.taxa_incendio || 0,
+      observacoes_condominio: imovel.observacoes_condominio || '',
+      boleto_condominio: imovel.boleto_condominio || false,
+      matricula_imovel: imovel.matricula_imovel || '',
+      area_imovel: imovel.area_imovel || '',
+      dados_imovel: imovel.dados_imovel || '',
+      permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
+      copel_unidade_consumidora: imovel.copel_unidade_consumidora || '',
+      sanepar_matricula: imovel.sanepar_matricula || '',
+      tem_gas: imovel.tem_gas || false,
+      info_gas: imovel.info_gas || '',
+      observacoes: imovel.observacoes || ''
+    });
+
+    // Configurar proprietários se disponível
+    if (imovel.id_locador) {
+      setProprietarios([{
+        cliente_id: imovel.id_locador,
+        responsabilidade_principal: true
+      }]);
+      
+      setClientesSelecionados([imovel.id_locador]);
+    }
+
+    console.log('✅ Formulário preenchido com dados do imóvel');
+  };
 
   const handleEnderecoChange = (field: keyof Endereco, value: string) => {
     setEndereco(prev => ({
@@ -313,21 +472,43 @@ export const ModernImovelFormV2: React.FC = () => {
     setMessage(null);
 
     try {
-      const imovelData: Imovel = {
+      const imovelData = {
         ...formData,
         endereco,
         informacoes_iptu: informacoesIPTU,
         dados_gerais: dadosGerais
       };
 
-      const response = await apiService.criarImovel(imovelData);
+      let response;
+      
+      if (isEditing) {
+        // Modo edição - obter ID da URL
+        const pathParts = window.location.pathname.split('/');
+        const imovelId = pathParts[pathParts.length - 1];
+        console.log('💾 Salvando alterações do imóvel ID:', imovelId);
+        
+        // Chamar API de atualização
+        response = await apiService.atualizarImovel(parseInt(imovelId), imovelData);
+      } else {
+        // Modo cadastro
+        response = await apiService.criarImovel(imovelData as Imovel);
+      }
+      
       if (response.success) {
-        setMessage({type: 'success', text: response.message || 'Imóvel cadastrado com sucesso!'});
-        // Reset form
-        resetForm();
+        const mensagem = isEditing 
+          ? (response.message || 'Alterações salvas com sucesso!') 
+          : (response.message || 'Imóvel cadastrado com sucesso!');
+          
+        setMessage({ type: 'success', text: mensagem });
+        
+        // Reset form apenas no cadastro
+        if (!isEditing) {
+          resetForm();
+        }
       }
     } catch (error) {
-      setMessage({type: 'error', text: 'Erro ao cadastrar imóvel.'});
+      const mensagem = isEditing ? 'Erro ao salvar alterações.' : 'Erro ao cadastrar imóvel.';
+      setMessage({type: 'error', text: mensagem});
       console.error('Erro:', error);
     } finally {
       setLoading(false);
@@ -395,11 +576,26 @@ export const ModernImovelFormV2: React.FC = () => {
         <div className="card-glass rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary-foreground/20 rounded-xl">
-                <Building2 className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                  <Building2 className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold text-primary-foreground">
+                  {isViewing ? 'Visualizar Imóvel' : isEditing ? 'Editar Imóvel' : 'Cadastro de Imóvel'}
+                </h1>
               </div>
-              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Imóvel</h1>
+              {onBack && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onBack}
+                  className="text-primary-foreground hover:bg-primary-foreground/20 transition-all duration-200 pointer-events-auto"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -447,9 +643,9 @@ export const ModernImovelFormV2: React.FC = () => {
             )}
 
             {!loadingData && (
-              <form onSubmit={handleSubmit} className="space-y-8">
+              <form onSubmit={handleSubmit} className={`space-y-8 ${isReadOnly ? 'pointer-events-none opacity-75' : ''}`}>
                 <Tabs defaultValue="responsaveis" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-5 pointer-events-auto opacity-100">
                     <TabsTrigger value="responsaveis" hasData={sectionsData.responsaveis}>Responsáveis</TabsTrigger>
                     <TabsTrigger value="endereco" hasData={sectionsData.endereco}>Endereço</TabsTrigger>
                     <TabsTrigger value="encargos" hasData={sectionsData.encargos}>Encargos</TabsTrigger>
@@ -518,6 +714,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             }}
                             size="sm"
                             className="btn-outline"
+                            disabled={isReadOnly}
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Adicionar Proprietário
@@ -588,6 +785,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                     const clienteId = parseInt(value);
                                     adicionarProprietario(clienteId);
                                   }}
+                                  disabled={isReadOnly}
                                 >
                                   <SelectTrigger id="proprietario-select" className="bg-muted/50 border-border text-foreground">
                                     <SelectValue placeholder={clientes.length > 0 ? "Selecione um proprietário..." : "Nenhum cliente disponível"} />
@@ -656,6 +854,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                           variant="outline"
                                           size="sm"
                                           className="text-muted-foreground hover:text-foreground hover:bg-muted border-border"
+                                          disabled={isReadOnly}
                                         >
                                           <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -697,6 +896,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                               }
                                             }}
                                             className="rounded border-gray-300"
+                                            disabled={isReadOnly}
                                           />
                                           <Label htmlFor={`principal_${proprietario.cliente_id}`} className="text-sm font-normal cursor-pointer">
                                             Responsável Principal
@@ -734,6 +934,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                     const clienteId = parseInt(value);
                                     adicionarProprietario(clienteId);
                                   }}
+                                  disabled={isReadOnly}
                                 >
                                   <SelectTrigger id="add-proprietario" className="bg-muted/50 border-border text-foreground">
                                     <SelectValue placeholder="Selecione mais um proprietário..." />
@@ -816,6 +1017,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           placeholder="Rua das Flores"
                           icon={MapPin}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -829,6 +1031,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           placeholder="123"
                           icon={Home}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -841,6 +1044,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           onChange={(e) => handleEnderecoChange('complemento', e.target.value)}
                           placeholder="Apto 45"
                           icon={Building}
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -854,6 +1058,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           placeholder="Centro"
                           icon={MapPin}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -867,6 +1072,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           placeholder="Curitiba"
                           icon={Building2}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
 
@@ -875,6 +1081,7 @@ export const ModernImovelFormV2: React.FC = () => {
                         <Select 
                           value={endereco.estado} 
                           onValueChange={(value) => handleEnderecoChange('estado', value)}
+                          disabled={isReadOnly}
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -900,6 +1107,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           icon={MapPin}
                           maxLength={9}
                           required
+                          disabled={isReadOnly}
                         />
                       </div>
                     </div>
@@ -933,7 +1141,7 @@ export const ModernImovelFormV2: React.FC = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div>
                             <Label htmlFor="tipo" className="text-sm font-medium text-foreground">Tipo do Imóvel *</Label>
-                            <Select onValueChange={(value) => handleFormDataChange('tipo', value)}>
+                            <Select onValueChange={(value) => handleFormDataChange('tipo', value)} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o tipo" />
                               </SelectTrigger>
@@ -949,7 +1157,7 @@ export const ModernImovelFormV2: React.FC = () => {
 
                           <div>
                             <Label htmlFor="status" className="text-sm font-medium text-foreground">Status</Label>
-                            <Select onValueChange={(value) => handleFormDataChange('status', value)}>
+                            <Select onValueChange={(value) => handleFormDataChange('status', value)} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o status" />
                               </SelectTrigger>
@@ -971,6 +1179,7 @@ export const ModernImovelFormV2: React.FC = () => {
                               value={formData.matricula_imovel}
                               onChange={(e) => handleFormDataChange('matricula_imovel', e.target.value)}
                               placeholder="000123456789"
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -983,6 +1192,7 @@ export const ModernImovelFormV2: React.FC = () => {
                               value={formData.area_total}
                               onChange={(e) => handleFormDataChange('area_total', e.target.value)}
                               placeholder="80m²"
+                              disabled={isReadOnly}
                             />
                           </div>
 
@@ -995,6 +1205,7 @@ export const ModernImovelFormV2: React.FC = () => {
                               value={formData.area_privativa}
                               onChange={(e) => handleFormDataChange('area_privativa', e.target.value)}
                               placeholder="65m²"
+                              disabled={isReadOnly}
                             />
                           </div>
                         </div>
@@ -1009,6 +1220,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 min="0"
                                 placeholder="3"
                                 icon={Bed}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1020,6 +1232,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 min="0"
                                 placeholder="2"
                                 icon={Bath}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1031,6 +1244,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 min="0"
                                 placeholder="1"
                                 icon={Sofa}
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1042,6 +1256,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 min="0"
                                 placeholder="2"
                                 icon={Car}
+                                disabled={isReadOnly}
                               />
                             </div>
                           </div>
@@ -1053,6 +1268,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 <Select 
                                   value={dadosGerais.permite_pets ? 'Sim' : 'Não'} 
                                   onValueChange={(value) => handleDadosGeraisChange('permite_pets', value === 'Sim')}
+                                  disabled={isReadOnly}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Selecione..." />
@@ -1069,6 +1285,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 <Select 
                                   value={dadosGerais.mobiliado} 
                                   onValueChange={(value) => handleDadosGeraisChange('mobiliado', value)}
+                                  disabled={isReadOnly}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Selecione..." />
@@ -1086,6 +1303,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 <Select 
                                   value={dadosGerais.tem_garagem ? 'Sim' : 'Não'} 
                                   onValueChange={(value) => handleDadosGeraisChange('tem_garagem', value === 'Sim')}
+                                  disabled={isReadOnly}
                                 >
                                   <SelectTrigger>
                                     <SelectValue placeholder="Selecione..." />
@@ -1107,6 +1325,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 placeholder="Ex: cozinha americana, área de serviço, sacada..."
                                 rows={6}
                                 className="resize-none"
+                                disabled={isReadOnly}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Descreva as principais características do imóvel
@@ -1122,6 +1341,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 placeholder="Informações adicionais, estado de conservação, etc..."
                                 rows={6}
                                 className="resize-none"
+                                disabled={isReadOnly}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Informações complementares sobre o imóvel
@@ -1191,6 +1411,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 value={informacoesIPTU.titular}
                                 onChange={(e) => handleIPTUChange('titular', e.target.value)}
                                 placeholder="João Silva"
+                                disabled={isReadOnly}
                               />
                             </div>
 
@@ -1203,6 +1424,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   value={informacoesIPTU.inscricao_imobiliaria}
                                   onChange={(e) => handleIPTUChange('inscricao_imobiliaria', e.target.value)}
                                   placeholder="000123456789"
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1215,6 +1437,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   value={informacoesIPTU.indicacao_fiscal}
                                   onChange={(e) => handleIPTUChange('indicacao_fiscal', e.target.value)}
                                   placeholder="000987654321"
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1227,6 +1450,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 placeholder="Detalhes sobre pagamento do IPTU, parcelamento, etc."
                                 rows={4}
                                 className="resize-none"
+                                disabled={isReadOnly}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Informações adicionais sobre o IPTU do imóvel
@@ -1276,6 +1500,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 handleFormDataChange('boleto_condominio', false);
                               }
                             }}
+                            disabled={isReadOnly}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione..." />
@@ -1302,6 +1527,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   type="text"
                                   placeholder="Condomínio Residencial Flores"
                                   icon={Building}
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1312,6 +1538,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   type="text"
                                   placeholder="João Silva"
                                   icon={Users}
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1322,6 +1549,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   type="text"
                                   placeholder="00.000.000/0000-00"
                                   icon={CreditCard}
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1332,6 +1560,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   type="email"
                                   placeholder="contato@condominio.com.br"
                                   icon={Mail}
+                                  disabled={isReadOnly}
                                 />
                               </div>
 
@@ -1342,6 +1571,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                   type="tel"
                                   placeholder="(41) 99999-9999"
                                   icon={Phone}
+                                  disabled={isReadOnly}
                                 />
                               </div>
                             </div>
@@ -1355,6 +1585,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 placeholder="Regras do condomínio, horários, observações..."
                                 rows={4}
                                 className="resize-none"
+                                disabled={isReadOnly}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Regras e informações específicas do condomínio
@@ -1368,6 +1599,7 @@ export const ModernImovelFormV2: React.FC = () => {
                                 checked={formData.boleto_condominio}
                                 onChange={(e) => handleFormDataChange('boleto_condominio', e.target.checked)}
                                 className="rounded border-gray-300"
+                                disabled={isReadOnly}
                               />
                               <Label htmlFor="boleto_condominio" className="cursor-pointer text-foreground font-medium">
                                 Boleto do Condomínio Incluso na Gestão
@@ -1413,6 +1645,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.copel_unidade_consumidora}
                             onChange={(e) => handleFormDataChange('copel_unidade_consumidora', e.target.value)}
                             placeholder="123456789"
+                            disabled={isReadOnly}
                           />
                         </div>
 
@@ -1425,6 +1658,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.sanepar_matricula}
                             onChange={(e) => handleFormDataChange('sanepar_matricula', e.target.value)}
                             placeholder="987654321"
+                            disabled={isReadOnly}
                           />
                         </div>
                         
@@ -1433,6 +1667,7 @@ export const ModernImovelFormV2: React.FC = () => {
                           <Select 
                             value={formData.tem_gas ? 'Sim' : 'Não'} 
                             onValueChange={(value) => handleFormDataChange('tem_gas', value === 'Sim')}
+                            disabled={isReadOnly}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione..." />
@@ -1454,6 +1689,7 @@ export const ModernImovelFormV2: React.FC = () => {
                               onChange={(e) => handleFormDataChange('info_gas', e.target.value)}
                               placeholder="Número do medidor, tipo de gás, etc."
                               icon={Flame}
+                              disabled={isReadOnly}
                             />
                           </div>
                         )}
@@ -1501,6 +1737,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             onChange={(e) => handleFormDataChange('valor_aluguel', parseFloat(e.target.value) || 0)}
                             placeholder="1500.00"
                             required
+                            disabled={isReadOnly}
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             Valor mensal base
@@ -1518,6 +1755,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.iptu}
                             onChange={(e) => handleFormDataChange('iptu', parseFloat(e.target.value) || 0)}
                             placeholder="200.00"
+                            disabled={isReadOnly}
                           />
                         </div>
 
@@ -1532,6 +1770,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.condominio}
                             onChange={(e) => handleFormDataChange('condominio', parseFloat(e.target.value) || 0)}
                             placeholder="350.00"
+                            disabled={isReadOnly}
                           />
                         </div>
 
@@ -1546,6 +1785,7 @@ export const ModernImovelFormV2: React.FC = () => {
                             value={formData.taxa_incendio}
                             onChange={(e) => handleFormDataChange('taxa_incendio', parseFloat(e.target.value) || 0)}
                             placeholder="15.00"
+                            disabled={isReadOnly}
                           />
                         </div>
                       </div>
@@ -1693,35 +1933,39 @@ export const ModernImovelFormV2: React.FC = () => {
                   </TabsContent>
                 </Tabs>
 
-                {/* Submit Button */}
-                <div className="pt-8">
-                  <Button 
-                    type="submit" 
-                    disabled={loading || clientes.length === 0 || proprietarios.length === 0}
-                    className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <div className="flex items-center space-x-3">
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        <span>Cadastrando Imóvel...</span>
-                      </div>
-                    ) : clientes.length === 0 ? (
-                      <div className="flex items-center space-x-3">
-                        <AlertCircle className="w-6 h-6" />
-                        <span>Cadastre clientes primeiro</span>
-                      </div>
-                    ) : proprietarios.length === 0 ? (
-                      <div className="flex items-center space-x-3">
-                        <AlertCircle className="w-6 h-6" />
-                        <span>Adicione pelo menos um proprietário</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-3">
-                        <Building2 className="w-6 h-6" />
-                        <span>Cadastrar Imóvel Completo</span>
-                      </div>
-                    )}
-                  </Button>
+                {/* Action Buttons */}
+                <div className="pt-8 space-y-4">
+
+                  {/* Submit Button - oculto em modo visualização */}
+                  {!isViewing && (
+                    <Button 
+                      type="submit" 
+                      disabled={loading || clientes.length === 0 || proprietarios.length === 0}
+                      className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <div className="flex items-center space-x-3">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          <span>{isEditing ? 'Atualizando...' : 'Cadastrando Imóvel...'}</span>
+                        </div>
+                      ) : clientes.length === 0 ? (
+                        <div className="flex items-center space-x-3">
+                          <AlertCircle className="w-6 h-6" />
+                          <span>Cadastre clientes primeiro</span>
+                        </div>
+                      ) : proprietarios.length === 0 ? (
+                        <div className="flex items-center space-x-3">
+                          <AlertCircle className="w-6 h-6" />
+                          <span>Adicione pelo menos um proprietário</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center space-x-3">
+                          <Building2 className="w-6 h-6" />
+                          <span>{isEditing ? 'Salvar Alterações' : 'Cadastrar Imóvel Completo'}</span>
+                        </div>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </form>
             )}

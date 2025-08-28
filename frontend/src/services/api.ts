@@ -121,6 +121,13 @@ class ApiService {
     });
   }
 
+  async atualizarImovel(id: number, imovel: Imovel): Promise<ApiResponse<any>> {
+    return this.request(`/imoveis/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(imovel),
+    });
+  }
+
   async listarImoveis(): Promise<ApiResponse<any[]>> {
     return this.request('/imoveis');
   }

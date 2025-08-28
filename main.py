@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Union
 from datetime import date
 import os
 from dotenv import load_dotenv
@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from repositories_adapter import (
     inserir_locador, buscar_locadores, atualizar_locador,
     inserir_locatario, buscar_locatarios, atualizar_locatario,
-    inserir_imovel, buscar_imoveis,
+    inserir_imovel, buscar_imoveis, atualizar_imovel,
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura
 )
@@ -139,34 +139,86 @@ class LocatarioUpdate(BaseModel):
     tem_fiador: Optional[bool] = None
     tem_moradores: Optional[bool] = None
 
+class EnderecoImovelInput(BaseModel):
+    rua: str
+    numero: str
+    complemento: Optional[str] = None
+    bairro: str
+    cidade: str
+    estado: str = "PR"
+    cep: Optional[str] = None
+
 class ImovelCreate(BaseModel):
+    # Campos obrigatórios básicos
     id_locador: int
-    id_locatario: int
     tipo: str
-    endereco: str
+    endereco: Union[str, EnderecoImovelInput]  # Aceita string OU objeto
     valor_aluguel: float
-    iptu: float
-    condominio: float
-    taxa_incendio: float
-    status: str
-    matricula_imovel: str
-    area_imovel: str
-    dados_imovel: str
-    permite_pets: bool
-    metragem: float
-    numero_quartos: int
-    numero_banheiros: int
-    numero_vagas: int
-    andar: int
-    mobiliado: bool
-    aceita_animais: bool
-    valor_condominio: float
-    valor_iptu_mensal: float
-    finalidade_imovel: str
-    nome_edificio: str
-    armario_embutido: int = 0
-    escritorio: int = 0
-    area_servico: int = 0
+    
+    # Campos opcionais com defaults
+    id_locatario: Optional[int] = None
+    iptu: Optional[float] = 0
+    condominio: Optional[float] = 0
+    taxa_incendio: Optional[float] = 0
+    status: Optional[str] = "Disponivel"
+    matricula_imovel: Optional[str] = ""
+    area_imovel: Optional[str] = ""
+    dados_imovel: Optional[str] = ""
+    permite_pets: Optional[bool] = False
+    info_iptu: Optional[str] = ""
+    observacoes_condominio: Optional[str] = ""
+    copel_unidade_consumidora: Optional[str] = ""
+    sanepar_matricula: Optional[str] = ""
+    tem_gas: Optional[bool] = False
+    info_gas: Optional[str] = ""
+    boleto_condominio: Optional[bool] = False
+    
+    # Campos extras opcionais (não usados no DB atual)
+    metragem: Optional[float] = None
+    numero_quartos: Optional[int] = None
+    numero_banheiros: Optional[int] = None
+    numero_vagas: Optional[int] = None
+    andar: Optional[int] = None
+    mobiliado: Optional[bool] = None
+    aceita_animais: Optional[bool] = None
+    valor_condominio: Optional[float] = None
+    valor_iptu_mensal: Optional[float] = None
+    finalidade_imovel: Optional[str] = None
+    nome_edificio: Optional[str] = None
+    armario_embutido: Optional[int] = 0
+    escritorio: Optional[int] = 0
+    area_servico: Optional[int] = 0
+
+class ImovelUpdate(BaseModel):
+    id_locador: Optional[int] = None
+    id_locatario: Optional[int] = None
+    tipo: Optional[str] = None
+    endereco: Optional[Union[str, EnderecoImovelInput]] = None  # Aceita string OU objeto
+    valor_aluguel: Optional[float] = None
+    iptu: Optional[float] = None
+    condominio: Optional[float] = None
+    taxa_incendio: Optional[float] = None
+    status: Optional[str] = None
+    matricula_imovel: Optional[str] = None
+    area_imovel: Optional[str] = None
+    dados_imovel: Optional[str] = None
+    permite_pets: Optional[bool] = None
+    metragem: Optional[float] = None
+    numero_quartos: Optional[int] = None
+    numero_banheiros: Optional[int] = None
+    numero_vagas: Optional[int] = None
+    andar: Optional[int] = None
+    mobiliado: Optional[bool] = None
+    aceita_animais: Optional[bool] = None
+    valor_condominio: Optional[float] = None
+    valor_iptu_mensal: Optional[float] = None
+    finalidade_imovel: Optional[str] = None
+    nome_edificio: Optional[str] = None
+    armario_embutido: Optional[int] = None
+    escritorio: Optional[int] = None
+    area_servico: Optional[int] = None
+    ativo: Optional[bool] = None
+    observacoes: Optional[str] = None
 
 class ContratoCreate(BaseModel):
     id_imovel: int
@@ -373,6 +425,76 @@ async def listar_imoveis():
         return {"data": imoveis, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar imóveis: {str(e)}")
+
+@app.put("/api/imoveis/{imovel_id}")
+async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
+    try:
+        print(f"ENDPOINT: Iniciando atualização de imóvel ID: {imovel_id}")
+        print(f"ENDPOINT: Dados recebidos: {imovel.model_dump()}")
+        
+        # Chamar função de atualização
+        print(f"ENDPOINT: Chamando atualizar_imovel({imovel_id}, **kwargs)")
+        sucesso = atualizar_imovel(imovel_id, **imovel.model_dump())
+        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
+        
+        if not sucesso:
+            raise HTTPException(status_code=404, detail="Imóvel não encontrado ou erro na atualização")
+            
+        imovel_atualizado = {"id": imovel_id, **imovel.model_dump()}
+        
+        return {
+            "data": imovel_atualizado, 
+            "success": True, 
+            "message": f"Imóvel {imovel_id} atualizado com sucesso!"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ENDPOINT ERROR: Erro geral ao atualizar imóvel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar imóvel: {str(e)}")
+
+@app.get("/api/imoveis/{imovel_id}")
+async def buscar_imovel_por_id(imovel_id: int):
+    try:
+        print(f"Buscando imóvel ID: {imovel_id}")
+        
+        # Usar busca geral e filtrar
+        imoveis = buscar_imoveis()
+        imovel = next((imo for imo in imoveis if imo.get('id') == imovel_id), None)
+        
+        if not imovel:
+            raise HTTPException(status_code=404, detail="Imóvel não encontrado")
+        
+        # 🆕 Se tem endereco_id, buscar dados estruturados
+        endereco_id = imovel.get('endereco_id')
+        if endereco_id:
+            print(f"🏠 Buscando endereço estruturado ID: {endereco_id}")
+            from repositories_adapter import buscar_endereco_imovel
+            endereco_estruturado = buscar_endereco_imovel(endereco_id)
+            if endereco_estruturado:
+                imovel['endereco_estruturado'] = endereco_estruturado
+                print(f"✅ Endereço estruturado adicionado: {endereco_estruturado}")
+            
+        return {"data": imovel, "success": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erro ao buscar imóvel: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar imóvel: {str(e)}")
+
+@app.put("/api/imoveis/{imovel_id}/status")
+async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
+    try:
+        from repositories_adapter import alterar_status_imovel as alterar_status_db
+        resultado = alterar_status_db(imovel_id, request.ativo)
+        
+        if resultado:
+            status_texto = "ativo" if request.ativo else "inativo"
+            return {"message": f"Imóvel {imovel_id} marcado como {status_texto}", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Imóvel não encontrado")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status do imóvel: {str(e)}")
 
 # Rotas para Contratos
 @app.post("/api/contratos")

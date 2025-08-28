@@ -64,7 +64,10 @@
       "Bash(start http://localhost:3005/prestacao-contas/editar/123)",
       "Bash(start http://localhost:3005/prestacao-contas/editar/1)",
       "Bash(start http://localhost:3005/prestacao-contas/editar/3)",
-      "Bash(start http://localhost:3005/locatario-edicao/1)"
+      "Bash(start http://localhost:3005/locatario-edicao/1)",
+      "Bash(start http://localhost:3005/imovel)",
+      "Bash(start http://localhost:3005/imovel-edicao/3)",
+      "Bash(start http://localhost:3005/imovel-novo)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
