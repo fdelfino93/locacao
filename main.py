@@ -11,7 +11,7 @@ from repositories_adapter import (
     inserir_locador, buscar_locadores, atualizar_locador,
     inserir_locatario, buscar_locatarios, atualizar_locatario,
     inserir_imovel, buscar_imoveis, atualizar_imovel,
-    inserir_contrato, buscar_contratos, buscar_contratos_por_locador,
+    inserir_contrato, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura
 )
 
@@ -241,6 +241,31 @@ class ContratoCreate(BaseModel):
     data_caucao_dev: date
     numero_contrato: str
     status: str
+
+class ContratoUpdate(BaseModel):
+    id_locatario: Optional[int] = None
+    id_imovel: Optional[int] = None
+    valor_aluguel: Optional[float] = None
+    data_inicio: Optional[date] = None
+    data_fim: Optional[date] = None
+    data_vencimento: Optional[date] = None
+    tipo_garantia: Optional[str] = None
+    observacoes: Optional[str] = None
+    status: Optional[str] = None
+    valor_condominio: Optional[float] = None
+    valor_iptu: Optional[float] = None
+    valor_seguro: Optional[float] = None
+    percentual_reajuste: Optional[float] = None
+    indice_reajuste: Optional[str] = None
+    prazo_reajuste: Optional[int] = None
+    valor_multa_rescisao: Optional[float] = None
+    valor_deposito_caucao: Optional[float] = None
+    prazo_pagamento: Optional[int] = None
+    dia_vencimento: Optional[int] = None
+    forma_pagamento: Optional[str] = None
+    banco_pagamento: Optional[str] = None
+    agencia_pagamento: Optional[str] = None
+    conta_pagamento: Optional[str] = None
 
 # Rotas para Locadores
 @app.post("/api/locadores")
@@ -520,6 +545,35 @@ async def listar_contratos_por_locador(locador_id: int):
         return {"data": contratos, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos do locador: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}")
+async def obter_contrato_por_id(contrato_id: int):
+    try:
+        contrato = buscar_contrato_por_id(contrato_id)
+        if contrato:
+            return {"data": contrato, "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar contrato: {str(e)}")
+
+@app.put("/api/contratos/{contrato_id}")
+async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
+    try:
+        from repositories_adapter import atualizar_contrato as atualizar_contrato_db
+        resultado = atualizar_contrato_db(contrato_id, **contrato.dict(exclude_unset=True))
+        
+        if resultado:
+            return {"message": f"Contrato {contrato_id} atualizado com sucesso", "success": True}
+        else:
+            raise HTTPException(status_code=404, detail="Contrato não encontrado ou nenhuma alteração foi feita")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erro ao atualizar contrato: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar contrato: {str(e)}")
 
 # Endpoints para Prestação de Contas
 @app.get("/api/faturas")

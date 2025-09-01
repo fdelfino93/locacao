@@ -58,11 +58,11 @@ function App() {
       return 'locatario-edicao';
     }
     
-    if (path.startsWith('/imovel-visualizar/')) {
+    if (path.startsWith('/imovel/visualizar/')) {
       return 'imovel-visualizar';
     }
     
-    if (path.startsWith('/imovel-edicao/')) {
+    if (path.startsWith('/imovel/editar/')) {
       return 'imovel-edicao';
     }
     
@@ -215,6 +215,9 @@ function App() {
   };
 
   const renderCurrentContent = () => {
+    console.log('🔍 DEBUGGING - currentPage:', currentPage);
+    console.log('🔍 DEBUGGING - URL atual:', window.location.pathname);
+    
     switch (currentPage) {
       case 'hero':
         return (
@@ -507,7 +510,14 @@ function App() {
           </motion.div>
         );
       default:
-        return null;
+        console.log('🚨 ERRO: Página não encontrada:', currentPage);
+        return (
+          <div style={{background: 'red', color: 'white', padding: '50px', minHeight: '100vh'}}>
+            <h1>ERRO: Página não encontrada</h1>
+            <p>currentPage: {currentPage}</p>
+            <p>URL: {window.location.pathname}</p>
+          </div>
+        );
     }
   };
 

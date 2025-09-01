@@ -570,6 +570,49 @@ def buscar_contratos_por_locador(locador_id):
         print(f"Erro ao buscar contratos por locador: {e}")
         return []
 
+def buscar_contrato_por_id(contrato_id):
+    """Busca um contrato específico pelo ID"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                c.*,
+                i.endereco as imovel_endereco,
+                i.tipo as imovel_tipo,
+                l.nome as locador_nome,
+                loc.nome as locatario_nome,
+                loc.cpf_cnpj as locatario_documento
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locadores l ON i.id_locador = l.id
+            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            WHERE c.id = ?
+        """, (contrato_id,))
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultado para dicionário
+        row = cursor.fetchone()
+        if row:
+            row_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    row_dict[columns[i]] = value
+            
+            conn.close()
+            return row_dict
+        
+        conn.close()
+        return None
+    except Exception as e:
+        print(f"Erro ao buscar contrato por ID: {e}")
+        return None
+
 # === FUNÇÕES PARA FATURAS ===
 
 def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', order_dir='DESC'):
@@ -1355,5 +1398,65 @@ def alterar_status_imovel(imovel_id, ativo):
     except Exception as e:
         print(f"Erro ao alterar status do imóvel {imovel_id}: {e}")
         if 'conn' in locals():
+            conn.close()
+        return False
+
+def atualizar_contrato(contrato_id, **kwargs):
+    """Atualiza um contrato na tabela Contratos"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Verificar se o contrato existe
+        cursor.execute("SELECT id FROM Contratos WHERE id = ?", (contrato_id,))
+        if not cursor.fetchone():
+            print(f"Contrato ID {contrato_id} não encontrado")
+            return False
+        
+        # Campos atualizáveis na tabela Contratos
+        campos_atualizaveis = [
+            'id_locatario', 'id_imovel', 'valor_aluguel', 'data_inicio', 
+            'data_fim', 'data_vencimento', 'tipo_garantia', 'observacoes',
+            'status', 'valor_condominio', 'valor_iptu', 'valor_seguro',
+            'percentual_reajuste', 'indice_reajuste', 'prazo_reajuste',
+            'valor_multa_rescisao', 'valor_deposito_caucao', 'prazo_pagamento',
+            'dia_vencimento', 'forma_pagamento', 'banco_pagamento',
+            'agencia_pagamento', 'conta_pagamento'
+        ]
+        
+        # Filtrar campos para atualizar
+        campos_para_atualizar = {}
+        for campo, valor in kwargs.items():
+            if campo in campos_atualizaveis and valor is not None:
+                campos_para_atualizar[campo] = valor
+        
+        if not campos_para_atualizar:
+            print("Nenhum campo válido para atualizar no contrato")
+            return False
+        
+        # Construir query UPDATE
+        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
+        query = f"UPDATE Contratos SET {set_clause} WHERE id = ?"
+        valores = list(campos_para_atualizar.values()) + [contrato_id]
+        
+        print(f"Executando query: {query}")
+        print(f"Valores: {valores}")
+        
+        cursor.execute(query, valores)
+        conn.commit()
+        
+        if cursor.rowcount > 0:
+            print(f"Contrato ID {contrato_id} atualizado com sucesso")
+            conn.close()
+            return True
+        else:
+            print(f"Nenhuma linha foi afetada na atualização do contrato {contrato_id}")
+            conn.close()
+            return False
+            
+    except Exception as e:
+        print(f"Erro ao atualizar contrato: {e}")
+        if 'conn' in locals():
+            conn.rollback()
             conn.close()
         return False

@@ -35,7 +35,13 @@ import {
   Upload,
   File,
   Download,
-  X
+  X,
+  Palette,
+  TreePine,
+  Sparkles,
+  Wrench,
+  Eye,
+  ArrowLeft
 } from 'lucide-react';
 import type { Contrato, ContratoLocador, ContratoLocatario } from '../../types';
 import { apiService } from '../../services/api';
@@ -72,6 +78,2184 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
   isViewing = false, 
   isEditing = false 
 }) => {
+  // Se for modo visualizar/editar, implementar carregamento de dados
+  if (isViewing || isEditing) {
+    const [loadingData, setLoadingData] = useState(true);
+    const [contratoData, setContratoData] = useState<any>(null);
+    const [apiError, setApiError] = useState<string | null>(null);
+
+    useEffect(() => {
+      const loadContrato = async () => {
+        try {
+          setLoadingData(true);
+          setApiError(null);
+          
+          // Extrair ID da URL
+          const path = window.location.pathname;
+          const contratoIdMatch = path.match(/\/contrato\/(visualizar|editar)\/(\d+)/);
+          
+          if (contratoIdMatch) {
+            const contratoId = parseInt(contratoIdMatch[2]);
+            console.log('Carregando contrato ID:', contratoId);
+            
+            const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.data) {
+                setContratoData(data.data);
+                console.log('Dados carregados:', data.data);
+              } else {
+                setApiError('Contrato não encontrado');
+              }
+            } else {
+              setApiError('Erro ao carregar contrato');
+            }
+          } else {
+            setApiError('ID do contrato não encontrado na URL');
+          }
+        } catch (error) {
+          console.error('Erro:', error);
+          setApiError('Erro de conexão');
+        } finally {
+          setLoadingData(false);
+        }
+      };
+
+      loadContrato();
+    }, []);
+
+
+    // Função para atualizar dados do contrato no modo editar
+    const handleContratoInputChange = (field: string, value: any) => {
+      setContratoData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+    // Função para atualizar dados bancários do corretor
+    const handleBancarioCorretor = (field: string, value: any) => {
+      setContratoData(prev => ({
+        ...prev,
+        dados_bancarios_corretor: {
+          ...prev.dados_bancarios_corretor,
+          [field]: value
+        }
+      }));
+    };
+
+    // Função para atualizar dados da caução
+    const handleCaucao = (field: string, value: any) => {
+      setContratoData(prev => ({
+        ...prev,
+        caucao: {
+          ...prev.caucao,
+          [field]: value
+        }
+      }));
+    };
+
+    // Função simples para salvar (apenas para modo editar)
+    const handleSaveContract = async () => {
+      if (!isEditing || !contratoData?.id) return;
+      
+      try {
+        const response = await fetch(`http://localhost:8000/api/contratos/${contratoData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(contratoData),
+        });
+        
+        if (response.ok) {
+          alert('Contrato atualizado com sucesso!');
+        } else {
+          alert('Erro ao atualizar contrato');
+        }
+      } catch (error) {
+        alert('Erro de conexão');
+      }
+    };
+
+    // Tela de carregamento
+    if (loadingData) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="card-glass rounded-3xl shadow-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
+                <h1 className="text-2xl font-bold text-primary-foreground">
+                  Carregando Contrato...
+                </h1>
+              </div>
+              <div className="p-8">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-foreground">Carregando dados...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Tela de erro
+    if (apiError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="card-glass rounded-3xl shadow-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-destructive to-destructive/90 px-8 py-6">
+                <h1 className="text-2xl font-bold text-destructive-foreground">
+                  Erro ao Carregar
+                </h1>
+              </div>
+              <div className="p-8">
+                <p className="text-foreground mb-4">{apiError}</p>
+                {onBack && (
+                  <Button onClick={onBack}>
+                    Voltar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Tela principal com dados carregados
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="card-glass rounded-3xl shadow-2xl overflow-hidden">
+            <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-primary-foreground">
+                    {isViewing ? 'Visualizar Contrato' : 'Editar Contrato'}
+                  </h1>
+                  {contratoData && (
+                    <p className="text-primary-foreground/80">
+                      Contrato #{contratoData.numero_contrato || contratoData.id}
+                    </p>
+                  )}
+                </div>
+                
+                {onBack && (
+                  <Button 
+                    variant="outline" 
+                    onClick={onBack}
+                    className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Voltar
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="p-8">
+              {/* Status do contrato */}
+              <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-3 h-3 rounded-full ${contratoData?.ativo !== false ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="font-medium">
+                    Status: {contratoData?.ativo !== false ? 'Ativo' : 'Inativo'}
+                  </span>
+                </div>
+                {contratoData?.data_fim && (
+                  <span className="text-muted-foreground">
+                    Válido até: {contratoData.data_fim}
+                  </span>
+                )}
+              </div>
+
+              {contratoData && (
+                <form className="space-y-8">
+                  <Tabs defaultValue="partes" className="w-full">
+                    <TabsList className="grid w-full grid-cols-6">
+                      <TabsTrigger value="partes">Partes</TabsTrigger>
+                      <TabsTrigger value="datas">Datas e Reajustes</TabsTrigger>
+                      <TabsTrigger value="valores">Valores e Encargos</TabsTrigger>
+                      <TabsTrigger value="garantias">Garantias</TabsTrigger>
+                      <TabsTrigger value="plano">Plano</TabsTrigger>
+                      <TabsTrigger value="clausulas">Cláusulas</TabsTrigger>
+                    </TabsList>
+
+                    {/* Aba 1: Partes do Contrato */}
+                    <TabsContent value="partes" className="space-y-8">
+                      {/* Header da Seção */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="text-center space-y-4"
+                      >
+                        <div className="flex items-center justify-center gap-3">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-purple-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <Users className="w-6 h-6 text-white" />
+                          </motion.div>
+                          <div>
+                            <h2 className="text-2xl font-bold text-foreground">
+                              ✅ Etapa 4: Estrutura idêntica ao cadastro
+                            </h2>
+                            <p className="text-muted-foreground">
+                              Definir as partes envolvidas no contrato
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Campos básicos para teste */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label>Número do Contrato</Label>
+                          <InputWithIcon
+                            value={contratoData.numero_contrato || ''}
+                            icon={FileText}
+                            disabled={isViewing}
+                            className="w-full"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Data de Início</Label>
+                          <InputWithIcon
+                            type="date"
+                            value={contratoData.data_inicio || ''}
+                            icon={Calendar}
+                            disabled={isViewing}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Imóvel e Locatário */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label>Imóvel</Label>
+                          <InputWithIcon
+                            value={contratoData.imovel_endereco || 'N/A'}
+                            icon={Building}
+                            disabled={true}
+                            className="w-full bg-muted"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Locatário</Label>
+                          <InputWithIcon
+                            value={contratoData.locatario_nome || 'N/A'}
+                            icon={User}
+                            disabled={true}
+                            className="w-full bg-muted"
+                          />
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Outras abas - implementar nas próximas etapas */}
+                    <TabsContent value="datas" className="space-y-8">
+                      {/* Datas do Contrato - EXATO COMO NO CADASTRO */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <Calendar className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Datas do Contrato
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Configure as datas importantes do contrato, incluindo período de vigência e cálculo automático.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <Label htmlFor="data_assinatura">Data de Assinatura *</Label>
+                            <InputWithIcon
+                              id="data_assinatura"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.data_assinatura || ''}
+                              disabled={isViewing}
+                            />
+                            <p className="text-xs text-muted-foreground">Não pode ser uma data futura</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="data_entrega_chaves">Data de Entrega das Chaves</Label>
+                            <InputWithIcon
+                              id="data_entrega_chaves"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.data_entrega_chaves || ''}
+                              disabled={isViewing}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="vencimento_dia">Dia do Vencimento do Aluguel</Label>
+                            <InputWithIcon
+                              id="vencimento_dia"
+                              type="number"
+                              min="1"
+                              max="31"
+                              icon={Calendar}
+                              value={contratoData.vencimento_dia || ''}
+                              disabled={isViewing}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="data_inicio">Data de Início do Contrato *</Label>
+                            <InputWithIcon
+                              id="data_inicio"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.data_inicio || ''}
+                              disabled={isViewing}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="periodo_contrato">Período do Contrato (meses)</Label>
+                            <Select disabled={isViewing}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={contratoData.periodo_contrato ? `${contratoData.periodo_contrato} meses` : "12 meses"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="6">6 meses</SelectItem>
+                                <SelectItem value="12">12 meses</SelectItem>
+                                <SelectItem value="24">24 meses</SelectItem>
+                                <SelectItem value="36">36 meses</SelectItem>
+                                <SelectItem value="48">48 meses</SelectItem>
+                                <SelectItem value="60">60 meses</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="data_fim">Data de Fim do Contrato</Label>
+                            <InputWithIcon
+                              id="data_fim"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.data_fim || ''}
+                              disabled={true}
+                              className="bg-muted"
+                            />
+                            <p className="text-xs text-muted-foreground">Calculado automaticamente</p>
+                          </div>
+                        </div>
+                      </motion.div>
+
+                      {/* Seção de Reajustes - FALTAVA ESTA SEÇÃO */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-red-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <ArrowUp className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Reajustes e Renovação
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Configure periodicidade e índices de reajuste
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          <div className="space-y-2">
+                            <Label htmlFor="tempo_renovacao">Período de Renovação (meses)</Label>
+                            <Select disabled={isViewing}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={contratoData.tempo_renovacao ? `${contratoData.tempo_renovacao} meses` : "12 meses"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="12">12 meses</SelectItem>
+                                <SelectItem value="24">24 meses</SelectItem>
+                                <SelectItem value="36">36 meses</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="tempo_reajuste">Período de Reajuste (meses)</Label>
+                            <Select disabled={isViewing}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={contratoData.tempo_reajuste ? `${contratoData.tempo_reajuste} meses` : "12 meses"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="12">12 meses</SelectItem>
+                                <SelectItem value="6">6 meses</SelectItem>
+                                <SelectItem value="24">24 meses</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="indice_reajuste">Índice de Reajuste</Label>
+                            <Select disabled={isViewing}>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder={contratoData.indice_reajuste || "IPCA"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="IPCA">IPCA</SelectItem>
+                                <SelectItem value="IGPM">IGP-M</SelectItem>
+                                <SelectItem value="INPC">INPC</SelectItem>
+                                <SelectItem value="IPC">IPC</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="percentual_reajuste">Percentual de Reajuste (%)</Label>
+                            <InputWithIcon
+                              id="percentual_reajuste"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              icon={Percent}
+                              value={contratoData.percentual_reajuste || ''}
+                              disabled={isViewing}
+                            />
+                            <p className="text-xs text-muted-foreground">Percentual aplicado no reajuste</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="ultimo_reajuste">Data do Último Reajuste</Label>
+                            <InputWithIcon
+                              id="ultimo_reajuste"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.ultimo_reajuste || ''}
+                              disabled={isViewing}
+                            />
+                            <p className="text-xs text-muted-foreground">Último reajuste aplicado ao contrato</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="proximo_reajuste">Próximo Reajuste</Label>
+                            <InputWithIcon
+                              id="proximo_reajuste"
+                              type="date"
+                              icon={Calendar}
+                              value={contratoData.proximo_reajuste || ''}
+                              disabled={true}
+                              className="bg-muted"
+                            />
+                            <p className="text-xs text-muted-foreground text-blue-600">
+                              ✓ Calculado automaticamente: Data de Início + Período de Reajuste
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Checkboxes de Renovação */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="renovacao_automatica"
+                              checked={contratoData.renovacao_automatica || false}
+                              disabled={isViewing}
+                            />
+                            <Label htmlFor="renovacao_automatica" className="flex items-center gap-2">
+                              <ArrowUp className="w-4 h-4" />
+                              Renovação Automática
+                            </Label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id="proximo_reajuste_automatico"
+                              checked={contratoData.proximo_reajuste_automatico || false}
+                              disabled={isViewing}
+                            />
+                            <Label htmlFor="proximo_reajuste_automatico" className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              Reajuste Automático
+                            </Label>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </TabsContent>
+
+                    <TabsContent value="valores" className="space-y-8">
+                      {/* Valores e Encargos - EXATO COMO NO CADASTRO */}
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                            Valores e Encargos
+                          </h2>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          Configure todos os valores financeiros do contrato, incluindo seguros, taxas e parcelamentos.
+                        </p>
+
+                        {/* Valores Principais */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-3 mb-6">
+                            <motion.div 
+                              className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500"
+                              whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <CreditCard className="w-5 h-5 text-white" />
+                            </motion.div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-foreground">
+                                Valores Mensais
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Valores recorrentes mensais do contrato
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="valor_aluguel">Aluguel *</Label>
+                              <CurrencyInput
+                                id="valor_aluguel"
+                                value={contratoData.valor_aluguel || 0}
+                                disabled={isViewing}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="valor_condominio">Condomínio</Label>
+                              <CurrencyInput
+                                id="valor_condominio"
+                                value={contratoData.valor_condominio || 0}
+                                disabled={isViewing}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="valor_fci">FCI</Label>
+                              <CurrencyInput
+                                id="valor_fci"
+                                value={contratoData.valor_fci || 0}
+                                disabled={isViewing}
+                              />
+                              <p className="text-xs text-muted-foreground">Fundo de Conservação de Imóveis</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="taxa_administracao">Taxa de Administração (%)</Label>
+                              <InputWithIcon
+                                id="taxa_administracao"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                icon={Percent}
+                                value={contratoData.taxa_administracao || ''}
+                                disabled={isViewing}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="bonificacao">Bonificação</Label>
+                              <CurrencyInput
+                                id="bonificacao"
+                                value={contratoData.bonificacao || 0}
+                                disabled={isViewing}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="multa_atraso">Multa por Atraso (%)</Label>
+                              <InputWithIcon
+                                id="multa_atraso"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                icon={Percent}
+                                value={contratoData.multa_atraso || ''}
+                                disabled={isViewing}
+                              />
+                              <p className="text-xs text-muted-foreground">Percentual aplicado sobre o valor em atraso</p>
+                            </div>
+                          </div>
+                        </motion.div>
+
+                        {/* Seção de Seguros - FALTAVA ESTA SEÇÃO */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: 0.1 }}
+                          className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-3 mb-6">
+                            <motion.div 
+                              className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-indigo-500"
+                              whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Shield className="w-5 h-5 text-white" />
+                            </motion.div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-foreground">
+                                Seguros e IPTU
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Configure valores, datas e parcelamentos
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {/* Seguro Fiança */}
+                            <motion.div 
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.2 }}
+                              className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800 hover:shadow-md transition-shadow duration-300"
+                            >
+                              <div className="flex items-center gap-2 pb-2 border-b border-blue-200 dark:border-blue-700">
+                                <Shield className="w-4 h-4 text-blue-600" />
+                                <h4 className="text-sm font-semibold text-foreground">Seguro Fiança</h4>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-2">
+                                  <Label htmlFor="valor_seguro_fianca">Valor Total</Label>
+                                  <CurrencyInput
+                                    id="valor_seguro_fianca"
+                                    value={contratoData.valor_seguro_fianca || 0}
+                                    disabled={isViewing}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="data_inicio_seguro_fianca">Data Início</Label>
+                                  <InputWithIcon
+                                    id="data_inicio_seguro_fianca"
+                                    type="date"
+                                    value={contratoData.data_inicio_seguro_fianca || ''}
+                                    disabled={isViewing}
+                                    icon={Calendar}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="data_fim_seguro_fianca">Data Fim</Label>
+                                  <InputWithIcon
+                                    id="data_fim_seguro_fianca"
+                                    type="date"
+                                    value={contratoData.data_fim_seguro_fianca || ''}
+                                    disabled={true}
+                                    icon={Calendar}
+                                    className="bg-muted/30"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Calculado automaticamente</p>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="parcelas_seguro_fianca">Parcelas (meses)</Label>
+                                  <InputWithIcon
+                                    id="parcelas_seguro_fianca"
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    value={contratoData.parcelas_seguro_fianca || ''}
+                                    disabled={isViewing}
+                                    icon={CreditCard}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
+                                </div>
+                              </div>
+                            </motion.div>
+
+                            {/* Seguro Incêndio */}
+                            <motion.div 
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.3 }}
+                              className="space-y-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg border border-orange-200 dark:border-orange-800 hover:shadow-md transition-shadow duration-300"
+                            >
+                              <div className="flex items-center gap-2 pb-2 border-b border-orange-200 dark:border-orange-700">
+                                <Shield className="w-4 h-4 text-orange-600" />
+                                <h4 className="text-sm font-semibold text-foreground">Seguro Incêndio</h4>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-2">
+                                  <Label htmlFor="valor_seguro_incendio">Valor Total</Label>
+                                  <CurrencyInput
+                                    id="valor_seguro_incendio"
+                                    value={contratoData.valor_seguro_incendio || 0}
+                                    disabled={isViewing}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="data_inicio_seguro_incendio">Data Início</Label>
+                                  <InputWithIcon
+                                    id="data_inicio_seguro_incendio"
+                                    type="date"
+                                    value={contratoData.data_inicio_seguro_incendio || ''}
+                                    disabled={isViewing}
+                                    icon={Calendar}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="data_fim_seguro_incendio">Data Fim</Label>
+                                  <InputWithIcon
+                                    id="data_fim_seguro_incendio"
+                                    type="date"
+                                    value={contratoData.data_fim_seguro_incendio || ''}
+                                    disabled={true}
+                                    icon={Calendar}
+                                    className="bg-muted/30"
+                                  />
+                                  <p className="text-xs text-muted-foreground">Calculado automaticamente</p>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="parcelas_seguro_incendio">Parcelas (meses)</Label>
+                                  <InputWithIcon
+                                    id="parcelas_seguro_incendio"
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    value={contratoData.parcelas_seguro_incendio || ''}
+                                    disabled={isViewing}
+                                    icon={CreditCard}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
+                                </div>
+                              </div>
+                            </motion.div>
+
+                            {/* IPTU */}
+                            <motion.div 
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: 0.4 }}
+                              className="space-y-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800 hover:shadow-md transition-shadow duration-300"
+                            >
+                              <div className="flex items-center gap-2 pb-2 border-b border-green-200 dark:border-green-700">
+                                <Building className="w-4 h-4 text-green-600" />
+                                <h4 className="text-sm font-semibold text-foreground">IPTU</h4>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-2">
+                                  <Label htmlFor="valor_iptu">Valor Total</Label>
+                                  <CurrencyInput
+                                    id="valor_iptu"
+                                    value={contratoData.valor_iptu || 0}
+                                    disabled={isViewing}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-3">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="data_inicio_iptu">Data Início</Label>
+                                    <InputWithIcon
+                                      id="data_inicio_iptu"
+                                      type="date"
+                                      value={contratoData.data_inicio_iptu || ''}
+                                      disabled={isViewing}
+                                      icon={Calendar}
+                                    />
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <Label htmlFor="data_fim_iptu">Data Fim</Label>
+                                    <InputWithIcon
+                                      id="data_fim_iptu"
+                                      type="date"
+                                      value={contratoData.data_fim_iptu || ''}
+                                      disabled={true}
+                                      icon={Calendar}
+                                      className="bg-muted/30"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Calculado automaticamente</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="parcelas_iptu">Parcelas (meses)</Label>
+                                  <InputWithIcon
+                                    id="parcelas_iptu"
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    value={contratoData.parcelas_iptu || ''}
+                                    disabled={isViewing}
+                                    icon={CreditCard}
+                                  />
+                                  <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          </div>
+                        </motion.div>
+
+                        {/* Seção Retidos e Antecipação - FALTAVA */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: 0.2 }}
+                          className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-3 mb-6">
+                            <motion.div 
+                              className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-amber-500"
+                              whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Clock className="w-5 h-5 text-white" />
+                            </motion.div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-foreground">
+                                Retidos e Antecipação
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Configure quais valores serão retidos ou antecipados
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Valores Retidos */}
+                            <motion.div 
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.4 }}
+                              className="space-y-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 rounded-lg border border-red-200 dark:border-red-800 hover:shadow-md transition-shadow duration-300"
+                            >
+                              <div className="flex items-center gap-2 pb-2 border-b border-red-200 dark:border-red-700">
+                                <ArrowDown className="w-4 h-4 text-red-600" />
+                                <h4 className="text-sm font-semibold text-foreground">Valores Retidos</h4>
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-4">
+                                Valores descontados do aluguel do proprietário
+                              </p>
+                              
+                              <div className="grid grid-cols-1 gap-2">
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="retido_fci"
+                                    checked={contratoData.retido_fci || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <DollarSign className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-medium flex-1">FCI</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="retido_iptu"
+                                    checked={contratoData.retido_iptu || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Building className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-medium flex-1">IPTU</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="retido_condominio"
+                                    checked={contratoData.retido_condominio || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Building className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-medium flex-1">Condomínio</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="retido_seguro_fianca"
+                                    checked={contratoData.retido_seguro_fianca || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Shield className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-medium flex-1">Seguro Fiança</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="retido_seguro_incendio"
+                                    checked={contratoData.retido_seguro_incendio || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Shield className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-medium flex-1">Seguro Incêndio</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+
+                            {/* Valores Antecipados */}
+                            <motion.div 
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.5 }}
+                              className="space-y-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800 hover:shadow-md transition-shadow duration-300"
+                            >
+                              <div className="flex items-center gap-2 pb-2 border-b border-green-200 dark:border-green-700">
+                                <ArrowUp className="w-4 h-4 text-green-600" />
+                                <h4 className="text-sm font-semibold text-foreground">Valores Antecipados</h4>
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-4">
+                                Valores pagos antecipadamente pelo inquilino
+                              </p>
+                              
+                              <div className="grid grid-cols-1 gap-2">
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="antecipa_condominio"
+                                    checked={contratoData.antecipa_condominio || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Building className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm font-medium flex-1">Condomínio</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="antecipa_seguro_fianca"
+                                    checked={contratoData.antecipa_seguro_fianca || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Shield className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm font-medium flex-1">Seguro Fiança</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                                  <Checkbox
+                                    id="antecipa_seguro_incendio"
+                                    checked={contratoData.antecipa_seguro_incendio || false}
+                                    disabled={isViewing}
+                                  />
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <Shield className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm font-medium flex-1">Seguro Incêndio</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          </div>
+                        </motion.div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="garantias" className="space-y-8">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-blue-600" />
+                            Garantias do Contrato
+                          </h2>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                          Configure o tipo de garantia e forneça as informações necessárias conforme a modalidade escolhida.
+                        </p>
+
+                        {/* Seleção do Tipo de Garantia */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-3 mb-6">
+                            <motion.div 
+                              className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-indigo-500"
+                              whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Shield className="w-5 h-5 text-white" />
+                            </motion.div>
+                            <div>
+                              <h3 className="text-lg font-semibold text-foreground">
+                                Tipo de Garantia
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                Selecione a modalidade de garantia
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label>Tipo de Garantia *</Label>
+                            <Select 
+                              value={contratoData.tipo_garantia || ''}
+                              disabled={isViewing}
+                              onValueChange={!isViewing ? (value) => handleContratoInputChange('tipo_garantia', value) : undefined}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione o tipo de garantia..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Fiador">Fiador</SelectItem>
+                                <SelectItem value="Caução">Caução</SelectItem>
+                                <SelectItem value="Seguro-fiança">Seguro Fiança</SelectItem>
+                                <SelectItem value="Título de Capitalização">Título de Capitalização</SelectItem>
+                                <SelectItem value="Sem garantia">Sem Garantia</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </motion.div>
+
+                        {/* Formulários dinâmicos baseados no tipo de garantia */}
+                        {contratoData.tipo_garantia === 'Fiador' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="flex items-center gap-3 mb-6">
+                              <motion.div 
+                                className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-green-500 to-emerald-500"
+                                whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <User className="w-5 h-5 text-white" />
+                              </motion.div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground">
+                                  Fiadores
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Informações dos fiadores do contrato
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-6">
+                              {/* Dados básicos do fiador */}
+                              {isViewing ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">Nome do Fiador</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <User className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">{contratoData.fiador_nome || 'Não informado'}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">CPF/CNPJ</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <IdCard className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">{contratoData.fiador_cpf || 'Não informado'}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">Telefone</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <Phone className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">{contratoData.fiador_telefone || 'Não informado'}</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">E-mail</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <Mail className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">{contratoData.fiador_email || 'Não informado'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="fiador_nome">Nome do Fiador</Label>
+                                    <InputWithIcon
+                                      id="fiador_nome"
+                                      type="text"
+                                      value={contratoData.fiador_nome || ''}
+                                      onChange={(e) => handleContratoInputChange('fiador_nome', e.target.value)}
+                                      placeholder="Nome completo do fiador"
+                                      icon={User}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="fiador_cpf">CPF/CNPJ</Label>
+                                    <InputWithIcon
+                                      id="fiador_cpf"
+                                      type="text"
+                                      value={contratoData.fiador_cpf || ''}
+                                      onChange={(e) => handleContratoInputChange('fiador_cpf', e.target.value)}
+                                      placeholder="000.000.000-00"
+                                      icon={IdCard}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="fiador_telefone">Telefone</Label>
+                                    <InputWithIcon
+                                      id="fiador_telefone"
+                                      type="text"
+                                      value={contratoData.fiador_telefone || ''}
+                                      onChange={(e) => handleContratoInputChange('fiador_telefone', e.target.value)}
+                                      placeholder="(00) 00000-0000"
+                                      icon={Phone}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label htmlFor="fiador_email">E-mail</Label>
+                                    <InputWithIcon
+                                      id="fiador_email"
+                                      type="email"
+                                      value={contratoData.fiador_email || ''}
+                                      onChange={(e) => handleContratoInputChange('fiador_email', e.target.value)}
+                                      placeholder="email@exemplo.com"
+                                      icon={Mail}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {isViewing ? (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium text-muted-foreground">Endereço Completo</Label>
+                                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+                                    <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                                    <span className="text-sm text-foreground">{contratoData.fiador_endereco || 'Não informado'}</span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <Label htmlFor="fiador_endereco">Endereço Completo</Label>
+                                  <Textarea
+                                    id="fiador_endereco"
+                                    value={contratoData.fiador_endereco || ''}
+                                    onChange={(e) => handleContratoInputChange('fiador_endereco', e.target.value)}
+                                    placeholder="Endereço completo do fiador..."
+                                    rows={3}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {contratoData.tipo_garantia === 'Caução' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="flex items-center gap-3 mb-6">
+                              <motion.div 
+                                className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-yellow-500 to-orange-500"
+                                whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <Banknote className="w-5 h-5 text-white" />
+                              </motion.div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground">
+                                  Caução
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Informações sobre a caução
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="caucao_tipo">Tipo de Caução</Label>
+                                  <Select 
+                                    value={contratoData.caucao_tipo || ''}
+                                    disabled={isViewing}
+                                    onValueChange={!isViewing ? (value) => handleContratoInputChange('caucao_tipo', value) : undefined}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione o tipo..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                                      <SelectItem value="titulo">Título/Aplicação</SelectItem>
+                                      <SelectItem value="imovel">Imóvel</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="caucao_valor">Valor da Caução</Label>
+                                  <CurrencyInput
+                                    id="caucao_valor"
+                                    value={contratoData.caucao_valor || 0}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (value) => handleContratoInputChange('caucao_valor', value) : undefined}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label htmlFor="caucao_descricao">Descrição</Label>
+                                <Textarea
+                                  id="caucao_descricao"
+                                  value={contratoData.caucao_descricao || ''}
+                                  disabled={isViewing}
+                                  onChange={!isViewing ? (e) => handleContratoInputChange('caucao_descricao', e.target.value) : undefined}
+                                  placeholder="Detalhes sobre a caução..."
+                                  rows={3}
+                                />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {contratoData.tipo_garantia === 'Seguro-fiança' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="flex items-center gap-3 mb-6">
+                              <motion.div 
+                                className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-purple-500 to-pink-500"
+                                whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <Shield className="w-5 h-5 text-white" />
+                              </motion.div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground">
+                                  Seguro Fiança
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Informações sobre o seguro fiança
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="seguro_seguradora">Seguradora</Label>
+                                  <InputWithIcon
+                                    id="seguro_seguradora"
+                                    type="text"
+                                    value={contratoData.seguro_seguradora || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_seguradora', e.target.value) : undefined}
+                                    placeholder="Nome da seguradora"
+                                    icon={Building}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="seguro_apolice">Número da Apólice</Label>
+                                  <InputWithIcon
+                                    id="seguro_apolice"
+                                    type="text"
+                                    value={contratoData.seguro_apolice || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_apolice', e.target.value) : undefined}
+                                    placeholder="Número da apólice"
+                                    icon={FileText}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="seguro_valor_cobertura">Valor da Cobertura</Label>
+                                  <CurrencyInput
+                                    id="seguro_valor_cobertura"
+                                    value={contratoData.seguro_valor_cobertura || 0}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (value) => handleContratoInputChange('seguro_valor_cobertura', value) : undefined}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="seguro_vigencia">Vigência</Label>
+                                  <InputWithIcon
+                                    id="seguro_vigencia"
+                                    type="date"
+                                    value={contratoData.seguro_vigencia || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_vigencia', e.target.value) : undefined}
+                                    icon={Calendar}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {contratoData.tipo_garantia === 'Título de Capitalização' && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: 0.1 }}
+                            className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                          >
+                            <div className="flex items-center gap-3 mb-6">
+                              <motion.div 
+                                className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-indigo-500 to-blue-500"
+                                whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <CreditCard className="w-5 h-5 text-white" />
+                              </motion.div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-foreground">
+                                  Título de Capitalização
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Informações sobre o título de capitalização
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="titulo_empresa">Empresa Emissora</Label>
+                                  <InputWithIcon
+                                    id="titulo_empresa"
+                                    type="text"
+                                    value={contratoData.titulo_empresa || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_empresa', e.target.value) : undefined}
+                                    placeholder="Nome da empresa"
+                                    icon={Building}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="titulo_numero">Número do Título</Label>
+                                  <InputWithIcon
+                                    id="titulo_numero"
+                                    type="text"
+                                    value={contratoData.titulo_numero || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_numero', e.target.value) : undefined}
+                                    placeholder="Número do título"
+                                    icon={FileText}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="titulo_valor">Valor do Título</Label>
+                                  <CurrencyInput
+                                    id="titulo_valor"
+                                    value={contratoData.titulo_valor || 0}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (value) => handleContratoInputChange('titulo_valor', value) : undefined}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="titulo_vencimento">Data de Vencimento</Label>
+                                  <InputWithIcon
+                                    id="titulo_vencimento"
+                                    type="date"
+                                    value={contratoData.titulo_vencimento || ''}
+                                    disabled={isViewing}
+                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_vencimento', e.target.value) : undefined}
+                                    icon={Calendar}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="plano" className="space-y-8">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <FileText className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Plano de Locação
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Escolha o plano de administração e taxas aplicáveis ao contrato
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <Label>Tipo de Plano</Label>
+                            <Select 
+                              value={contratoData.tipo_plano_locacao || ''}
+                              disabled={isViewing}
+                              onValueChange={!isViewing ? (value) => handleContratoInputChange('tipo_plano_locacao', value) : undefined}
+                            >
+                              <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                                <SelectValue placeholder="Selecione o plano de locação..." />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                <SelectItem value="completo_opcao1" className="text-foreground hover:bg-accent">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">Locação Completo - Opção 1</span>
+                                    <span className="text-xs text-muted-foreground">100% (1º aluguel) + 10% (demais)</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="completo_opcao2" className="text-foreground hover:bg-accent">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">Locação Completo - Opção 2</span>
+                                    <span className="text-xs text-muted-foreground">16% (todos os aluguéis)</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="basico_opcao1" className="text-foreground hover:bg-accent">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">Locação Básico - Opção 1</span>
+                                    <span className="text-xs text-muted-foreground">50% (1º aluguel) + 5% (demais)</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="basico_opcao2" className="text-foreground hover:bg-accent">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">Locação Básico - Opção 2</span>
+                                    <span className="text-xs text-muted-foreground">8% (todos os aluguéis)</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                            
+                          {contratoData.tipo_plano_locacao && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="p-6 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800"
+                            >
+                              <div className="text-sm text-emerald-800 dark:text-emerald-200">
+                                {contratoData.tipo_plano_locacao === 'completo_opcao1' && (
+                                  <div>
+                                    <p className="font-semibold mb-3 text-lg text-emerald-900 dark:text-emerald-100">
+                                      📋 Locação Completo (Administração + Corretor) - Opção 1
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-3">
+                                        <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa de Locação</p>
+                                        <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">100%</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">do primeiro aluguel</p>
+                                      </div>
+                                      <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-3">
+                                        <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa de Administração</p>
+                                        <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">10%</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">dos demais aluguéis</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {contratoData.tipo_plano_locacao === 'completo_opcao2' && (
+                                  <div>
+                                    <p className="font-semibold mb-3 text-lg text-emerald-900 dark:text-emerald-100">
+                                      📋 Locação Completo (Administração + Corretor) - Opção 2
+                                    </p>
+                                    <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-4">
+                                      <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa Unificada</p>
+                                      <p className="text-3xl font-bold text-emerald-900 dark:text-emerald-100">16%</p>
+                                      <p className="text-sm text-emerald-600 dark:text-emerald-400">sobre todos os aluguéis (administração + locação)</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {contratoData.tipo_plano_locacao === 'basico_opcao1' && (
+                                  <div>
+                                    <p className="font-semibold mb-3 text-lg text-emerald-900 dark:text-emerald-100">
+                                      📋 Locação Básico (Administração) - Opção 1
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-3">
+                                        <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa de Locação</p>
+                                        <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">50%</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">do primeiro aluguel</p>
+                                      </div>
+                                      <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-3">
+                                        <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa de Administração</p>
+                                        <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">5%</p>
+                                        <p className="text-xs text-emerald-600 dark:text-emerald-400">dos demais aluguéis</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {contratoData.tipo_plano_locacao === 'basico_opcao2' && (
+                                  <div>
+                                    <p className="font-semibold mb-3 text-lg text-emerald-900 dark:text-emerald-100">
+                                      📋 Locação Básico (Administração) - Opção 2
+                                    </p>
+                                    <div className="bg-white/60 dark:bg-emerald-950/40 rounded-lg p-4">
+                                      <p className="font-medium text-emerald-700 dark:text-emerald-300 mb-1">Taxa Unificada</p>
+                                      <p className="text-3xl font-bold text-emerald-900 dark:text-emerald-100">8%</p>
+                                      <p className="text-sm text-emerald-600 dark:text-emerald-400">sobre todos os aluguéis (locação + administração)</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+
+                          {/* Dados do Corretor - Aparece apenas para planos "Completo" */}
+                          {(contratoData.tipo_plano_locacao === 'completo_opcao1' || contratoData.tipo_plano_locacao === 'completo_opcao2') && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: 0.1 }}
+                              className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
+                            >
+                              <div className="flex items-center gap-3 mb-6">
+                                <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg">
+                                  <User className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                  <h4 className="text-lg font-semibold text-foreground">
+                                    Dados do Corretor
+                                  </h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    Informações do corretor responsável pela locação
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div className="flex items-center space-x-3 p-4 rounded-xl bg-blue-100 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-700">
+                                  <Checkbox
+                                    id="tem_corretor"
+                                    checked={contratoData.tem_corretor || false}
+                                    disabled={isViewing}
+                                    onCheckedChange={!isViewing ? (checked) => handleContratoInputChange('tem_corretor', !!checked) : undefined}
+                                  />
+                                  <Label htmlFor="tem_corretor" className="cursor-pointer text-foreground font-medium">
+                                    Há corretor nesta locação
+                                  </Label>
+                                </div>
+
+                                {contratoData.tem_corretor && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="space-y-6"
+                                  >
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="corretor_nome">Nome do Corretor</Label>
+                                        <InputWithIcon
+                                          id="corretor_nome"
+                                          type="text"
+                                          value={contratoData.corretor_nome || ''}
+                                          disabled={isViewing}
+                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_nome', e.target.value) : undefined}
+                                          placeholder="Nome completo do corretor"
+                                          icon={User}
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="corretor_creci">CRECI</Label>
+                                        <InputWithIcon
+                                          id="corretor_creci"
+                                          type="text"
+                                          value={contratoData.corretor_creci || ''}
+                                          disabled={isViewing}
+                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_creci', e.target.value) : undefined}
+                                          placeholder="Número do CRECI"
+                                          icon={IdCard}
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="corretor_cpf">CPF</Label>
+                                        <InputWithIcon
+                                          id="corretor_cpf"
+                                          type="text"
+                                          value={contratoData.corretor_cpf || ''}
+                                          disabled={isViewing}
+                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_cpf', e.target.value) : undefined}
+                                          placeholder="000.000.000-00"
+                                          icon={IdCard}
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2">
+                                        <Label htmlFor="corretor_telefone">Telefone</Label>
+                                        <InputWithIcon
+                                          id="corretor_telefone"
+                                          type="text"
+                                          value={contratoData.corretor_telefone || ''}
+                                          disabled={isViewing}
+                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_telefone', e.target.value) : undefined}
+                                          placeholder="(00) 00000-0000"
+                                          icon={Phone}
+                                        />
+                                      </div>
+
+                                      <div className="space-y-2 md:col-span-2">
+                                        <Label htmlFor="corretor_email">Email</Label>
+                                        <InputWithIcon
+                                          id="corretor_email"
+                                          type="email"
+                                          value={contratoData.corretor_email || ''}
+                                          disabled={isViewing}
+                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_email', e.target.value) : undefined}
+                                          placeholder="corretor@exemplo.com"
+                                          icon={Mail}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* Dados Bancários do Corretor */}
+                                    <div className="bg-white/60 dark:bg-blue-950/40 rounded-xl p-4 border border-blue-200/50 dark:border-blue-700/50">
+                                      <h5 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
+                                        <CreditCard className="w-4 h-4 text-blue-600" />
+                                        Dados Bancários para Recebimento
+                                      </h5>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                          <Label htmlFor="corretor_banco">Banco</Label>
+                                          <InputWithIcon
+                                            id="corretor_banco"
+                                            type="text"
+                                            value={contratoData.dados_bancarios_corretor?.banco || ''}
+                                            disabled={isViewing}
+                                            onChange={!isViewing ? (e) => handleBancarioCorretor('banco', e.target.value) : undefined}
+                                            placeholder="Nome do banco"
+                                            icon={CreditCard}
+                                          />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                          <Label htmlFor="corretor_agencia">Agência</Label>
+                                          <InputWithIcon
+                                            id="corretor_agencia"
+                                            type="text"
+                                            value={contratoData.dados_bancarios_corretor?.agencia || ''}
+                                            disabled={isViewing}
+                                            onChange={!isViewing ? (e) => handleBancarioCorretor('agencia', e.target.value) : undefined}
+                                            placeholder="Agência"
+                                            icon={CreditCard}
+                                          />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                          <Label htmlFor="corretor_conta">Conta</Label>
+                                          <InputWithIcon
+                                            id="corretor_conta"
+                                            type="text"
+                                            value={contratoData.dados_bancarios_corretor?.conta || ''}
+                                            disabled={isViewing}
+                                            onChange={!isViewing ? (e) => handleBancarioCorretor('conta', e.target.value) : undefined}
+                                            placeholder="Número da conta"
+                                            icon={CreditCard}
+                                          />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                          <Label htmlFor="corretor_tipo_conta">Tipo de Conta</Label>
+                                          <Select 
+                                            value={contratoData.dados_bancarios_corretor?.tipo_conta || ''}
+                                            disabled={isViewing}
+                                            onValueChange={!isViewing ? (value) => handleBancarioCorretor('tipo_conta', value) : undefined}
+                                          >
+                                            <SelectTrigger>
+                                              <SelectValue placeholder="Tipo da conta" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              <SelectItem value="corrente">Conta Corrente</SelectItem>
+                                              <SelectItem value="poupanca">Poupança</SelectItem>
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+
+                                        <div className="space-y-2 md:col-span-2">
+                                          <Label htmlFor="corretor_chave_pix">Chave PIX (Opcional)</Label>
+                                          <InputWithIcon
+                                            id="corretor_chave_pix"
+                                            type="text"
+                                            value={contratoData.dados_bancarios_corretor?.chave_pix || ''}
+                                            disabled={isViewing}
+                                            onChange={!isViewing ? (e) => handleBancarioCorretor('chave_pix', e.target.value) : undefined}
+                                            placeholder="CPF, email, telefone ou chave aleatória"
+                                            icon={CreditCard}
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+                      </motion.div>
+                    </TabsContent>
+
+                    <TabsContent value="clausulas" className="space-y-8">
+                      {/* Obrigações Adicionais */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-red-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <CheckCircle className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Obrigações Adicionais
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Responsabilidades específicas do inquilino durante a locação
+                            </p>
+                          </div>
+                        </div>
+
+                        {isViewing ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {[
+                                { key: 'obrigacao_manutencao', label: 'Manutenção Predial', icon: Settings },
+                                { key: 'obrigacao_pintura', label: 'Pintura do Imóvel', icon: Palette },
+                                { key: 'obrigacao_jardim', label: 'Cuidados com Jardim', icon: TreePine },
+                                { key: 'obrigacao_limpeza', label: 'Limpeza Profunda', icon: Sparkles },
+                                { key: 'obrigacao_pequenos_reparos', label: 'Pequenos Reparos', icon: Wrench },
+                                { key: 'obrigacao_vistoria', label: 'Vistoria Periódica', icon: Eye }
+                              ].map(({ key, label, icon: Icon }) => (
+                                <div key={key} className={`flex items-center gap-3 p-3 rounded-lg ${contratoData[key] ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' : 'bg-muted/30'}`}>
+                                  <Icon className={`w-4 h-4 ${contratoData[key] ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
+                                  <span className={`text-sm font-medium ${contratoData[key] ? 'text-green-900 dark:text-green-100' : 'text-muted-foreground'}`}>
+                                    {label}
+                                  </span>
+                                  <div className={`ml-auto w-3 h-3 rounded-full ${contratoData[key] ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_manutencao"
+                                checked={contratoData.obrigacao_manutencao || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_manutencao', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_manutencao" className="cursor-pointer text-foreground">
+                                Manutenção Predial
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_pintura"
+                                checked={contratoData.obrigacao_pintura || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_pintura', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_pintura" className="cursor-pointer text-foreground">
+                                Pintura do Imóvel
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_jardim"
+                                checked={contratoData.obrigacao_jardim || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_jardim', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_jardim" className="cursor-pointer text-foreground">
+                                Cuidados com Jardim
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_limpeza"
+                                checked={contratoData.obrigacao_limpeza || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_limpeza', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_limpeza" className="cursor-pointer text-foreground">
+                                Limpeza Profunda
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_pequenos_reparos"
+                                checked={contratoData.obrigacao_pequenos_reparos || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_pequenos_reparos', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_pequenos_reparos" className="cursor-pointer text-foreground">
+                                Pequenos Reparos
+                              </Label>
+                            </div>
+
+                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
+                              <Checkbox
+                                id="obrigacao_vistoria"
+                                checked={contratoData.obrigacao_vistoria || false}
+                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_vistoria', !!checked)}
+                              />
+                              <Label htmlFor="obrigacao_vistoria" className="cursor-pointer text-foreground">
+                                Vistoria Periódica
+                              </Label>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Multa por Quebra de Contrato */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-red-500 to-pink-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <AlertCircle className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Multa por Quebra de Contrato
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Penalidades aplicáveis em caso de rescisão antecipada
+                            </p>
+                          </div>
+                        </div>
+
+                        {isViewing ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-muted-foreground">Multa para o Locador</Label>
+                              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                <Percent className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-foreground">
+                                  {contratoData.multa_locador ? `${contratoData.multa_locador}%` : 'Não informado'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Percentual sobre o valor total do contrato
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-muted-foreground">Multa para o Locatário</Label>
+                              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                <Percent className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-foreground">
+                                  {contratoData.multa_locatario ? `${contratoData.multa_locatario}%` : 'Não informado'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Percentual sobre o valor total do contrato
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="multa_locador">Multa para o Locador (%)</Label>
+                              <InputWithIcon
+                                id="multa_locador"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={contratoData.multa_locador || ''}
+                                onChange={(e) => handleContratoInputChange('multa_locador', parseFloat(e.target.value) || 0)}
+                                placeholder="0.0"
+                                icon={Percent}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Percentual sobre o valor total do contrato
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="multa_locatario">Multa para o Locatário (%)</Label>
+                              <InputWithIcon
+                                id="multa_locatario"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.1"
+                                value={contratoData.multa_locatario || ''}
+                                onChange={(e) => handleContratoInputChange('multa_locatario', parseFloat(e.target.value) || 0)}
+                                placeholder="0.0"
+                                icon={Percent}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Percentual sobre o valor total do contrato
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Animais de Estimação */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-pink-500 to-purple-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <Heart className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Animais de Estimação
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Registro de pets permitidos no imóvel
+                            </p>
+                          </div>
+                        </div>
+
+                        {isViewing ? (
+                          <div className="space-y-6">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium text-muted-foreground">Quantidade de Pets Permitidos</Label>
+                              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                <Heart className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-foreground">
+                                  {contratoData.quantidade_pets || 0} {contratoData.quantidade_pets === 1 ? 'pet' : 'pets'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {(contratoData.quantidade_pets > 0) && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.3 }}
+                                className="p-4 border border-border rounded-xl bg-muted/20 space-y-4"
+                              >
+                                <h4 className="text-lg font-semibold text-foreground">Informações dos Pets</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">Raças dos Animais</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <Heart className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">
+                                        {contratoData.pets_racas || 'Não informado'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-sm font-medium text-muted-foreground">Tamanhos dos Animais</Label>
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                      <Heart className="w-4 h-4 text-muted-foreground" />
+                                      <span className="text-sm text-foreground">
+                                        {contratoData.pets_tamanhos || 'Não informado'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-6">
+                            <div className="space-y-2">
+                              <Label>Quantidade de Pets</Label>
+                              <InputWithIcon
+                                type="number"
+                                min="0"
+                                max="10"
+                                value={contratoData.quantidade_pets || 0}
+                                onChange={(e) => handleContratoInputChange('quantidade_pets', parseInt(e.target.value) || 0)}
+                                icon={Heart}
+                              />
+                            </div>
+
+                            {/* Informações dos Pets (simplificada para view/edit) */}
+                            {(contratoData.quantidade_pets > 0) && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.3 }}
+                                className="p-4 border border-border rounded-xl bg-muted/20 space-y-4"
+                              >
+                                <h4 className="text-lg font-semibold text-foreground">Informações dos Pets</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Raças dos Animais</Label>
+                                    <InputWithIcon
+                                      type="text"
+                                      value={contratoData.pets_racas || ''}
+                                      onChange={(e) => handleContratoInputChange('pets_racas', e.target.value)}
+                                      placeholder="Ex: Labrador, SRD, Persa"
+                                      icon={Heart}
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label>Tamanhos dos Animais</Label>
+                                    <InputWithIcon
+                                      type="text"
+                                      value={contratoData.pets_tamanhos || ''}
+                                      onChange={(e) => handleContratoInputChange('pets_tamanhos', e.target.value)}
+                                      placeholder="Ex: Grande, Médio, Pequeno"
+                                      icon={Heart}
+                                    />
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Informações Adicionais */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.3 }}
+                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-3 mb-6">
+                          <motion.div 
+                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-blue-500 to-indigo-500"
+                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <FileText className="w-6 h-6 text-white" />
+                          </motion.div>
+                          <h2 className="text-xl font-semibold text-foreground">
+                            Informações Adicionais
+                          </h2>
+                        </div>
+
+                        {isViewing ? (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-muted-foreground">Cláusulas Adicionais</Label>
+                            <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30">
+                              <FileText className="w-4 h-4 text-muted-foreground mt-1" />
+                              <span className="text-sm text-foreground">
+                                {contratoData.clausulas_adicionais || 'Nenhuma cláusula adicional definida'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <Label>Cláusulas Adicionais</Label>
+                            <Textarea
+                              value={contratoData.clausulas_adicionais || ''}
+                              onChange={(e) => handleContratoInputChange('clausulas_adicionais', e.target.value)}
+                              placeholder="Cláusulas especiais do contrato..."
+                              rows={4}
+                            />
+                          </div>
+                        )}
+                      </motion.div>
+                    </TabsContent>
+                  </Tabs>
+
+                  {/* Botão Salvar Alterações (apenas em modo editar) */}
+                  {isEditing && (
+                    <div className="pt-6 border-t">
+                      <Button className="w-full">
+                        Salvar Alterações
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    );
+  }
+
+  // Modo cadastro normal (versão original completa)
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -396,6 +2580,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
     }
   }, [formData.tipo_garantia]);
 
+
   // Função para calcular próximo reajuste (sempre retorna próxima data futura)
   const calcularProximoReajuste = (dataInicio: string, tempoReajuste: number): string => {
     if (!dataInicio || !tempoReajuste) return '';
@@ -648,11 +2833,24 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         >
           {/* Header */}
           <div className="bg-gradient-to-r from-primary to-secondary px-8 py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-primary-foreground/20 rounded-xl">
-                <FileText className="w-6 h-6 text-primary-foreground" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary-foreground/20 rounded-xl">
+                  <FileText className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Contrato</h1>
               </div>
-              <h1 className="text-2xl font-bold text-primary-foreground">Cadastro de Contrato</h1>
+              
+              {onBack && (
+                <Button 
+                  variant="outline" 
+                  onClick={onBack}
+                  className="bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
             </div>
           </div>
 
@@ -3565,6 +5763,37 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                   data-hover={{ scale: 1.02 }}
                   data-tap={{ scale: 0.98 }}
                 >
+{isEditing ? (
+                  <Button 
+                    type="button"
+                    onClick={handleSaveContract}
+                    disabled={loading}
+                    className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        <span>Salvando...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span>Salvar Alterações</span>
+                      </div>
+                    )}
+                  </Button>
+                ) : isViewing ? (
+                  <Button 
+                    type="button"
+                    onClick={onBack}
+                    className="w-full btn-gradient py-6 text-lg font-semibold rounded-xl border-0 shadow-2xl hover:shadow-primary/25 transition-all duration-300"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <X className="w-5 h-5" />
+                      <span>Fechar</span>
+                    </div>
+                  </Button>
+                ) : (
                   <Button 
                     type="submit" 
                     disabled={loading}
@@ -3582,12 +5811,14 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                       </div>
                     )}
                   </Button>
+                )}
                 </div>
               </div>
             </form>
           </div>
         </div>
       </div>
+      
     </div>
   );
 };
