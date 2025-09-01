@@ -22,8 +22,9 @@ import { ThemeToggle } from './components/ui/theme-toggle';
 import LocadoresIndex from './components/pages/LocadoresIndex';
 import { LocatariosIndex } from './components/pages/LocatariosIndex';
 import { ImoveisIndex } from './components/pages/ImoveisIndex';
+import { ContratosIndex } from './components/pages/ContratosIndex';
 
-type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'imovel-cadastro' | 'imovel-visualizar' | 'imovel-edicao' | 'contrato' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
+type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'imovel-cadastro' | 'imovel-visualizar' | 'imovel-edicao' | 'contrato' | 'contrato-cadastro' | 'contrato-visualizar' | 'contrato-edicao' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
@@ -65,6 +66,14 @@ function App() {
       return 'imovel-edicao';
     }
     
+    if (path.startsWith('/contrato/visualizar/')) {
+      return 'contrato-visualizar';
+    }
+    
+    if (path.startsWith('/contrato/editar/')) {
+      return 'contrato-edicao';
+    }
+    
     // Mapeamento de outras rotas se necessário
     const routeMap: {[key: string]: PageType} = {
       '/': 'hero',
@@ -77,6 +86,7 @@ function App() {
       '/imoveis': 'imovel',
       '/imovel/cadastro': 'imovel-cadastro',
       '/contrato': 'contrato',
+      '/contrato/cadastro': 'contrato-cadastro',
       '/prestacao-contas': 'prestacao-contas',
       '/dashboard': 'dashboard',
       '/busca': 'busca'
@@ -122,6 +132,9 @@ function App() {
         'imovel-visualizar': '/imovel/visualizar',
         'imovel-edicao': '/imovel/editar',
         'contrato': '/contrato',
+        'contrato-cadastro': '/contrato/cadastro',
+        'contrato-visualizar': '/contrato/visualizar',
+        'contrato-edicao': '/contrato/editar',
         'prestacao-contas': '/prestacao-contas',
         'prestacao-contas-lancamento': '/prestacao-contas/lancamento',
         'edicao-fatura': '/prestacao-contas/editar',
@@ -182,6 +195,23 @@ function App() {
     const url = `/imovel/editar/${imovelId}`;
     window.history.pushState({}, '', url);
     setCurrentPage('imovel-edicao');
+  };
+
+  // Handlers para Contratos
+  const handleNavigateToContratoCadastro = () => {
+    handlePageChange('contrato-cadastro');
+  };
+
+  const handleNavigateToContratoDetalhes = (contratoId: number) => {
+    const url = `/contrato/visualizar/${contratoId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('contrato-visualizar');
+  };
+
+  const handleNavigateToContratoEdicao = (contratoId: number) => {
+    const url = `/contrato/editar/${contratoId}`;
+    window.history.pushState({}, '', url);
+    setCurrentPage('contrato-edicao');
   };
 
   const renderCurrentContent = () => {
@@ -373,7 +403,47 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <ModernContratoForm />
+            <ContratosIndex
+              onNavigateToCadastro={handleNavigateToContratoCadastro}
+              onNavigateToDetalhes={handleNavigateToContratoDetalhes}
+              onNavigateToEdicao={handleNavigateToContratoEdicao}
+            />
+          </motion.div>
+        );
+      case 'contrato-cadastro':
+        return (
+          <motion.div
+            key="contrato-cadastro"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernContratoForm onBack={() => handlePageChange('contrato')} />
+          </motion.div>
+        );
+      case 'contrato-visualizar':
+        return (
+          <motion.div
+            key="contrato-visualizar"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernContratoForm onBack={() => handlePageChange('contrato')} isViewing={true} />
+          </motion.div>
+        );
+      case 'contrato-edicao':
+        return (
+          <motion.div
+            key="contrato-edicao"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ModernContratoForm onBack={() => handlePageChange('contrato')} isEditing={true} />
           </motion.div>
         );
       case 'prestacao-contas':

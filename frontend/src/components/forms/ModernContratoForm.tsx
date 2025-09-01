@@ -61,7 +61,17 @@ interface Imovel {
   endereco: string;
 }
 
-export const ModernContratoForm: React.FC = () => {
+interface ModernContratoFormProps {
+  onBack?: () => void;
+  isViewing?: boolean;
+  isEditing?: boolean;
+}
+
+export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({ 
+  onBack, 
+  isViewing = false, 
+  isEditing = false 
+}) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);

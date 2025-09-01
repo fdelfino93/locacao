@@ -67,7 +67,11 @@
       "Bash(start http://localhost:3005/locatario-edicao/1)",
       "Bash(start http://localhost:3005/imovel)",
       "Bash(start http://localhost:3005/imovel-edicao/3)",
-      "Bash(start http://localhost:3005/imovel-novo)"
+      "Bash(start http://localhost:3005/imovel-novo)",
+      "Bash(start http://localhost:3005/contrato)",
+      "Bash(start http://localhost:3005/contrato/cadastro)",
+      "Bash(start http://localhost:3005/dashboard)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
