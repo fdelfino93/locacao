@@ -103,7 +103,6 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
               const data = await response.json();
               if (data.success && data.data) {
                 setContratoData(data.data);
-                console.log('Dados carregados:', data.data);
               } else {
                 setApiError('Contrato não encontrado');
               }
@@ -303,7 +302,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </motion.div>
                           <div>
                             <h2 className="text-2xl font-bold text-foreground">
-                              ✅ Etapa 4: Estrutura idêntica ao cadastro
+                              Partes do Contrato
                             </h2>
                             <p className="text-muted-foreground">
                               Definir as partes envolvidas no contrato
@@ -312,12 +311,12 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         </div>
                       </motion.div>
 
-                      {/* Campos básicos para teste */}
+                      {/* Campos básicos para mostrar dados */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label>Número do Contrato</Label>
                           <InputWithIcon
-                            value={contratoData.numero_contrato || ''}
+                            value={contratoData?.numero_contrato || contratoData?.id || ''}
                             icon={FileText}
                             disabled={isViewing}
                             className="w-full"
@@ -328,7 +327,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           <Label>Data de Início</Label>
                           <InputWithIcon
                             type="date"
-                            value={contratoData.data_inicio || ''}
+                            value={contratoData?.data_inicio || ''}
                             icon={Calendar}
                             disabled={isViewing}
                             className="w-full"
@@ -336,28 +335,58 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         </div>
                       </div>
 
-                      {/* Imóvel e Locatário */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label>Imóvel</Label>
-                          <InputWithIcon
-                            value={contratoData.imovel_endereco || 'N/A'}
-                            icon={Building}
-                            disabled={true}
-                            className="w-full bg-muted"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label>Locatário</Label>
-                          <InputWithIcon
-                            value={contratoData.locatario_nome || 'N/A'}
-                            icon={User}
-                            disabled={true}
-                            className="w-full bg-muted"
-                          />
-                        </div>
-                      </div>
+                      {/* Seção de Locadores (Proprietários) */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                      >
+                        <ContractLandlordsForm 
+                          locadores={contratoData ? [{
+                            locador_id: contratoData.locador_id || contratoData.id_locador || 0,
+                            conta_bancaria_id: 1,
+                            porcentagem: 100,
+                            locador_nome: contratoData.locador_nome || 'Locador não informado',
+                            locador_documento: contratoData.locador_cpf || ''
+                          }] : []}
+                          onChange={() => {}}
+                          readonly={isViewing}
+                        />
+                      </motion.div>
+                      
+                      {/* Seção de Locatários */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                      >
+                        <ContractTenantsForm 
+                          locatarios={contratoData ? [{
+                            locatario_id: contratoData.locatario_id || contratoData.id_locatario || 0,
+                            locatario_nome: contratoData.locatario_nome_completo || contratoData.locatario_nome || 'Locatário não informado',
+                            locatario_cpf: contratoData.locatario_cpf_completo || contratoData.locatario_documento || '',
+                            responsabilidade_principal: true
+                          }] : []}
+                          onChange={() => {}}
+                          readonly={isViewing}
+                        />
+                      </motion.div>
+                      
+                      {/* Seleção de Imóvel */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: 0.3 }}
+                      >
+                        <ContractPropertyForm 
+                          imovelId={contratoData?.id_imovel || null}
+                          utilizacaoImovel={contratoData?.utilizacao_imovel || ""}
+                          onChange={() => {}}
+                          onUtilizacaoChange={() => {}}
+                          locadoresSelecionados={contratoData?.locador_id ? [contratoData.locador_id] : []}
+                          readonly={isViewing}
+                        />
+                      </motion.div>
                     </TabsContent>
 
                     {/* Outras abas - implementar nas próximas etapas */}

@@ -22,11 +22,13 @@ import { apiService } from '../../services/api';
 interface ContractLandlordsFormProps {
   locadores: ContratoLocador[];
   onChange: (locadores: ContratoLocador[]) => void;
+  readonly?: boolean;
 }
 
 export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   locadores,
-  onChange
+  onChange,
+  readonly = false
 }) => {
   const [locadoresOptions, setLocadoresOptions] = useState<LocadorOption[]>([]);
   const [contasBancarias, setContasBancarias] = useState<Record<number, ContaBancariaLocador[]>>({});
@@ -281,10 +283,12 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
             <p className="text-sm text-muted-foreground mb-4">
               É obrigatório ter pelo menos um proprietário no contrato
             </p>
-            <Button onClick={adicionarLocador} className="btn-gradient">
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Primeiro Proprietário
-            </Button>
+            {!readonly && (
+              <Button onClick={adicionarLocador} className="btn-gradient">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Primeiro Proprietário
+              </Button>
+            )}
           </motion.div>
         ) : (
           <AnimatePresence>
@@ -323,19 +327,21 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                       </div>
                     </div>
                     
-                    <motion.div
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Button 
-                        onClick={() => removerLocador(index)}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                    {!readonly && (
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </motion.div>
+                        <Button 
+                          onClick={() => removerLocador(index)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </motion.div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

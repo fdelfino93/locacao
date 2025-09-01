@@ -40,11 +40,13 @@ interface ContratoLocatario {
 interface ContractTenantsFormProps {
   locatarios: ContratoLocatario[];
   onChange: (locatarios: ContratoLocatario[]) => void;
+  readonly?: boolean;
 }
 
 export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
   locatarios,
-  onChange
+  onChange,
+  readonly = false
 }) => {
   const [locatariosOptions, setLocatariosOptions] = useState<Locatario[]>([]);
   const [loading, setLoading] = useState(false);
@@ -171,14 +173,16 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
             <User className="w-5 h-5 text-green-600" />
             Inquilinos (Locatários)
           </h2>
-          <Button 
-            onClick={adicionarLocatario}
-            size="sm"
-            className="btn-outline"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Adicionar Locatário
-          </Button>
+          {!readonly && (
+            <Button 
+              onClick={adicionarLocatario}
+              size="sm"
+              className="btn-outline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Adicionar Locatário
+            </Button>
+          )}
         </div>
 
         <p className="text-sm text-muted-foreground">
@@ -232,10 +236,12 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
             <p className="text-sm text-muted-foreground mb-4">
               Clique no botão "Adicionar Locatário" para começar
             </p>
-            <Button onClick={adicionarLocatario} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Primeiro Locatário
-            </Button>
+            {!readonly && (
+              <Button onClick={adicionarLocatario} size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Primeiro Locatário
+              </Button>
+            )}
           </motion.div>
         ) : (
           <AnimatePresence>
@@ -273,19 +279,21 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                     </div>
                   </div>
                   
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <Button 
-                      onClick={() => removerLocatario(index)}
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  {!readonly && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </motion.div>
+                      <Button 
+                        onClick={() => removerLocatario(index)}
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </motion.div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

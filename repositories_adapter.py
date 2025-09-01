@@ -580,6 +580,8 @@ def buscar_contrato_por_id(contrato_id):
                 c.*,
                 i.endereco as imovel_endereco,
                 i.tipo as imovel_tipo,
+                i.id_locador,
+                l.id as locador_id_real,
                 l.nome as locador_nome,
                 loc.nome as locatario_nome,
                 loc.cpf_cnpj as locatario_documento
@@ -603,6 +605,39 @@ def buscar_contrato_por_id(contrato_id):
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d')
                 else:
                     row_dict[columns[i]] = value
+            
+            # Buscar dados completos do locador usando qualquer ID disponível
+            locador_id = row_dict.get('locador_id_real') or row_dict.get('id_locador')
+            if locador_id:
+                cursor.execute("""
+                    SELECT id, nome, cpf_cnpj, telefone, email 
+                    FROM Locadores 
+                    WHERE id = ?
+                """, (locador_id,))
+                
+                locador_row = cursor.fetchone()
+                if locador_row:
+                    row_dict['locador_id'] = locador_row[0]
+                    row_dict['locador_nome_completo'] = locador_row[1]
+                    row_dict['locador_cpf'] = locador_row[2]
+                    row_dict['locador_telefone'] = locador_row[3]
+                    row_dict['locador_email'] = locador_row[4]
+            
+            # Buscar dados completos do locatário
+            if row_dict.get('id_locatario'):
+                cursor.execute("""
+                    SELECT id, nome, cpf_cnpj, telefone, email 
+                    FROM Locatarios 
+                    WHERE id = ?
+                """, (row_dict['id_locatario'],))
+                
+                locatario_row = cursor.fetchone()
+                if locatario_row:
+                    row_dict['locatario_id'] = locatario_row[0]
+                    row_dict['locatario_nome_completo'] = locatario_row[1]
+                    row_dict['locatario_cpf_completo'] = locatario_row[2]
+                    row_dict['locatario_telefone'] = locatario_row[3]
+                    row_dict['locatario_email'] = locatario_row[4]
             
             conn.close()
             return row_dict

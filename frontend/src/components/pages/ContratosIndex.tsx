@@ -12,6 +12,7 @@ import {
   Calendar, 
   DollarSign, 
   Users, 
+  User,
   Building,
   Eye,
   Edit,
@@ -484,20 +485,20 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   </div>
                 ) : (
                   <div className="rounded-lg border border-border overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-96 overflow-y-auto">
                       <table className="w-full">
                         <thead className="bg-muted/50">
                           <tr>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <span className="font-medium text-foreground">Contrato</span>
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <span className="font-medium text-foreground">Imóvel</span>
                             </th>
-                            <th className="px-4 py-3 text-left">
-                              <span className="font-medium text-foreground">Inquilino</span>
+                            <th className="px-3 py-2 text-left">
+                              <span className="font-medium text-foreground">Partes</span>
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <button 
                                 onClick={() => handleSort('data_inicio')}
                                 className="flex items-center space-x-2 font-medium text-foreground hover:text-primary"
@@ -506,7 +507,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                 {getSortIcon('data_inicio')}
                               </button>
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <button 
                                 onClick={() => handleSort('valor_aluguel')}
                                 className="flex items-center space-x-2 font-medium text-foreground hover:text-primary"
@@ -515,10 +516,10 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                 {getSortIcon('valor_aluguel')}
                               </button>
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <span className="font-medium text-foreground">Status</span>
                             </th>
-                            <th className="px-4 py-3 text-left">
+                            <th className="px-3 py-2 text-left">
                               <span className="font-medium text-foreground">Ações</span>
                             </th>
                           </tr>
@@ -526,42 +527,50 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                         <tbody className="divide-y divide-border">
                           {sortedContratos.map((contrato) => (
                             <tr key={contrato.id} className="hover:bg-muted/30 transition-colors">
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 <div className="flex items-center space-x-3">
                                   <div className="p-1 bg-blue-100 dark:bg-blue-900/20 rounded">
-                                    <FileText className="w-4 h-4 text-blue-600" />
+                                    <FileText className="w-3 h-3 text-blue-600" />
                                   </div>
                                   <div>
-                                    <div className="font-medium text-foreground">
+                                    <div className="text-xs font-medium text-foreground">
                                       #{contrato.numero_contrato || `C${String(contrato.id).padStart(4, '0')}`}
                                     </div>
                                     {contrato.tipo_garantia && (
-                                      <div className="text-sm text-muted-foreground">
+                                      <div className="text-xs text-muted-foreground">
                                         {contrato.tipo_garantia}
                                       </div>
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 <div className="flex items-center space-x-1">
-                                  <Building className="w-4 h-4 text-muted-foreground" />
-                                  <span className="text-sm text-foreground truncate max-w-xs">
+                                  <Building className="w-3 h-3 text-muted-foreground" />
+                                  <span className="text-xs text-foreground truncate max-w-xs">
                                     {contrato.imovel_endereco || 'Imóvel #' + contrato.id_imovel}
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
-                                <div className="flex items-center space-x-1">
-                                  <Users className="w-4 h-4 text-muted-foreground" />
-                                  <span className="text-sm text-foreground truncate max-w-xs">
-                                    {contrato.locatario_nome || 'Locatário #' + contrato.id_locatario}
-                                  </span>
+                              <td className="px-3 py-2">
+                                <div className="space-y-1">
+                                  <div className="flex items-center space-x-1">
+                                    <User className="w-3 h-3 text-green-600" />
+                                    <span className="text-xs text-foreground truncate max-w-xs">
+                                      {contrato.locatario_nome || 'Locatário #' + contrato.id_locatario}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-1">
+                                    <Users className="w-3 h-3 text-blue-600" />
+                                    <span className="text-xs text-foreground truncate max-w-xs">
+                                      {contrato.locador_nome || 'Locador não informado'}
+                                    </span>
+                                  </div>
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 <div className="space-y-1">
-                                  <div className="text-sm text-foreground">
+                                  <div className="text-xs text-foreground">
                                     {formatDate(contrato.data_inicio)} - {formatDate(contrato.data_fim)}
                                   </div>
                                   {contrato.vencimento_dia && (
@@ -571,9 +580,9 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 <div className="space-y-1">
-                                  <div className="text-sm font-medium text-foreground">
+                                  <div className="text-xs font-medium text-foreground">
                                     {formatCurrency(contrato.valor_aluguel)}
                                   </div>
                                   {contrato.valor_total && contrato.valor_total !== contrato.valor_aluguel && (
@@ -583,10 +592,10 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                   )}
                                 </div>
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 {getStatusBadge(contrato.status)}
                               </td>
-                              <td className="px-4 py-3">
+                              <td className="px-3 py-2">
                                 <div className="flex items-center space-x-2">
                                   <Button
                                     size="sm"
