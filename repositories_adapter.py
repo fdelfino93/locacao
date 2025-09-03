@@ -19,7 +19,7 @@ def get_conexao():
 def inserir_endereco_imovel(endereco_data):
     """Insere um endereço na tabela EnderecoImovel e retorna o ID"""
     try:
-        print(f"🏠 Inserindo endereço na EnderecoImovel: {endereco_data}")
+        print(f"Inserindo endereço na EnderecoImovel: {endereco_data}")
         
         with get_conexao() as conn:
             cursor = conn.cursor()
@@ -33,7 +33,7 @@ def inserir_endereco_imovel(endereco_data):
             uf = endereco_data.get('estado', endereco_data.get('uf', 'PR'))  # Aceita ambos
             cep = endereco_data.get('cep', '')
             
-            print(f"📍 Dados mapeados: rua='{rua}', numero='{numero}', complemento='{complemento}', bairro='{bairro}', cidade='{cidade}', uf='{uf}', cep='{cep}'")
+            print(f"Dados mapeados: rua='{rua}', numero='{numero}', complemento='{complemento}', bairro='{bairro}', cidade='{cidade}', uf='{uf}', cep='{cep}'")
             
             cursor.execute("""
                 INSERT INTO EnderecoImovel (rua, numero, complemento, bairro, cidade, uf, cep)
@@ -46,11 +46,11 @@ def inserir_endereco_imovel(endereco_data):
             cursor.execute("SELECT @@IDENTITY")
             endereco_id = cursor.fetchone()[0]
             
-            print(f"✅ Endereço inserido na EnderecoImovel com ID: {endereco_id}")
+            print(f"SUCESSO: Endereço inserido na EnderecoImovel com ID: {endereco_id}")
             return int(endereco_id)
             
     except Exception as e:
-        print(f"❌ Erro ao inserir endereço do imóvel: {e}")
+        print(f"ERRO: Erro ao inserir endereço do imóvel: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -81,7 +81,7 @@ def buscar_endereco_imovel(endereco_id):
             return None
             
     except Exception as e:
-        print(f"❌ Erro ao buscar endereço {endereco_id}: {e}")
+        print(f"ERRO: Erro ao buscar endereço {endereco_id}: {e}")
         return None
 
 def processar_endereco_imovel(endereco_input):
@@ -110,7 +110,7 @@ def processar_endereco_imovel(endereco_input):
         # Caso seja string (sistema antigo)
         return str(endereco_input), None
 
-# Funções diretas para as tabelas corretas
+# Funçoes diretas para as tabelas corretas
 def buscar_locadores():
     """Busca todos os locadores da tabela Locadores"""
     try:
@@ -121,7 +121,7 @@ def buscar_locadores():
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultados para lista de dicionários
+        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
         for row in rows:
@@ -137,7 +137,7 @@ def buscar_locadores():
         return []
 
 def buscar_locatarios():
-    """Busca todos os locatários da tabela Locatarios"""
+    """Busca todos os locatarios da tabela Locatarios"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
@@ -146,7 +146,7 @@ def buscar_locatarios():
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultados para lista de dicionários
+        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
         for row in rows:
@@ -158,7 +158,7 @@ def buscar_locatarios():
         conn.close()
         return result
     except Exception as e:
-        print(f"Erro ao buscar locatários: {e}")
+        print(f"Erro ao buscar locatarios: {e}")
         return []
 
 def buscar_imoveis():
@@ -171,13 +171,13 @@ def buscar_imoveis():
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultados para lista de dicionários
+        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
+                # Converter datetime para string se necessario
                 if hasattr(value, 'strftime'):
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
                 else:
@@ -190,7 +190,7 @@ def buscar_imoveis():
         print(f"Erro ao buscar imóveis: {e}")
         return []
 
-# Funções de inserção (usar as existentes)
+# Funçoes de insercao (usar as existentes)
 from locacao.repositories.cliente_repository import inserir_cliente
 from locacao.repositories.inquilino_repository import inserir_inquilino  
 from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
@@ -200,40 +200,40 @@ def inserir_locador(**kwargs):
     return inserir_cliente(**kwargs)
 
 def inserir_imovel(**kwargs):
-    """Função híbrida segura para inserir imóveis - compatível com string e objeto"""
+    """Funcao híbrida segura para inserir imóveis - compatível com string e objeto"""
     try:
-        print(f"🏠 Inserindo imóvel - Dados recebidos: {kwargs}")
+        print(f"Inserindo imóvel - Dados recebidos: {kwargs}")
         
         # 🆕 PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
         if 'endereco' in kwargs:
             try:
                 endereco_input = kwargs['endereco']
                 if isinstance(endereco_input, dict):
-                    print(f"🏠 Processando endereço estruturado para inserção: {endereco_input}")
+                    print(f"Processando endereço estruturado para insercao: {endereco_input}")
                     endereco_string, endereco_id = processar_endereco_imovel(endereco_input)
                     kwargs['endereco'] = endereco_string
                     if endereco_id:
                         kwargs['endereco_id'] = endereco_id
-                        print(f"✅ Endereço salvo na EnderecoImovel com ID: {endereco_id}")
+                        print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
             except Exception as endereco_error:
-                print(f"⚠️ Erro ao processar endereço na inserção, usando fallback: {endereco_error}")
+                print(f"AVISO:️ Erro ao processar endereço na insercao, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
         
-        # Chamar a função original com os dados processados
+        # Chamar a funcao original com os dados processados
         return _inserir_imovel_original(**kwargs)
         
     except Exception as e:
-        print(f"❌ Erro na função híbrida de inserir imóvel: {e}")
-        # Fallback: tentar com a função original
+        print(f"ERRO: Erro na funcao híbrida de inserir imóvel: {e}")
+        # Fallback: tentar com a funcao original
         try:
             # Garantir que endereco seja string para compatibilidade
             if 'endereco' in kwargs and isinstance(kwargs['endereco'], dict):
                 kwargs['endereco'] = str(kwargs['endereco'])
-            print(f"🔄 Tentando fallback com dados: {kwargs}")
+            print(f"Tentando fallback com dados: {kwargs}")
             return _inserir_imovel_original(**kwargs)
         except Exception as e2:
-            print(f"💥 Erro no fallback de inserir imóvel: {e2}")
+            print(f"Erro no fallback de inserir imóvel: {e2}")
             raise e2
 
 def atualizar_locador(locador_id, **kwargs):
@@ -247,7 +247,7 @@ def atualizar_locador(locador_id, **kwargs):
         locador_existente = cursor.fetchone()
         
         if not locador_existente:
-            print(f"Locador ID {locador_id} não encontrado na tabela Locadores")
+            print(f"Locador ID {locador_id} nao encontrado na tabela Locadores")
             
             # Verificar se existe na tabela Clientes
             cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
@@ -258,7 +258,7 @@ def atualizar_locador(locador_id, **kwargs):
                 print("Tentando atualizar na tabela Clientes...")
                 return atualizar_cliente(locador_id, **kwargs)
             else:
-                print(f"ID {locador_id} não encontrado nem em Locadores nem em Clientes")
+                print(f"ID {locador_id} nao encontrado nem em Locadores nem em Clientes")
                 conn.close()
                 return False
         
@@ -274,11 +274,11 @@ def atualizar_locador(locador_id, **kwargs):
             'telefone_conjuge', 'tipo_cliente', 'data_nascimento'
         ]
         
-        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int quando necessário
+                # Converter valores string para int quando necessario
                 if campo in ['deseja_fci', 'deseja_seguro_fianca', 'deseja_seguro_incendio', 'existe_conjuge']:
                     original_valor = valor
                     if isinstance(valor, str):
@@ -314,7 +314,7 @@ def atualizar_locador(locador_id, **kwargs):
             print(f"Locador {locador_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
             return True
         else:
-            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode não existir")
+            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode nao existir")
             return False
             
     except Exception as e:
@@ -332,7 +332,7 @@ def alterar_status_locador(locador_id, ativo):
         locador_existente = cursor.fetchone()
         
         if not locador_existente:
-            print(f"Locador ID {locador_id} não encontrado na tabela Locadores")
+            print(f"Locador ID {locador_id} nao encontrado na tabela Locadores")
             
             # Verificar se existe na tabela Clientes
             cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
@@ -342,7 +342,7 @@ def alterar_status_locador(locador_id, ativo):
                 print(f"Atualizando status na tabela Clientes para locador {locador_id}")
                 cursor.execute("UPDATE Clientes SET ativo = ? WHERE id = ?", (1 if ativo else 0, locador_id))
             else:
-                print(f"ID {locador_id} não encontrado nem em Locadores nem em Clientes")
+                print(f"ID {locador_id} nao encontrado nem em Locadores nem em Clientes")
                 conn.close()
                 return False
         else:
@@ -358,7 +358,7 @@ def alterar_status_locador(locador_id, ativo):
             print(f"Locador {locador_id} marcado como {status_texto} ({linhas_afetadas} linha(s))")
             return True
         else:
-            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode não existir")
+            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode nao existir")
             return False
             
     except Exception as e:
@@ -381,7 +381,7 @@ def atualizar_cliente(cliente_id, **kwargs):
             'telefone_conjuge', 'tipo_cliente', 'data_nascimento'
         ]
         
-        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
@@ -397,8 +397,8 @@ def atualizar_cliente(cliente_id, **kwargs):
         
         valores = list(campos_para_atualizar.values()) + [cliente_id]
         
-        print(f"🔄 Executando UPDATE na tabela Clientes: {query}")
-        print(f"📋 Valores: {valores}")
+        print(f"Executando UPDATE na tabela Clientes: {query}")
+        print(f"Valores: {valores}")
         
         cursor.execute(query, valores)
         linhas_afetadas = cursor.rowcount
@@ -406,34 +406,34 @@ def atualizar_cliente(cliente_id, **kwargs):
         conn.close()
         
         if linhas_afetadas > 0:
-            print(f"✅ Cliente {cliente_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
+            print(f"SUCESSO: Cliente {cliente_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
             return True
         else:
-            print(f"⚠️ Nenhuma linha foi atualizada - cliente {cliente_id} pode não existir")
+            print(f"AVISO:️ Nenhuma linha foi atualizada - cliente {cliente_id} pode nao existir")
             return False
             
     except Exception as e:
-        print(f"❌ Erro ao atualizar cliente {cliente_id}: {e}")
+        print(f"ERRO: Erro ao atualizar cliente {cliente_id}: {e}")
         return False
 
 def inserir_locatario(dados):
     return inserir_inquilino(dados)
 
-# Funções que faltam mas são esperadas pelo main.py
+# Funçoes que faltam mas sao esperadas pelo main.py
 def buscar_locadores_com_contratos():
     """Lista todos os locadores que possuem contratos ativos"""
     return []
 
 def buscar_prestacao_contas_mensal(id_locador, mes, ano):
-    """Obtém a prestação de contas mensal de um locador"""
-    return {"error": "Funcionalidade ainda não implementada"}
+    """Obtém a prestacao de contas mensal de um locador"""
+    return {"error": "Funcionalidade ainda nao implementada"}
 
 def inserir_lancamento_liquido(id_pagamento, tipo, valor):
     """Cria um novo lançamento líquido"""
     return False
 
 def inserir_desconto_deducao(id_pagamento, tipo, valor):
-    """Cria um novo desconto/dedução"""
+    """Cria um novo desconto/deducao"""
     return False
 
 def atualizar_pagamento_detalhes(id_pagamento, mes_referencia, ano_referencia, total_bruto, total_liquido, observacao, pagamento_atrasado):
@@ -441,15 +441,15 @@ def atualizar_pagamento_detalhes(id_pagamento, mes_referencia, ano_referencia, t
     return False
 
 def buscar_historico_prestacao_contas(id_locador, limit):
-    """Obtém o histórico de prestações de contas de um locador"""
+    """Obtém o histórico de prestaçoes de contas de um locador"""
     return []
 
 def gerar_relatorio_excel(dados):
-    """Gera relatório em Excel da prestação de contas"""
+    """Gera relatório em Excel da prestacao de contas"""
     return None
 
 def gerar_relatorio_pdf(dados):
-    """Gera relatório em PDF da prestação de contas"""
+    """Gera relatório em PDF da prestacao de contas"""
     return None
 
 def inserir_contrato_locadores(contrato_id, locadores):
@@ -466,14 +466,14 @@ def buscar_contas_bancarias_locador(locador_id):
 
 def validar_porcentagens_contrato(locadores):
     """Valida se as porcentagens dos locadores somam 100% e outras regras"""
-    return {"success": True, "message": "Validação OK", "details": {}}
+    return {"success": True, "message": "Validacao OK", "details": {}}
 
 def buscar_todos_locadores_ativos():
-    """Lista todos os locadores ativos para seleção em contratos"""
+    """Lista todos os locadores ativos para selecao em contratos"""
     return []
 
 def buscar_contratos():
-    """Busca todos os contratos com informações relacionadas"""
+    """Busca todos os contratos com informaçoes relacionadas"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
@@ -504,13 +504,13 @@ def buscar_contratos():
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultados para lista de dicionários
+        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
+                # Converter datetime para string se necessario
                 if hasattr(value, 'strftime'):
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d')
                 else:
@@ -551,13 +551,13 @@ def buscar_contratos_por_locador(locador_id):
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultados para lista de dicionários
+        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
+                # Converter datetime para string se necessario
                 if hasattr(value, 'strftime'):
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d')
                 else:
@@ -595,12 +595,12 @@ def buscar_contrato_por_id(contrato_id):
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
         
-        # Converter resultado para dicionário
+        # Converter resultado para dicionario
         row = cursor.fetchone()
         if row:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
+                # Converter datetime para string se necessario
                 if hasattr(value, 'strftime'):
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d')
                 else:
@@ -623,7 +623,7 @@ def buscar_contrato_por_id(contrato_id):
                     row_dict['locador_telefone'] = locador_row[3]
                     row_dict['locador_email'] = locador_row[4]
             
-            # Buscar dados completos do locatário
+            # Buscar dados completos do locatario
             if row_dict.get('id_locatario'):
                 cursor.execute("""
                     SELECT id, nome, cpf_cnpj, telefone, email 
@@ -651,7 +651,7 @@ def buscar_contrato_por_id(contrato_id):
 # === FUNÇÕES PARA FATURAS ===
 
 def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', order_dir='DESC'):
-    """Busca faturas com filtros, paginação e ordenação"""
+    """Busca faturas com filtros, paginacao e ordenacao"""
     
     # Dados de teste expandidos para demonstrar a interface
     faturas_teste = [
@@ -703,7 +703,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
             'data_pagamento': None,
             'status': 'pendente',
             'mes_referencia': '2024-12',
-            'observacoes': 'Aguardando confirmação',
+            'observacoes': 'Aguardando confirmacao',
             'data_criacao': '2024-11-05',
             'contrato_id': 3,
             'contrato_numero': '003',
@@ -783,7 +783,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
             'data_pagamento': None,
             'status': 'pendente',
             'mes_referencia': '2024-12',
-            'observacoes': 'Aguardando negociação',
+            'observacoes': 'Aguardando negociacao',
             'data_criacao': '2024-11-03',
             'contrato_id': 7,
             'contrato_numero': '007',
@@ -803,7 +803,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
             'data_pagamento': None,
             'status': 'em_atraso',
             'mes_referencia': '2024-09',
-            'observacoes': 'Cliente não localizado',
+            'observacoes': 'Cliente nao localizado',
             'data_criacao': '2024-08-15',
             'contrato_id': 8,
             'contrato_numero': '008',
@@ -817,7 +817,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         }
     ]
     
-    # Aplicar alterações de status às faturas
+    # Aplicar alteraçoes de status às faturas
     for fatura in faturas_teste:
         if fatura['id'] in faturas_status:
             fatura['status'] = faturas_status[fatura['id']]
@@ -852,7 +852,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         if filtros.get('valor_max'):
             faturas_filtradas = [f for f in faturas_filtradas if f['valor_total'] <= filtros['valor_max']]
     
-    # Aplicar ordenação
+    # Aplicar ordenacao
     reverse = order_dir == 'DESC'
     if order_by == 'valor_total':
         faturas_filtradas.sort(key=lambda x: x['valor_total'], reverse=reverse)
@@ -861,7 +861,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
     elif order_by == 'numero_fatura':
         faturas_filtradas.sort(key=lambda x: x['numero_fatura'], reverse=reverse)
     
-    # Aplicar paginação
+    # Aplicar paginacao
     total = len(faturas_filtradas)
     start_index = (page - 1) * limit
     end_index = start_index + limit
@@ -911,7 +911,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
             LEFT JOIN Locadores l ON i.id_locador = l.id
         """
         
-        # Construir condições WHERE baseadas nos filtros
+        # Construir condiçoes WHERE baseadas nos filtros
         where_conditions = []
         params = []
         
@@ -960,7 +960,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         else:
             query = base_query
         
-        # Adicionar ordenação
+        # Adicionar ordenacao
         query += f" ORDER BY {order_by} {order_dir}"
         
         # Executar query para contagem total
@@ -968,7 +968,7 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         cursor.execute(count_query, params)
         total = cursor.fetchone()[0]
         
-        # Adicionar paginação
+        # Adicionar paginacao
         offset = (page - 1) * limit
         query += f" OFFSET {offset} ROWS FETCH NEXT {limit} ROWS ONLY"
         
@@ -1020,9 +1020,9 @@ def buscar_estatisticas_faturas(filtros=None):
         {'status': 'em_atraso', 'valor_total': 2500.00, 'mes_referencia': '2024-09'}  # FAT-008
     ]
     
-    # Aplicar alterações de status às faturas de exemplo
+    # Aplicar alteraçoes de status às faturas de exemplo
     for i, fatura in enumerate(faturas_exemplo):
-        fatura_id = fatura.get('id', i + 1)  # Usar índice + 1 como ID se não houver
+        fatura_id = fatura.get('id', i + 1)  # Usar índice + 1 como ID se nao houver
         if fatura_id in faturas_status:
             fatura['status'] = faturas_status[fatura_id]
     
@@ -1101,7 +1101,7 @@ def buscar_fatura_por_id(fatura_id):
         return None
 
 def gerar_boleto_fatura(fatura_id, dados_boleto=None):
-    """Simula geração de boleto para uma fatura"""
+    """Simula geracao de boleto para uma fatura"""
     try:
         fatura = buscar_fatura_por_id(fatura_id)
         if not fatura:
@@ -1137,7 +1137,7 @@ def format_mes_referencia(mes_ref):
         return mes_ref
 
 def calcular_situacao_pagamento(fatura_dict):
-    """Calcula situação do pagamento baseado nas datas"""
+    """Calcula situacao do pagamento baseado nas datas"""
     if fatura_dict.get('data_pagamento'):
         return 'quitado'
     
@@ -1173,24 +1173,24 @@ def alterar_status_fatura(fatura_id, novo_status, motivo=None):
         return False
 
 def atualizar_locatario(locatario_id, **kwargs):
-    """Atualiza um locatário na tabela Locatarios"""
+    """Atualiza um locatario na tabela Locatarios"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Iniciando atualização do locatário ID: {locatario_id}")
+        print(f"Iniciando atualizacao do locatario ID: {locatario_id}")
         print(f"Dados recebidos: {kwargs}")
         
-        # Primeiro verificar se o locatário existe
+        # Primeiro verificar se o locatario existe
         cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
         locatario_existente = cursor.fetchone()
         
         if not locatario_existente:
-            print(f"Locatário ID {locatario_id} não encontrado na tabela Locatarios")
+            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios")
             conn.close()
             return False
         
-        print(f"Locatário encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
+        print(f"Locatario encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
         
         # Listar campos que podem ser atualizados baseados na estrutura da tabela
         campos_atualizaveis = [
@@ -1205,11 +1205,11 @@ def atualizar_locatario(locatario_id, **kwargs):
             'representante', 'tem_fiador', 'tem_moradores'
         ]
         
-        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int/bool quando necessário
+                # Converter valores string para int/bool quando necessario
                 if campo in ['possui_conjuge', 'possui_inquilino_solidario', 'possui_fiador', 'ativo', 'tem_fiador', 'tem_moradores']:
                     if isinstance(valor, str):
                         if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
@@ -1241,58 +1241,58 @@ def atualizar_locatario(locatario_id, **kwargs):
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualização")
+            print("Nenhuma linha foi afetada pela atualizacao")
             conn.close()
             return False
         
         conn.commit()
-        print(f"Locatário {locatario_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
+        print(f"Locatario {locatario_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
         
         conn.close()
         return True
         
     except Exception as e:
-        print(f"Erro ao atualizar locatário {locatario_id}: {e}")
+        print(f"Erro ao atualizar locatario {locatario_id}: {e}")
         if 'conn' in locals():
             conn.close()
         return False
 
 def alterar_status_locatario(locatario_id, ativo):
-    """Altera o status ativo/inativo de um locatário"""
+    """Altera o status ativo/inativo de um locatario"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Alterando status do locatário {locatario_id} para {'ativo' if ativo else 'inativo'}")
+        print(f"Alterando status do locatario {locatario_id} para {'ativo' if ativo else 'inativo'}")
         
-        # Primeiro verificar se o locatário existe
+        # Primeiro verificar se o locatario existe
         cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
         locatario_existente = cursor.fetchone()
         
         if not locatario_existente:
-            print(f"Locatário ID {locatario_id} não encontrado na tabela Locatarios")
+            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios")
             conn.close()
             return False
         
-        print(f"Locatário encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
+        print(f"Locatario encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
         
         # Atualizar o status
         cursor.execute("UPDATE Locatarios SET ativo = ? WHERE id = ?", (ativo, locatario_id))
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualização de status")
+            print("Nenhuma linha foi afetada pela atualizacao de status")
             conn.close()
             return False
         
         conn.commit()
-        print(f"Status do locatário {locatario_id} alterado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
+        print(f"Status do locatario {locatario_id} alterado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
         
         conn.close()
         return True
         
     except Exception as e:
-        print(f"Erro ao alterar status do locatário {locatario_id}: {e}")
+        print(f"Erro ao alterar status do locatario {locatario_id}: {e}")
         if 'conn' in locals():
             conn.close()
         return False
@@ -1303,7 +1303,7 @@ def atualizar_imovel(imovel_id, **kwargs):
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Iniciando atualização do imóvel ID: {imovel_id}")
+        print(f"Iniciando atualizacao do imóvel ID: {imovel_id}")
         print(f"Dados recebidos: {kwargs}")
         
         # 🆕 PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
@@ -1311,14 +1311,14 @@ def atualizar_imovel(imovel_id, **kwargs):
             try:
                 endereco_input = kwargs['endereco']
                 if isinstance(endereco_input, dict):
-                    print(f"🏠 Processando endereço estruturado: {endereco_input}")
+                    print(f"Processando endereço estruturado: {endereco_input}")
                     endereco_string, endereco_id = processar_endereco_imovel(endereco_input)
                     kwargs['endereco'] = endereco_string
                     if endereco_id:
                         kwargs['endereco_id'] = endereco_id
-                        print(f"✅ Endereço salvo na EnderecoImovel com ID: {endereco_id}")
+                        print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
             except Exception as endereco_error:
-                print(f"⚠️ Erro ao processar endereço, usando fallback: {endereco_error}")
+                print(f"AVISO:️ Erro ao processar endereço, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
         
@@ -1327,7 +1327,7 @@ def atualizar_imovel(imovel_id, **kwargs):
         imovel_existente = cursor.fetchone()
         
         if not imovel_existente:
-            print(f"Imóvel ID {imovel_id} não encontrado na tabela Imoveis")
+            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis")
             conn.close()
             return False
         
@@ -1344,11 +1344,11 @@ def atualizar_imovel(imovel_id, **kwargs):
             'area_servico', 'ativo', 'observacoes'
         ]
         
-        # Filtrar apenas os campos que foram enviados e são atualizáveis
+        # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int/bool quando necessário
+                # Converter valores string para int/bool quando necessario
                 if campo in ['mobiliado', 'aceita_animais', 'permite_pets', 'ativo']:
                     if isinstance(valor, str):
                         if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
@@ -1380,7 +1380,7 @@ def atualizar_imovel(imovel_id, **kwargs):
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualização")
+            print("Nenhuma linha foi afetada pela atualizacao")
             conn.close()
             return False
         
@@ -1409,7 +1409,7 @@ def alterar_status_imovel(imovel_id, ativo):
         imovel_existente = cursor.fetchone()
         
         if not imovel_existente:
-            print(f"Imóvel ID {imovel_id} não encontrado na tabela Imoveis")
+            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis")
             conn.close()
             return False
         
@@ -1420,7 +1420,7 @@ def alterar_status_imovel(imovel_id, ativo):
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualização de status")
+            print("Nenhuma linha foi afetada pela atualizacao de status")
             conn.close()
             return False
         
@@ -1437,61 +1437,334 @@ def alterar_status_imovel(imovel_id, ativo):
         return False
 
 def atualizar_contrato(contrato_id, **kwargs):
-    """Atualiza um contrato na tabela Contratos"""
+    """Atualiza um contrato na tabela Contratos - VERSAO LIMPA"""
     try:
+        print(f"=== REPOSITORIES: Atualizando contrato {contrato_id} ===")
+        print(f"Campos recebidos: {list(kwargs.keys())}")
+        
         conn = get_conexao()
         cursor = conn.cursor()
         
         # Verificar se o contrato existe
         cursor.execute("SELECT id FROM Contratos WHERE id = ?", (contrato_id,))
         if not cursor.fetchone():
-            print(f"Contrato ID {contrato_id} não encontrado")
+            print(f"ERRO: Contrato ID {contrato_id} nao encontrado no banco")
             return False
+        print(f"OK: Contrato {contrato_id} encontrado no banco")
         
-        # Campos atualizáveis na tabela Contratos
+        # Campos atualizaveis na tabela Contratos
         campos_atualizaveis = [
+            # Campos originais
             'id_locatario', 'id_imovel', 'valor_aluguel', 'data_inicio', 
             'data_fim', 'data_vencimento', 'tipo_garantia', 'observacoes',
             'status', 'valor_condominio', 'valor_iptu', 'valor_seguro',
             'percentual_reajuste', 'indice_reajuste', 'prazo_reajuste',
             'valor_multa_rescisao', 'valor_deposito_caucao', 'prazo_pagamento',
             'dia_vencimento', 'forma_pagamento', 'banco_pagamento',
-            'agencia_pagamento', 'conta_pagamento'
+            'agencia_pagamento', 'conta_pagamento',
+            
+            # Campos que JA EXISTEM no banco
+            'data_assinatura', 'ultimo_reajuste', 'proximo_reajuste',
+            'renovacao_automatica', 'vencimento_dia', 'taxa_administracao',
+            'fundo_conservacao', 'bonificacao', 'valor_seguro_fianca',
+            'valor_seguro_incendio', 'seguro_fianca_inicio', 'seguro_fianca_fim',
+            'seguro_incendio_inicio', 'seguro_incendio_fim', 'percentual_multa_atraso',
+            'retido_fci', 'retido_iptu', 'retido_condominio', 'retido_seguro_fianca',
+            'retido_seguro_incendio', 'antecipa_condominio', 'antecipa_seguro_fianca',
+            'antecipa_seguro_incendio',
+            
+            # Campos CRIADOS no banco 
+            'data_entrega_chaves',
+            'proximo_reajuste_automatico',
+            'periodo_contrato',
+            'tempo_renovacao',
+            'tempo_reajuste',
+            'data_inicio_iptu',
+            'data_fim_iptu',
+            'parcelas_iptu',
+            'parcelas_seguro_fianca',
+            'parcelas_seguro_incendio',
+            'valor_fci',
+            
+            # Campos de CORRETOR (15 novos campos do refinamento)
+            'tem_corretor',
+            'corretor_nome',
+            'corretor_creci',
+            'corretor_cpf',
+            'corretor_telefone',
+            'corretor_email',
+            
+            # Campos de OBRIGAÇÕES ADICIONAIS
+            'obrigacao_manutencao',
+            'obrigacao_pintura',
+            'obrigacao_jardim',
+            'obrigacao_limpeza',
+            'obrigacao_pequenos_reparos',
+            'obrigacao_vistoria',
+            
+            # Campos de MULTAS ESPECÍFICAS
+            'multa_locador',
+            'multa_locatario'
         ]
         
         # Filtrar campos para atualizar
         campos_para_atualizar = {}
+        campos_ignorados = []
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
                 campos_para_atualizar[campo] = valor
+            elif campo not in campos_atualizaveis:
+                campos_ignorados.append(campo)
+        
+        if campos_ignorados:
+            print(f"AVISO: Campos ignorados: {campos_ignorados}")
         
         if not campos_para_atualizar:
-            print("Nenhum campo válido para atualizar no contrato")
+            print("ERRO: Nenhum campo valido para atualizar")
             return False
+        
+        print(f"OK: Campos que serao atualizados: {list(campos_para_atualizar.keys())}")
         
         # Construir query UPDATE
         set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
         query = f"UPDATE Contratos SET {set_clause} WHERE id = ?"
         valores = list(campos_para_atualizar.values()) + [contrato_id]
         
-        print(f"Executando query: {query}")
-        print(f"Valores: {valores}")
+        print(f"Executando UPDATE...")
+        print(f"Query: {query}")
+        print(f"Parametros: {len(valores) - 1} campos + 1 ID")
         
         cursor.execute(query, valores)
         conn.commit()
         
         if cursor.rowcount > 0:
-            print(f"Contrato ID {contrato_id} atualizado com sucesso")
+            print(f"SUCESSO: Contrato ID {contrato_id} atualizado! ({cursor.rowcount} linha(s))")
             conn.close()
             return True
         else:
-            print(f"Nenhuma linha foi afetada na atualização do contrato {contrato_id}")
+            print(f"AVISO: Nenhuma linha afetada no contrato {contrato_id}")
             conn.close()
             return False
             
     except Exception as e:
-        print(f"Erro ao atualizar contrato: {e}")
+        print(f"ERRO ao atualizar contrato: {e}")
+        print(f"Tipo do erro: {type(e).__name__}")
         if 'conn' in locals():
             conn.rollback()
             conn.close()
         return False
+
+# ==========================================
+# FUNÇÕES PARA MÚLTIPLOS LOCADORES/LOCATÁRIOS
+# ==========================================
+
+def buscar_locadores_contrato(contrato_id):
+    """Busca todos os locadores associados a um contrato específico"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                cl.id,
+                cl.contrato_id,
+                cl.locador_id,
+                cl.conta_bancaria_id,
+                cl.porcentagem,
+                cl.responsabilidade_principal,
+                l.nome as locador_nome,
+                l.cpf_cnpj as locador_documento,
+                l.telefone as locador_telefone,
+                l.email as locador_email,
+                cl.ativo
+            FROM ContratoLocadores cl
+            INNER JOIN Locadores l ON cl.locador_id = l.id
+            WHERE cl.contrato_id = ? AND cl.ativo = 1
+            ORDER BY cl.responsabilidade_principal DESC, l.nome
+        """, (contrato_id,))
+        
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        result = []
+        
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"Erro ao buscar locadores do contrato {contrato_id}: {e}")
+        return []
+
+def buscar_locatarios_contrato(contrato_id):
+    """Busca todos os locatários associados a um contrato específico"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT 
+                cl.id,
+                cl.contrato_id,
+                cl.locatario_id,
+                cl.responsabilidade_principal,
+                cl.percentual_responsabilidade,
+                l.nome as locatario_nome,
+                l.cpf_cnpj as locatario_cpf,
+                l.telefone as locatario_telefone,
+                l.email as locatario_email,
+                cl.ativo
+            FROM ContratoLocatarios cl
+            INNER JOIN Locatarios l ON cl.locatario_id = l.id
+            WHERE cl.contrato_id = ? AND cl.ativo = 1
+            ORDER BY cl.responsabilidade_principal DESC, l.nome
+        """, (contrato_id,))
+        
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        result = []
+        
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"Erro ao buscar locatários do contrato {contrato_id}: {e}")
+        return []
+
+def salvar_locadores_contrato(contrato_id, locadores):
+    """Salva múltiplos locadores para um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Primeiro, deletar locadores existentes do contrato
+        cursor.execute("DELETE FROM ContratoLocadores WHERE contrato_id = ?", (contrato_id,))
+        
+        # Inserir novos locadores
+        for locador in locadores:
+            cursor.execute("""
+                INSERT INTO ContratoLocadores 
+                (contrato_id, locador_id, conta_bancaria_id, porcentagem, responsabilidade_principal, ativo)
+                VALUES (?, ?, ?, ?, ?, 1)
+            """, (
+                contrato_id,
+                locador['locador_id'],
+                locador.get('conta_bancaria_id', 1),
+                locador.get('porcentagem', 100.0),
+                locador.get('responsabilidade_principal', False)
+            ))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"OK Locadores salvos para contrato {contrato_id}")
+        return True
+        
+    except Exception as e:
+        print(f"ERRO ao salvar locadores do contrato {contrato_id}: {e}")
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
+        return False
+
+def salvar_locatarios_contrato(contrato_id, locatarios):
+    """Salva múltiplos locatários para um contrato"""
+    try:
+        print(f"Salvando {len(locatarios)} locatários para contrato {contrato_id}")
+        
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Validar dados recebidos
+        for i, locatario in enumerate(locatarios):
+            print(f"  Locatário {i+1}: ID={locatario.get('locatario_id', 'N/A')}, Principal={locatario.get('responsabilidade_principal', 'N/A')}, %={locatario.get('percentual_responsabilidade', 'N/A')}")
+            
+            if locatario.get('locatario_id', 0) <= 0:
+                raise ValueError(f"Locatário {i+1} tem ID inválido: {locatario.get('locatario_id')}")
+        
+        # Primeiro, deletar locatários existentes do contrato
+        cursor.execute("DELETE FROM ContratoLocatarios WHERE contrato_id = ?", (contrato_id,))
+        
+        # Inserir novos locatários
+        for locatario in locatarios:
+            cursor.execute("""
+                INSERT INTO ContratoLocatarios 
+                (contrato_id, locatario_id, responsabilidade_principal, percentual_responsabilidade, ativo)
+                VALUES (?, ?, ?, ?, 1)
+            """, (
+                contrato_id,
+                locatario['locatario_id'],
+                locatario.get('responsabilidade_principal', False),
+                locatario.get('percentual_responsabilidade', 100.0)  # Usar valor do frontend
+            ))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"OK Locatarios salvos para contrato {contrato_id}")
+        return True
+        
+    except Exception as e:
+        print(f"ERRO ao salvar locatarios do contrato {contrato_id}: {e}")
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
+        return False
+
+def buscar_todos_locadores_ativos():
+    """Lista todos os locadores ativos para seleção em contratos"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, nome, cpf_cnpj, telefone, email, ativo
+            FROM Locadores 
+            WHERE ativo = 1
+            ORDER BY nome
+        """)
+        
+        columns = [column[0] for column in cursor.description]
+        rows = cursor.fetchall()
+        result = []
+        
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"Erro ao buscar locadores ativos: {e}")
+        return []
+
+def validar_porcentagens_contrato(locadores):
+    """Valida se as porcentagens dos locadores somam 100% e outras regras"""
+    try:
+        if not locadores:
+            return {"success": False, "message": "É necessário ter pelo menos um locador"}
+        
+        # Verificar se há pelo menos um principal
+        tem_principal = any(l.get('responsabilidade_principal', False) for l in locadores)
+        if not tem_principal:
+            return {"success": False, "message": "É necessário ter um locador como responsável principal"}
+        
+        # Verificar soma das porcentagens
+        total_porcentagem = sum(float(l.get('porcentagem', 0)) for l in locadores)
+        if abs(total_porcentagem - 100.0) > 0.01:  # Tolerância para arredondamentos
+            return {"success": False, "message": f"As porcentagens devem somar 100% (atual: {total_porcentagem}%)"}
+        
+        return {"success": True, "message": "Validação OK", "details": {"total_porcentagem": total_porcentagem}}
+        
+    except Exception as e:
+        return {"success": False, "message": f"Erro na validação: {e}"}

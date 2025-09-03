@@ -80,7 +80,7 @@ const EnhancedSearchModule: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8001/api/search/advanced/sugestoes/${encodeURIComponent(termo)}`);
+      const response = await fetch(`http://localhost:8000/api/search/advanced/sugestoes/${encodeURIComponent(termo)}`);
       if (!response.ok) throw new Error('Erro na API');
       
       const data = await response.json();
@@ -138,7 +138,7 @@ const EnhancedSearchModule: React.FC = () => {
         queryParams.append('incluir_historico', 'true');
       }
       
-      const response = await fetch(`http://localhost:8001/api/search/global?${queryParams}`);
+      const response = await fetch(`http://localhost:8000/api/search/global?${queryParams}`);
 
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${response.statusText}`);

@@ -48,14 +48,34 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   const carregarLocadoresAtivos = async () => {
     try {
       setLoading(true);
-      const response = await apiService.listarLocadores();
-      if (response.success && response.data) {
-        setLocadoresOptions(response.data);
+      // Usar novo endpoint que retorna todos os locadores ativos
+      const response = await fetch('http://localhost:8000/api/locadores/ativos');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setLocadoresOptions(data.data);
+          console.log('Locadores ativos carregados:', data.data.length);
+        } else {
+          console.error('Erro na resposta da API:', data);
+        }
       } else {
-        console.error('Erro na resposta do apiService:', response);
+        // Fallback para endpoint antigo
+        const fallbackResponse = await apiService.listarLocadores();
+        if (fallbackResponse.success && fallbackResponse.data) {
+          setLocadoresOptions(fallbackResponse.data);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar locadores:', error);
+      // Tentar endpoint antigo como fallback
+      try {
+        const fallbackResponse = await apiService.listarLocadores();
+        if (fallbackResponse.success && fallbackResponse.data) {
+          setLocadoresOptions(fallbackResponse.data);
+        }
+      } catch (fallbackError) {
+        console.error('Erro no fallback:', fallbackError);
+      }
     } finally {
       setLoading(false);
     }
@@ -63,7 +83,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
 
   const carregarContasBancarias = async (locadorId: number) => {
     try {
-      const response = await fetch(`http://localhost:8001/api/locadores/${locadorId}/contas`);
+      const response = await fetch(`http://localhost:8000/api/locadores/${locadorId}/contas`);
       if (response.ok) {
         const data = await response.json();
         setContasBancarias(prev => ({
@@ -87,16 +107,19 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
     }
   };
 
-  const adicionarLocador = () => {
+  const adicionarLocador = (e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevenir submit do formulário
     const novoLocador: ContratoLocador = {
       locador_id: 0,
       conta_bancaria_id: 0,
-      porcentagem: 0
+      porcentagem: 0,
+      responsabilidade_principal: locadores.length === 0 // Primeiro locador é sempre principal
     };
     onChange([...locadores, novoLocador]);
   };
 
-  const removerLocador = (index: number) => {
+  const removerLocador = (index: number, e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevenir submit do formulário
     const novosLocadores = locadores.filter((_, i) => i !== index);
     onChange(novosLocadores);
   };
@@ -119,7 +142,8 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
     onChange(novosLocadores);
   };
 
-  const distribuirPercentualIgualmente = () => {
+  const distribuirPercentualIgualmente = (e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevenir submit do formulário
     if (locadores.length === 0) return;
     
     const percentualPorLocador = 100 / locadores.length;
@@ -147,6 +171,18 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
       return { 
         tipo: 'error', 
         mensagem: 'É obrigatório ter pelo menos um locador',
+        icone: AlertCircle,
+        cor: 'text-red-600'
+      };
+    }
+
+    // Verificar se há um responsável principal
+    const temResponsavelPrincipal = locadores.some(l => l.responsabilidade_principal === true);
+    
+    if (!temResponsavelPrincipal) {
+      return {
+        tipo: 'error',
+        mensagem: 'É necessário ter um locador como responsável principal',
         icone: AlertCircle,
         cor: 'text-red-600'
       };
@@ -211,6 +247,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
           </h2>
           <div className="flex gap-2">
             <Button 
+              type="button"
               onClick={distribuirPercentualIgualmente}
               disabled={locadores.length === 0}
               variant="outline"
@@ -222,6 +259,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
               Distribuir 100% Igualmente
             </Button>
             <Button 
+              type="button"
               onClick={adicionarLocador}
               size="sm"
               className="btn-outline"
@@ -284,7 +322,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
               É obrigatório ter pelo menos um proprietário no contrato
             </p>
             {!readonly && (
-              <Button onClick={adicionarLocador} className="btn-gradient">
+              <Button type="button" onClick={adicionarLocador} className="btn-gradient">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Primeiro Proprietário
               </Button>
@@ -333,7 +371,8 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         whileTap={{ scale: 0.95 }}
                       >
                         <Button 
-                          onClick={() => removerLocador(index)}
+                          type="button"
+                          onClick={(e) => removerLocador(index, e)}
                           variant="outline"
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
@@ -344,12 +383,12 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Seleção do Locador */}
                     <div>
                       <Label>Locador *</Label>
                       <Select 
-                        value={locador.locador_id > 0 ? locador.locador_id.toString() : undefined}
+                        value={locador.locador_id > 0 ? locador.locador_id.toString() : ""}
                         onValueChange={(value) => atualizarLocador(index, 'locador_id', parseInt(value))}
                       >
                         <SelectTrigger className="bg-muted/50 border-border text-foreground">
@@ -422,6 +461,34 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         placeholder="0.00"
                         icon={Percent}
                       />
+                    </div>
+
+                    {/* Responsável Principal */}
+                    <div>
+                      <Label>Responsabilidade</Label>
+                      <div className="flex items-center space-x-2 h-10 px-3 py-2 border rounded-md">
+                        <input
+                          type="checkbox"
+                          id={`principal_${index}`}
+                          checked={locador.responsabilidade_principal || false}
+                          onChange={(e) => {
+                            // Se está marcando como principal, desmarcar todos os outros
+                            if (e.target.checked) {
+                              const novosLocadores = locadores.map((loc, i) => ({
+                                ...loc,
+                                responsabilidade_principal: i === index
+                              }));
+                              onChange(novosLocadores);
+                            } else {
+                              atualizarLocador(index, 'responsabilidade_principal', false);
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <Label htmlFor={`principal_${index}`} className="text-sm font-normal cursor-pointer">
+                          Responsável Principal
+                        </Label>
+                      </div>
                     </div>
                   </div>
                 </motion.div>

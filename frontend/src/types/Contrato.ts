@@ -15,6 +15,7 @@ export interface ContratoLocador {
   conta_titular?: string;
   conta_cpf_titular?: string;
   porcentagem: number;
+  responsabilidade_principal?: boolean;
   data_criacao?: string;
 }
 
@@ -49,6 +50,7 @@ export interface ContratoLocatario {
   locatario_telefone?: string;
   locatario_email?: string;
   responsabilidade_principal?: boolean;
+  percentual_responsabilidade?: number;
 }
 
 export interface Contrato {

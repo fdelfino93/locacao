@@ -30,6 +30,7 @@ interface ContractPropertyFormProps {
   onChange: (imovelId: number) => void;
   onUtilizacaoChange?: (utilizacao: 'residencial' | 'comercial') => void;
   locadoresSelecionados?: number[];
+  readonly?: boolean;
 }
 
 export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
@@ -37,8 +38,13 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
   utilizacaoImovel,
   onChange,
   onUtilizacaoChange,
-  locadoresSelecionados = []
+  locadoresSelecionados = [],
+  readonly = false
 }) => {
+  console.log('🏠 === ContractPropertyForm RENDERIZADO ===');
+  console.log('🏠 imovelId recebido:', imovelId, 'tipo:', typeof imovelId);
+  console.log('🏠 locadoresSelecionados:', locadoresSelecionados);
+  console.log('🏠 readonly:', readonly);
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [imoveisFiltrados, setImoveisFiltrados] = useState<Imovel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,17 +82,32 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
 
   // Filtrar imóveis baseado nos locadores selecionados
   useEffect(() => {
+    console.log('🔧 Filtrando imóveis - locadores selecionados:', locadoresSelecionados);
+    console.log('🏠 Imóvel atual do contrato (imovelId):', imovelId);
+    
     if (locadoresSelecionados.length === 0) {
       // Se nenhum locador selecionado, mostrar todos os imóveis
+      console.log('📋 Nenhum locador selecionado - mostrando todos os imóveis');
       setImoveisFiltrados(imoveis);
     } else {
-      // Filtrar apenas imóveis dos locadores selecionados
-      const imoveisFiltradosPorLocador = imoveis.filter(imovel => 
+      // Filtrar imóveis dos locadores selecionados
+      let imoveisFiltradosPorLocador = imoveis.filter(imovel => 
         imovel.id_cliente && locadoresSelecionados.includes(imovel.id_cliente)
       );
+      
+      // IMPORTANTE: Sempre incluir o imóvel atual do contrato, mesmo que não seja do locador
+      if (imovelId > 0) {
+        const imovelAtual = imoveis.find(i => i.id === imovelId);
+        if (imovelAtual && !imoveisFiltradosPorLocador.find(i => i.id === imovelId)) {
+          console.log('✅ Adicionando imóvel atual do contrato à lista:', imovelAtual.endereco);
+          imoveisFiltradosPorLocador.unshift(imovelAtual); // Adicionar no início da lista
+        }
+      }
+      
+      console.log('📋 Imóveis filtrados final:', imoveisFiltradosPorLocador.length);
       setImoveisFiltrados(imoveisFiltradosPorLocador);
     }
-  }, [imoveis, locadoresSelecionados]);
+  }, [imoveis, locadoresSelecionados, imovelId]);
 
   // Recarregar imóveis quando locadores selecionados mudarem
   useEffect(() => {
@@ -98,26 +119,40 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
   }, [locadoresSelecionados]);
 
   useEffect(() => {
+    console.log('🔍 ContractPropertyForm useEffect - buscando imóvel:', imovelId);
+    console.log('🔍 Mode readonly:', readonly);
+    console.log('📋 Imóveis filtrados disponíveis:', imoveisFiltrados.map(i => `${i.id}: ${i.endereco}`));
+    
     if (imovelId > 0) {
       const imovel = imoveisFiltrados.find(i => i.id === imovelId);
+      console.log('🏠 Imóvel encontrado na lista:', imovel ? `${imovel.id}: ${imovel.endereco}` : 'NÃO ENCONTRADO');
       setImovelSelecionado(imovel || null);
       
-      // Se o imóvel selecionado não está na lista filtrada, resetar seleção
-      if (!imovel && locadoresSelecionados.length > 0) {
+      // CORREÇÃO: Se o imóvel selecionado não está na lista filtrada, resetar seleção APENAS se:
+      // 1. Não estiver em modo readonly
+      // 2. E se a lista de imóveis não estiver vazia (evita reset durante carregamento)
+      // 3. E há locadores selecionados que devem filtrar a lista
+      if (!imovel && locadoresSelecionados.length > 0 && !readonly && imoveisFiltrados.length > 0) {
+        console.log('⚠️ Imóvel não encontrado na lista filtrada, resetando seleção');
+        console.log('📋 Condições para reset: readonly=', readonly, ', locadores=', locadoresSelecionados.length, ', imoveis=', imoveisFiltrados.length);
         onChange(0);
       }
     } else {
       setImovelSelecionado(null);
     }
-  }, [imovelId, imoveisFiltrados, locadoresSelecionados, onChange]);
+  }, [imovelId, imoveisFiltrados, locadoresSelecionados, onChange, readonly]);
 
   const carregarImoveis = async () => {
     try {
       setLoading(true);
+      console.log('📦 Carregando todos os imóveis...');
+      
       // Usar o endpoint correto de imóveis
       const response = await apiService.listarImoveis();
       
       if (response.success && response.data) {
+        console.log('📦 Imóveis recebidos do backend:', response.data.length);
+        
         // Transformar os dados para o formato esperado
         const imoveisFormatados = response.data.map((imovel: any) => ({
           id: imovel.id,
@@ -131,6 +166,7 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
           locador_telefone: ''
         }));
         
+        console.log('🏠 Imóveis formatados:', imoveisFormatados.map(i => `ID:${i.id} - ${i.endereco} (Locador:${i.id_cliente})`));
         setImoveis(imoveisFormatados);
       } else {
         console.error('Erro na resposta da API de imóveis:', response);
@@ -303,8 +339,14 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
           <div>
             <Label>Imóvel *</Label>
             <Select 
-              value={imovelId > 0 ? imovelId.toString() : undefined}
-              onValueChange={handleImovelChange}
+              value={(() => {
+                const valorSelect = imovelId > 0 ? imovelId.toString() : "";
+                console.log('🎯 Valor do Select:', valorSelect, 'para imovelId:', imovelId);
+                console.log('🎯 Imóveis disponíveis no Select:', imoveisFiltrados.map(i => `${i.id}: ${i.endereco}`));
+                return valorSelect;
+              })()}
+              onValueChange={readonly ? undefined : handleImovelChange}
+              disabled={readonly}
             >
               <SelectTrigger className="bg-muted/50 border-border text-foreground">
                 <SelectValue placeholder={
@@ -355,8 +397,9 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
           <div>
             <Label>Utilização *</Label>
             <Select 
-              value={utilizacaoImovel || undefined}
-              onValueChange={(value) => onUtilizacaoChange?.(value as 'residencial' | 'comercial')}
+              value={utilizacaoImovel || ""}
+              onValueChange={readonly ? undefined : (value) => onUtilizacaoChange?.(value as 'residencial' | 'comercial')}
+              disabled={readonly}
             >
               <SelectTrigger className="bg-muted/50 border-border text-foreground">
                 <SelectValue placeholder="Selecione a utilização..." />

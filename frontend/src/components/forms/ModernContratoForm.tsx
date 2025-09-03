@@ -78,31 +78,72 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
   isViewing = false, 
   isEditing = false 
 }) => {
-  // Se for modo visualizar/editar, implementar carregamento de dados
-  if (isViewing || isEditing) {
-    const [loadingData, setLoadingData] = useState(true);
-    const [contratoData, setContratoData] = useState<any>(null);
-    const [apiError, setApiError] = useState<string | null>(null);
+  // Estados principais (devem vir primeiro)
+  const [loading, setLoading] = useState(false);
+  
+  // Estados para locadores e locatários do contrato (declarar sempre)
+  const [locadores, setLocadores] = useState<ContratoLocador[]>([]);
+  const [locatarios, setLocatarios] = useState<ContratoLocatario[]>([]);
+  
+  // Determinar se os campos devem estar desabilitados (apenas no modo visualizar puro)
+  const isReadonly = isViewing; // Em editar (isEditing=true), isReadonly=false
+  
+  // Estados para carregamento de dados (sempre declarados, usados quando necessário)
+  const [loadingData, setLoadingData] = useState(true);
+  const [contratoData, setContratoData] = useState<any>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [dadosInicializados, setDadosInicializados] = useState(false);
 
-    useEffect(() => {
-      const loadContrato = async () => {
+  // useEffect para carregar dados quando estiver em modo de visualização/edição
+  useEffect(() => {
+    console.log('🚀 useEffect de carregamento INICIADO');
+    console.log('isViewing:', isViewing, 'isEditing:', isEditing);
+    console.log('URL atual:', window.location.pathname);
+    
+    // Só carregar dados se estiver em modo de visualização ou edição
+    if (!isViewing && !isEditing) {
+      console.log('❌ Não está em modo de visualização/edição, pulando carregamento');
+      setLoadingData(false);
+      return;
+    }
+    
+    const loadContrato = async () => {
         try {
           setLoadingData(true);
           setApiError(null);
           
           // Extrair ID da URL
           const path = window.location.pathname;
+          console.log('🔍 Analisando path:', path);
           const contratoIdMatch = path.match(/\/contrato\/(visualizar|editar)\/(\d+)/);
+          console.log('🔍 Match encontrado:', contratoIdMatch);
           
           if (contratoIdMatch) {
             const contratoId = parseInt(contratoIdMatch[2]);
             console.log('Carregando contrato ID:', contratoId);
+            console.log('🌐 Fazendo chamada para:', `http://localhost:8000/api/contratos/${contratoId}`);
             
             const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}`);
             if (response.ok) {
               const data = await response.json();
               if (data.success && data.data) {
+                console.log('🔍 DADOS CARREGADOS DO CONTRATO:', data.data);
+                console.log('🏠 ID do imóvel carregado:', data.data.id_imovel);
+                console.log('🏠 Tipo do id_imovel:', typeof data.data.id_imovel);
+                
+                // GARANTIR que id_imovel seja um número válido
+                if (data.data.id_imovel) {
+                  data.data.id_imovel = parseInt(data.data.id_imovel);
+                  console.log('🔧 id_imovel convertido para número:', data.data.id_imovel);
+                }
+                
+                console.log('📝 CHAMANDO setContratoData com:', data.data);
+                console.log('📝 Especificamente id_imovel:', data.data.id_imovel);
+                
                 setContratoData(data.data);
+                
+                // Carregar múltiplos locadores e locatários
+                carregarLocadoresLocatarios(contratoId);
               } else {
                 setApiError('Contrato não encontrado');
               }
@@ -123,13 +164,93 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       loadContrato();
     }, []);
 
+  // Função para carregar múltiplos locadores e locatários
+  const carregarLocadoresLocatarios = async (contratoId: number) => {
+    try {
+      console.log('🔄 Carregando locadores e locatários para contrato', contratoId);
+      
+      // Carregar locadores
+      const responseLocadores = await fetch(`http://localhost:8000/api/contratos/${contratoId}/locadores`);
+      if (responseLocadores.ok) {
+        const dataLocadores = await responseLocadores.json();
+        if (dataLocadores.success && dataLocadores.data && dataLocadores.data.length > 0) {
+          console.log('📤 Locadores carregados:', dataLocadores.data);
+          setLocadores(dataLocadores.data);
+        } else {
+          console.log('⚠️ Nenhum locador encontrado, usando dados do contrato principal');
+          // Fallback para dados antigos se não houver na tabela relacional
+        }
+      }
+      
+      // Carregar locatários
+      const responseLocatarios = await fetch(`http://localhost:8000/api/contratos/${contratoId}/locatarios`);
+      if (responseLocatarios.ok) {
+        const dataLocatarios = await responseLocatarios.json();
+        if (dataLocatarios.success && dataLocatarios.data && dataLocatarios.data.length > 0) {
+          console.log('📤 Locatários carregados:', dataLocatarios.data);
+          setLocatarios(dataLocatarios.data);
+        } else {
+          console.log('⚠️ Nenhum locatário encontrado, usando dados do contrato principal');
+          // Fallback para dados antigos se não houver na tabela relacional  
+        }
+      }
+      
+    } catch (error) {
+      console.error('Erro ao carregar locadores/locatários:', error);
+    }
+  };
+
+  // Inicializar estados dos locadores e locatários quando contratoData for carregado (apenas na primeira vez)
+  useEffect(() => {
+    console.log('🔄 useEffect inicialização chamado:');
+    console.log('contratoData:', contratoData);
+    console.log('contratoData?.id_imovel:', contratoData?.id_imovel);
+    console.log('dadosInicializados:', dadosInicializados);
+    
+    if (contratoData && (isViewing || isEditing) && !dadosInicializados) {
+        // REMOVIDO: Inicialização antiga que só carregava 1 locador
+        // Agora os locadores são carregados pela função carregarLocadoresLocatarios()
+        // que busca da tabela ContratoLocadores e suporta múltiplos locadores
+
+        // REMOVIDO: Inicialização antiga que só carregava 1 locatário
+        // Agora os locatários são carregados pela função carregarLocadoresLocatarios()
+        // que busca da tabela ContratoLocatarios e suporta múltiplos locatários
+        
+        setDadosInicializados(true); // Marcar como inicializado para não reinicializar
+      }
+    }, [contratoData, dadosInicializados]);
 
     // Função para atualizar dados do contrato no modo editar
     const handleContratoInputChange = (field: string, value: any) => {
-      setContratoData(prev => ({
-        ...prev,
-        [field]: value
-      }));
+      // Mapear campos do frontend para nomes corretos do banco
+      const fieldMappings: { [key: string]: string } = {
+        'multa_atraso': 'percentual_multa_atraso',
+        'data_inicio_seguro_fianca': 'seguro_fianca_inicio',
+        'data_fim_seguro_fianca': 'seguro_fianca_fim',
+        'data_inicio_seguro_incendio': 'seguro_incendio_inicio',
+        'data_fim_seguro_incendio': 'seguro_incendio_fim'
+      };
+      
+      const actualField = fieldMappings[field] || field;
+      
+      console.log(`🔄 MUDANÇA DE CAMPO: ${field} -> ${actualField} = ${value}`);
+      
+      setContratoData(prev => {
+        const newData = {
+          ...prev,
+          [actualField]: value
+        };
+        
+        // Se mudou imóvel, logar detalhes
+        if (actualField === 'id_imovel') {
+          console.log('🏠 MUDANÇA DE IMÓVEL DETECTADA:');
+          console.log('Valor anterior:', prev.id_imovel);
+          console.log('Novo valor:', value);
+          console.log('Dados atualizados:', newData);
+        }
+        
+        return newData;
+      });
     };
 
     // Função para atualizar dados bancários do corretor
@@ -154,12 +275,66 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       }));
     };
 
+    // Função para recarregar dados do contrato
+    const recarregarDados = async () => {
+      try {
+        setLoadingData(true);
+        setApiError(null);
+        
+        // Extrair ID da URL
+        const path = window.location.pathname;
+        const contratoIdMatch = path.match(/\/contrato\/(visualizar|editar)\/(\d+)/);
+        
+        if (contratoIdMatch) {
+          const contratoId = parseInt(contratoIdMatch[2]);
+          console.log('Recarregando dados do contrato ID:', contratoId);
+          
+          const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data) {
+              setContratoData(data.data);
+              
+              // Resetar flag de inicialização para permitir reinicialização dos arrays
+              setDadosInicializados(false);
+              
+              console.log('✅ Dados recarregados com sucesso');
+            } else {
+              setApiError('Contrato não encontrado');
+            }
+          } else {
+            setApiError('Erro ao recarregar contrato');
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao recarregar:', error);
+        setApiError('Erro de conexão ao recarregar');
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
     // Função simples para salvar (apenas para modo editar)
     const handleSaveContract = async () => {
       if (!isEditing || !contratoData?.id) return;
       
+      console.log('=== SALVANDO CONTRATO ===');
+      console.log('ID do contrato:', contratoData.id);
+      console.log('Dados do contrato:', contratoData);
+      console.log('Locadores:', locadores);
+      console.log('Locatários:', locatarios);
+      
+      setLoading(true); // Ativar loading
+      
       try {
-        const response = await fetch(`http://localhost:8000/api/contratos/${contratoData.id}`, {
+        // Debug: Verificar dados antes de enviar
+        console.log('📤 DADOS ENVIADOS PARA API:');
+        console.log('ID do contrato:', contratoData.id);
+        console.log('ID do imóvel atual:', contratoData.id_imovel);
+        console.log('Dados completos:', JSON.stringify(contratoData, null, 2));
+        
+        // 1. Salvar dados básicos do contrato
+        const responseContrato = await fetch(`http://localhost:8000/api/contratos/${contratoData.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -167,18 +342,85 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
           body: JSON.stringify(contratoData),
         });
         
-        if (response.ok) {
-          alert('Contrato atualizado com sucesso!');
-        } else {
-          alert('Erro ao atualizar contrato');
+        if (!responseContrato.ok) {
+          const errorData = await responseContrato.json();
+          console.error('❌ Erro na resposta do servidor:', errorData);
+          throw new Error(`Erro ao salvar contrato: ${errorData.detail || 'Erro desconhecido'}`);
         }
+        
+        const resultContrato = await responseContrato.json();
+        console.log('✅ Resposta do servidor para contrato:', resultContrato);
+        
+        // 2. Salvar locadores usando novo endpoint
+        if (locadores && locadores.length > 0) {
+          console.log('Salvando locadores...');
+          console.log('📤 Dados dos locadores enviados:', JSON.stringify(locadores, null, 2));
+          const responseLocadores = await fetch(`http://localhost:8000/api/contratos/${contratoData.id}/locadores`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ locadores: locadores }),
+          });
+          
+          if (!responseLocadores.ok) {
+            const errorData = await responseLocadores.json();
+            console.warn('Erro ao salvar locadores:', errorData);
+          } else {
+            console.log('✅ Locadores salvos com sucesso');
+          }
+        }
+        
+        // 3. Salvar locatários usando novo endpoint
+        if (locatarios && locatarios.length > 0) {
+          console.log('Salvando locatários...');
+          console.log('📤 Dados dos locatários enviados:', JSON.stringify(locatarios, null, 2));
+          
+          // Validar dados antes de enviar
+          const locatariosValidos = locatarios.filter(l => l.locatario_id > 0);
+          const locatariosInvalidos = locatarios.filter(l => l.locatario_id <= 0);
+          
+          console.log(`📊 Locatários válidos: ${locatariosValidos.length}`);
+          console.log(`❌ Locatários inválidos: ${locatariosInvalidos.length}`);
+          
+          if (locatariosInvalidos.length > 0) {
+            console.log('⚠️ Locatários com ID inválido:', locatariosInvalidos);
+            alert(`Erro: ${locatariosInvalidos.length} locatário(s) não foram selecionados. Selecione todos os locatários antes de salvar.`);
+            return;
+          }
+          
+          const responseLocatarios = await fetch(`http://localhost:8000/api/contratos/${contratoData.id}/locatarios`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ locatarios: locatarios }),
+          });
+          
+          if (!responseLocatarios.ok) {
+            const errorData = await responseLocatarios.json();
+            console.warn('Erro ao salvar locatários:', errorData);
+          } else {
+            console.log('✅ Locatários salvos com sucesso');
+          }
+        }
+        
+        alert('✅ Contrato atualizado com sucesso!');
+        console.log('✅ SUCESSO: Todas as alterações salvas no banco');
+        
+        // Recarregar dados após salvar com sucesso
+        await recarregarDados();
+        
       } catch (error) {
-        alert('Erro de conexão');
+        console.error('❌ Erro ao salvar:', error);
+        alert(`❌ Erro ao salvar contrato: ${error.message || 'Erro de conexão'}`);
+      } finally {
+        setLoading(false); // Desativar loading
       }
     };
 
-    // Tela de carregamento
-    if (loadingData) {
+  // Se estiver em modo de visualização/edição, mostrar telas de loading/erro
+  if ((isViewing || isEditing) && loadingData) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -200,8 +442,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       );
     }
 
-    // Tela de erro
-    if (apiError) {
+  // Se estiver em modo de visualização/edição, mostrar tela de erro
+  if ((isViewing || isEditing) && apiError) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -225,7 +467,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       );
     }
 
-    // Tela principal com dados carregados
+  // Se estiver em modo de visualização/edição, mostrar tela principal com dados carregados
+  if (isViewing || isEditing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -317,8 +560,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           <Label>Número do Contrato</Label>
                           <InputWithIcon
                             value={contratoData?.numero_contrato || contratoData?.id || ''}
+                            onChange={(e) => handleContratoInputChange('numero_contrato', e.target.value)}
                             icon={FileText}
-                            disabled={isViewing}
+                            disabled={isReadonly}
                             className="w-full"
                           />
                         </div>
@@ -328,8 +572,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           <InputWithIcon
                             type="date"
                             value={contratoData?.data_inicio || ''}
+                            onChange={(e) => handleContratoInputChange('data_inicio', e.target.value)}
                             icon={Calendar}
-                            disabled={isViewing}
+                            disabled={isReadonly}
                             className="w-full"
                           />
                         </div>
@@ -342,15 +587,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         transition={{ duration: 0.3, delay: 0.1 }}
                       >
                         <ContractLandlordsForm 
-                          locadores={contratoData ? [{
-                            locador_id: contratoData.locador_id || contratoData.id_locador || 0,
-                            conta_bancaria_id: 1,
-                            porcentagem: 100,
-                            locador_nome: contratoData.locador_nome || 'Locador não informado',
-                            locador_documento: contratoData.locador_cpf || ''
-                          }] : []}
-                          onChange={() => {}}
-                          readonly={isViewing}
+                          locadores={locadores}
+                          onChange={setLocadores}
+                          readonly={isViewing && !isEditing}
                         />
                       </motion.div>
                       
@@ -361,14 +600,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         transition={{ duration: 0.3, delay: 0.2 }}
                       >
                         <ContractTenantsForm 
-                          locatarios={contratoData ? [{
-                            locatario_id: contratoData.locatario_id || contratoData.id_locatario || 0,
-                            locatario_nome: contratoData.locatario_nome_completo || contratoData.locatario_nome || 'Locatário não informado',
-                            locatario_cpf: contratoData.locatario_cpf_completo || contratoData.locatario_documento || '',
-                            responsabilidade_principal: true
-                          }] : []}
-                          onChange={() => {}}
-                          readonly={isViewing}
+                          locatarios={locatarios}
+                          onChange={setLocatarios}
+                          readonly={isViewing && !isEditing}
                         />
                       </motion.div>
                       
@@ -378,14 +612,33 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.3 }}
                       >
-                        <ContractPropertyForm 
-                          imovelId={contratoData?.id_imovel || null}
-                          utilizacaoImovel={contratoData?.utilizacao_imovel || ""}
-                          onChange={() => {}}
-                          onUtilizacaoChange={() => {}}
-                          locadoresSelecionados={contratoData?.locador_id ? [contratoData.locador_id] : []}
-                          readonly={isViewing}
-                        />
+                        {/* Só renderizar ContractPropertyForm quando contratoData estiver carregado */}
+                        {contratoData && (
+                          <ContractPropertyForm 
+                            imovelId={(() => {
+                              const imovel = contratoData.id_imovel;
+                              console.log('🎯 PASSANDO PARA ContractPropertyForm:');
+                              console.log('contratoData.id_imovel:', imovel);
+                              console.log('tipo:', typeof imovel);
+                              return imovel || 0;
+                            })()}
+                            utilizacaoImovel={contratoData.utilizacao_imovel || ""}
+                            onChange={(imovelId) => {
+                              console.log('🔄 ContractPropertyForm onChange chamado com:', imovelId);
+                              handleContratoInputChange('id_imovel', imovelId);
+                            }}
+                            onUtilizacaoChange={(utilizacao) => handleContratoInputChange('utilizacao_imovel', utilizacao)}
+                            locadoresSelecionados={contratoData.locador_id ? [contratoData.locador_id] : []}
+                            readonly={isViewing}
+                          />
+                        )}
+                        
+                        {!contratoData && (
+                          <div className="p-6 text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                            <p className="mt-2 text-sm text-muted-foreground">Carregando dados do contrato...</p>
+                          </div>
+                        )}
                       </motion.div>
                     </TabsContent>
 
@@ -424,7 +677,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               type="date"
                               icon={Calendar}
                               value={contratoData.data_assinatura || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('data_assinatura', e.target.value)}
+                              disabled={isReadonly}
                             />
                             <p className="text-xs text-muted-foreground">Não pode ser uma data futura</p>
                           </div>
@@ -436,7 +690,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               type="date"
                               icon={Calendar}
                               value={contratoData.data_entrega_chaves || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('data_entrega_chaves', e.target.value)}
+                              disabled={isReadonly}
                             />
                           </div>
 
@@ -449,7 +704,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               max="31"
                               icon={Calendar}
                               value={contratoData.vencimento_dia || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('vencimento_dia', e.target.value)}
+                              disabled={isReadonly}
                             />
                           </div>
 
@@ -460,13 +716,18 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               type="date"
                               icon={Calendar}
                               value={contratoData.data_inicio || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('data_inicio', e.target.value)}
+                              disabled={isReadonly}
                             />
                           </div>
 
                           <div className="space-y-2">
                             <Label htmlFor="periodo_contrato">Período do Contrato (meses)</Label>
-                            <Select disabled={isViewing}>
+                            <Select 
+                              value={contratoData.periodo_contrato?.toString()}
+                              onValueChange={(value) => handleContratoInputChange('periodo_contrato', parseInt(value))}
+                              disabled={isReadonly}
+                            >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={contratoData.periodo_contrato ? `${contratoData.periodo_contrato} meses` : "12 meses"} />
                               </SelectTrigger>
@@ -524,7 +785,11 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           <div className="space-y-2">
                             <Label htmlFor="tempo_renovacao">Período de Renovação (meses)</Label>
-                            <Select disabled={isViewing}>
+                            <Select 
+                              value={contratoData.tempo_renovacao?.toString()}
+                              onValueChange={(value) => handleContratoInputChange('tempo_renovacao', parseInt(value))}
+                              disabled={isReadonly}
+                            >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={contratoData.tempo_renovacao ? `${contratoData.tempo_renovacao} meses` : "12 meses"} />
                               </SelectTrigger>
@@ -538,7 +803,11 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                           <div className="space-y-2">
                             <Label htmlFor="tempo_reajuste">Período de Reajuste (meses)</Label>
-                            <Select disabled={isViewing}>
+                            <Select 
+                              value={contratoData.tempo_reajuste?.toString()}
+                              onValueChange={(value) => handleContratoInputChange('tempo_reajuste', parseInt(value))}
+                              disabled={isReadonly}
+                            >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={contratoData.tempo_reajuste ? `${contratoData.tempo_reajuste} meses` : "12 meses"} />
                               </SelectTrigger>
@@ -552,7 +821,11 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                           <div className="space-y-2">
                             <Label htmlFor="indice_reajuste">Índice de Reajuste</Label>
-                            <Select disabled={isViewing}>
+                            <Select 
+                              value={contratoData.indice_reajuste}
+                              onValueChange={(value) => handleContratoInputChange('indice_reajuste', value)}
+                              disabled={isReadonly}
+                            >
                               <SelectTrigger className="w-full">
                                 <SelectValue placeholder={contratoData.indice_reajuste || "IPCA"} />
                               </SelectTrigger>
@@ -574,7 +847,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               min="0"
                               icon={Percent}
                               value={contratoData.percentual_reajuste || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('percentual_reajuste', e.target.value)}
+                              disabled={isReadonly}
                             />
                             <p className="text-xs text-muted-foreground">Percentual aplicado no reajuste</p>
                           </div>
@@ -586,7 +860,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               type="date"
                               icon={Calendar}
                               value={contratoData.ultimo_reajuste || ''}
-                              disabled={isViewing}
+                              onChange={(e) => handleContratoInputChange('ultimo_reajuste', e.target.value)}
+                              disabled={isReadonly}
                             />
                             <p className="text-xs text-muted-foreground">Último reajuste aplicado ao contrato</p>
                           </div>
@@ -613,7 +888,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                             <Checkbox
                               id="renovacao_automatica"
                               checked={contratoData.renovacao_automatica || false}
-                              disabled={isViewing}
+                              onCheckedChange={(checked) => handleContratoInputChange('renovacao_automatica', !!checked)}
+                              disabled={isReadonly}
                             />
                             <Label htmlFor="renovacao_automatica" className="flex items-center gap-2">
                               <ArrowUp className="w-4 h-4" />
@@ -625,7 +901,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                             <Checkbox
                               id="proximo_reajuste_automatico"
                               checked={contratoData.proximo_reajuste_automatico || false}
-                              disabled={isViewing}
+                              onCheckedChange={(checked) => handleContratoInputChange('proximo_reajuste_automatico', !!checked)}
+                              disabled={isReadonly}
                             />
                             <Label htmlFor="proximo_reajuste_automatico" className="flex items-center gap-2">
                               <Calendar className="w-4 h-4" />
@@ -681,7 +958,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <CurrencyInput
                                 id="valor_aluguel"
                                 value={contratoData.valor_aluguel || 0}
-                                disabled={isViewing}
+                                onChange={(value) => handleContratoInputChange('valor_aluguel', value)}
+                                disabled={isReadonly}
                               />
                             </div>
 
@@ -690,7 +968,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <CurrencyInput
                                 id="valor_condominio"
                                 value={contratoData.valor_condominio || 0}
-                                disabled={isViewing}
+                                onChange={(value) => handleContratoInputChange('valor_condominio', value)}
+                                disabled={isReadonly}
                               />
                             </div>
 
@@ -699,7 +978,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <CurrencyInput
                                 id="valor_fci"
                                 value={contratoData.valor_fci || 0}
-                                disabled={isViewing}
+                                onChange={(value) => handleContratoInputChange('valor_fci', value)}
+                                disabled={isReadonly}
                               />
                               <p className="text-xs text-muted-foreground">Fundo de Conservação de Imóveis</p>
                             </div>
@@ -714,7 +994,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                 max="100"
                                 icon={Percent}
                                 value={contratoData.taxa_administracao || ''}
-                                disabled={isViewing}
+                                onChange={(e) => handleContratoInputChange('taxa_administracao', e.target.value)}
+                                disabled={isReadonly}
                               />
                             </div>
 
@@ -723,7 +1004,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <CurrencyInput
                                 id="bonificacao"
                                 value={contratoData.bonificacao || 0}
-                                disabled={isViewing}
+                                onChange={(value) => handleContratoInputChange('bonificacao', value)}
+                                disabled={isReadonly}
                               />
                             </div>
 
@@ -736,8 +1018,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                 min="0"
                                 max="100"
                                 icon={Percent}
-                                value={contratoData.multa_atraso || ''}
-                                disabled={isViewing}
+                                value={contratoData.percentual_multa_atraso || ''}
+                                onChange={(e) => handleContratoInputChange('multa_atraso', e.target.value)}
+                                disabled={isReadonly}
                               />
                               <p className="text-xs text-muted-foreground">Percentual aplicado sobre o valor em atraso</p>
                             </div>
@@ -788,7 +1071,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="valor_seguro_fianca"
                                     value={contratoData.valor_seguro_fianca || 0}
-                                    disabled={isViewing}
+                                    onChange={(value) => handleContratoInputChange('valor_seguro_fianca', value)}
+                                    disabled={isReadonly}
                                   />
                                 </div>
                                 
@@ -797,8 +1081,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <InputWithIcon
                                     id="data_inicio_seguro_fianca"
                                     type="date"
-                                    value={contratoData.data_inicio_seguro_fianca || ''}
-                                    disabled={isViewing}
+                                    value={contratoData.seguro_fianca_inicio || ''}
+                                    onChange={(e) => handleContratoInputChange('data_inicio_seguro_fianca', e.target.value)}
+                                    disabled={isReadonly}
                                     icon={Calendar}
                                   />
                                 </div>
@@ -808,7 +1093,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <InputWithIcon
                                     id="data_fim_seguro_fianca"
                                     type="date"
-                                    value={contratoData.data_fim_seguro_fianca || ''}
+                                    value={contratoData.seguro_fianca_fim || ''}
                                     disabled={true}
                                     icon={Calendar}
                                     className="bg-muted/30"
@@ -824,7 +1109,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     min="0"
                                     max="60"
                                     value={contratoData.parcelas_seguro_fianca || ''}
-                                    disabled={isViewing}
+                                    onChange={(e) => handleContratoInputChange('parcelas_seguro_fianca', parseInt(e.target.value) || 0)}
+                                    disabled={isReadonly}
                                     icon={CreditCard}
                                   />
                                   <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
@@ -850,7 +1136,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="valor_seguro_incendio"
                                     value={contratoData.valor_seguro_incendio || 0}
-                                    disabled={isViewing}
+                                    onChange={(value) => handleContratoInputChange('valor_seguro_incendio', value)}
+                                    disabled={isReadonly}
                                   />
                                 </div>
                                 
@@ -859,8 +1146,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <InputWithIcon
                                     id="data_inicio_seguro_incendio"
                                     type="date"
-                                    value={contratoData.data_inicio_seguro_incendio || ''}
-                                    disabled={isViewing}
+                                    value={contratoData.seguro_incendio_inicio || ''}
+                                    onChange={(e) => handleContratoInputChange('data_inicio_seguro_incendio', e.target.value)}
+                                    disabled={isReadonly}
                                     icon={Calendar}
                                   />
                                 </div>
@@ -870,7 +1158,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <InputWithIcon
                                     id="data_fim_seguro_incendio"
                                     type="date"
-                                    value={contratoData.data_fim_seguro_incendio || ''}
+                                    value={contratoData.seguro_incendio_fim || ''}
                                     disabled={true}
                                     icon={Calendar}
                                     className="bg-muted/30"
@@ -886,7 +1174,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     min="0"
                                     max="60"
                                     value={contratoData.parcelas_seguro_incendio || ''}
-                                    disabled={isViewing}
+                                    onChange={(e) => handleContratoInputChange('parcelas_seguro_incendio', parseInt(e.target.value) || 0)}
+                                    disabled={isReadonly}
                                     icon={CreditCard}
                                   />
                                   <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
@@ -912,7 +1201,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="valor_iptu"
                                     value={contratoData.valor_iptu || 0}
-                                    disabled={isViewing}
+                                    onChange={(value) => handleContratoInputChange('valor_iptu', value)}
+                                    disabled={isReadonly}
                                   />
                                 </div>
                                 
@@ -923,7 +1213,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                       id="data_inicio_iptu"
                                       type="date"
                                       value={contratoData.data_inicio_iptu || ''}
-                                      disabled={isViewing}
+                                      onChange={(e) => handleContratoInputChange('data_inicio_iptu', e.target.value)}
+                                      disabled={isReadonly}
                                       icon={Calendar}
                                     />
                                   </div>
@@ -950,7 +1241,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     min="0"
                                     max="60"
                                     value={contratoData.parcelas_iptu || ''}
-                                    disabled={isViewing}
+                                    onChange={(e) => handleContratoInputChange('parcelas_iptu', parseInt(e.target.value) || 0)}
+                                    disabled={isReadonly}
                                     icon={CreditCard}
                                   />
                                   <p className="text-xs text-muted-foreground">Cada parcela = 1 mês de cobertura</p>
@@ -1006,7 +1298,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="retido_fci"
                                     checked={contratoData.retido_fci || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('retido_fci', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <DollarSign className="w-4 h-4 text-red-600" />
@@ -1018,7 +1311,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="retido_iptu"
                                     checked={contratoData.retido_iptu || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('retido_iptu', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Building className="w-4 h-4 text-red-600" />
@@ -1030,7 +1324,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="retido_condominio"
                                     checked={contratoData.retido_condominio || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('retido_condominio', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Building className="w-4 h-4 text-red-600" />
@@ -1042,7 +1337,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="retido_seguro_fianca"
                                     checked={contratoData.retido_seguro_fianca || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('retido_seguro_fianca', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Shield className="w-4 h-4 text-red-600" />
@@ -1054,7 +1350,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="retido_seguro_incendio"
                                     checked={contratoData.retido_seguro_incendio || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('retido_seguro_incendio', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Shield className="w-4 h-4 text-red-600" />
@@ -1084,7 +1381,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="antecipa_condominio"
                                     checked={contratoData.antecipa_condominio || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('antecipa_condominio', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Building className="w-4 h-4 text-green-600" />
@@ -1096,7 +1394,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="antecipa_seguro_fianca"
                                     checked={contratoData.antecipa_seguro_fianca || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('antecipa_seguro_fianca', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Shield className="w-4 h-4 text-green-600" />
@@ -1108,7 +1407,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="antecipa_seguro_incendio"
                                     checked={contratoData.antecipa_seguro_incendio || false}
-                                    disabled={isViewing}
+                                    onCheckedChange={(checked) => handleContratoInputChange('antecipa_seguro_incendio', !!checked)}
+                                    disabled={isReadonly}
                                   />
                                   <div className="flex items-center gap-2 flex-1">
                                     <Shield className="w-4 h-4 text-green-600" />
@@ -1164,8 +1464,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                             <Label>Tipo de Garantia *</Label>
                             <Select 
                               value={contratoData.tipo_garantia || ''}
-                              disabled={isViewing}
-                              onValueChange={!isViewing ? (value) => handleContratoInputChange('tipo_garantia', value) : undefined}
+                              disabled={isReadonly}
+                              onValueChange={!isReadonly ? (value) => handleContratoInputChange('tipo_garantia', value) : undefined}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o tipo de garantia..." />
@@ -1350,8 +1650,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Label htmlFor="caucao_tipo">Tipo de Caução</Label>
                                   <Select 
                                     value={contratoData.caucao_tipo || ''}
-                                    disabled={isViewing}
-                                    onValueChange={!isViewing ? (value) => handleContratoInputChange('caucao_tipo', value) : undefined}
+                                    disabled={isReadonly}
+                                    onValueChange={!isReadonly ? (value) => handleContratoInputChange('caucao_tipo', value) : undefined}
                                   >
                                     <SelectTrigger>
                                       <SelectValue placeholder="Selecione o tipo..." />
@@ -1369,8 +1669,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="caucao_valor"
                                     value={contratoData.caucao_valor || 0}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (value) => handleContratoInputChange('caucao_valor', value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (value) => handleContratoInputChange('caucao_valor', value) : undefined}
                                   />
                                 </div>
                               </div>
@@ -1380,8 +1680,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                 <Textarea
                                   id="caucao_descricao"
                                   value={contratoData.caucao_descricao || ''}
-                                  disabled={isViewing}
-                                  onChange={!isViewing ? (e) => handleContratoInputChange('caucao_descricao', e.target.value) : undefined}
+                                  disabled={isReadonly}
+                                  onChange={!isReadonly ? (e) => handleContratoInputChange('caucao_descricao', e.target.value) : undefined}
                                   placeholder="Detalhes sobre a caução..."
                                   rows={3}
                                 />
@@ -1423,8 +1723,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="seguro_seguradora"
                                     type="text"
                                     value={contratoData.seguro_seguradora || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_seguradora', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('seguro_seguradora', e.target.value) : undefined}
                                     placeholder="Nome da seguradora"
                                     icon={Building}
                                   />
@@ -1436,8 +1736,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="seguro_apolice"
                                     type="text"
                                     value={contratoData.seguro_apolice || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_apolice', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('seguro_apolice', e.target.value) : undefined}
                                     placeholder="Número da apólice"
                                     icon={FileText}
                                   />
@@ -1448,8 +1748,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="seguro_valor_cobertura"
                                     value={contratoData.seguro_valor_cobertura || 0}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (value) => handleContratoInputChange('seguro_valor_cobertura', value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (value) => handleContratoInputChange('seguro_valor_cobertura', value) : undefined}
                                   />
                                 </div>
 
@@ -1459,8 +1759,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="seguro_vigencia"
                                     type="date"
                                     value={contratoData.seguro_vigencia || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('seguro_vigencia', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('seguro_vigencia', e.target.value) : undefined}
                                     icon={Calendar}
                                   />
                                 </div>
@@ -1502,8 +1802,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="titulo_empresa"
                                     type="text"
                                     value={contratoData.titulo_empresa || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_empresa', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('titulo_empresa', e.target.value) : undefined}
                                     placeholder="Nome da empresa"
                                     icon={Building}
                                   />
@@ -1515,8 +1815,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="titulo_numero"
                                     type="text"
                                     value={contratoData.titulo_numero || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_numero', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('titulo_numero', e.target.value) : undefined}
                                     placeholder="Número do título"
                                     icon={FileText}
                                   />
@@ -1527,8 +1827,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="titulo_valor"
                                     value={contratoData.titulo_valor || 0}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (value) => handleContratoInputChange('titulo_valor', value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (value) => handleContratoInputChange('titulo_valor', value) : undefined}
                                   />
                                 </div>
 
@@ -1538,8 +1838,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                     id="titulo_vencimento"
                                     type="date"
                                     value={contratoData.titulo_vencimento || ''}
-                                    disabled={isViewing}
-                                    onChange={!isViewing ? (e) => handleContratoInputChange('titulo_vencimento', e.target.value) : undefined}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('titulo_vencimento', e.target.value) : undefined}
                                     icon={Calendar}
                                   />
                                 </div>
@@ -1581,8 +1881,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                             <Label>Tipo de Plano</Label>
                             <Select 
                               value={contratoData.tipo_plano_locacao || ''}
-                              disabled={isViewing}
-                              onValueChange={!isViewing ? (value) => handleContratoInputChange('tipo_plano_locacao', value) : undefined}
+                              disabled={isReadonly}
+                              onValueChange={!isReadonly ? (value) => handleContratoInputChange('tipo_plano_locacao', value) : undefined}
                             >
                               <SelectTrigger className="bg-muted/50 border-border text-foreground">
                                 <SelectValue placeholder="Selecione o plano de locação..." />
@@ -1716,8 +2016,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <Checkbox
                                     id="tem_corretor"
                                     checked={contratoData.tem_corretor || false}
-                                    disabled={isViewing}
-                                    onCheckedChange={!isViewing ? (checked) => handleContratoInputChange('tem_corretor', !!checked) : undefined}
+                                    disabled={isReadonly}
+                                    onCheckedChange={!isReadonly ? (checked) => handleContratoInputChange('tem_corretor', !!checked) : undefined}
                                   />
                                   <Label htmlFor="tem_corretor" className="cursor-pointer text-foreground font-medium">
                                     Há corretor nesta locação
@@ -1739,8 +2039,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           id="corretor_nome"
                                           type="text"
                                           value={contratoData.corretor_nome || ''}
-                                          disabled={isViewing}
-                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_nome', e.target.value) : undefined}
+                                          disabled={isReadonly}
+                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_nome', e.target.value) : undefined}
                                           placeholder="Nome completo do corretor"
                                           icon={User}
                                         />
@@ -1752,8 +2052,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           id="corretor_creci"
                                           type="text"
                                           value={contratoData.corretor_creci || ''}
-                                          disabled={isViewing}
-                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_creci', e.target.value) : undefined}
+                                          disabled={isReadonly}
+                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_creci', e.target.value) : undefined}
                                           placeholder="Número do CRECI"
                                           icon={IdCard}
                                         />
@@ -1765,8 +2065,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           id="corretor_cpf"
                                           type="text"
                                           value={contratoData.corretor_cpf || ''}
-                                          disabled={isViewing}
-                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_cpf', e.target.value) : undefined}
+                                          disabled={isReadonly}
+                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_cpf', e.target.value) : undefined}
                                           placeholder="000.000.000-00"
                                           icon={IdCard}
                                         />
@@ -1778,8 +2078,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           id="corretor_telefone"
                                           type="text"
                                           value={contratoData.corretor_telefone || ''}
-                                          disabled={isViewing}
-                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_telefone', e.target.value) : undefined}
+                                          disabled={isReadonly}
+                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_telefone', e.target.value) : undefined}
                                           placeholder="(00) 00000-0000"
                                           icon={Phone}
                                         />
@@ -1791,8 +2091,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           id="corretor_email"
                                           type="email"
                                           value={contratoData.corretor_email || ''}
-                                          disabled={isViewing}
-                                          onChange={!isViewing ? (e) => handleContratoInputChange('corretor_email', e.target.value) : undefined}
+                                          disabled={isReadonly}
+                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_email', e.target.value) : undefined}
                                           placeholder="corretor@exemplo.com"
                                           icon={Mail}
                                         />
@@ -1813,8 +2113,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                             id="corretor_banco"
                                             type="text"
                                             value={contratoData.dados_bancarios_corretor?.banco || ''}
-                                            disabled={isViewing}
-                                            onChange={!isViewing ? (e) => handleBancarioCorretor('banco', e.target.value) : undefined}
+                                            disabled={isReadonly}
+                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('banco', e.target.value) : undefined}
                                             placeholder="Nome do banco"
                                             icon={CreditCard}
                                           />
@@ -1826,8 +2126,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                             id="corretor_agencia"
                                             type="text"
                                             value={contratoData.dados_bancarios_corretor?.agencia || ''}
-                                            disabled={isViewing}
-                                            onChange={!isViewing ? (e) => handleBancarioCorretor('agencia', e.target.value) : undefined}
+                                            disabled={isReadonly}
+                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('agencia', e.target.value) : undefined}
                                             placeholder="Agência"
                                             icon={CreditCard}
                                           />
@@ -1839,8 +2139,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                             id="corretor_conta"
                                             type="text"
                                             value={contratoData.dados_bancarios_corretor?.conta || ''}
-                                            disabled={isViewing}
-                                            onChange={!isViewing ? (e) => handleBancarioCorretor('conta', e.target.value) : undefined}
+                                            disabled={isReadonly}
+                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('conta', e.target.value) : undefined}
                                             placeholder="Número da conta"
                                             icon={CreditCard}
                                           />
@@ -1850,8 +2150,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                           <Label htmlFor="corretor_tipo_conta">Tipo de Conta</Label>
                                           <Select 
                                             value={contratoData.dados_bancarios_corretor?.tipo_conta || ''}
-                                            disabled={isViewing}
-                                            onValueChange={!isViewing ? (value) => handleBancarioCorretor('tipo_conta', value) : undefined}
+                                            disabled={isReadonly}
+                                            onValueChange={!isReadonly ? (value) => handleBancarioCorretor('tipo_conta', value) : undefined}
                                           >
                                             <SelectTrigger>
                                               <SelectValue placeholder="Tipo da conta" />
@@ -1869,8 +2169,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                             id="corretor_chave_pix"
                                             type="text"
                                             value={contratoData.dados_bancarios_corretor?.chave_pix || ''}
-                                            disabled={isViewing}
-                                            onChange={!isViewing ? (e) => handleBancarioCorretor('chave_pix', e.target.value) : undefined}
+                                            disabled={isReadonly}
+                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('chave_pix', e.target.value) : undefined}
                                             placeholder="CPF, email, telefone ou chave aleatória"
                                             icon={CreditCard}
                                           />
@@ -1887,122 +2187,6 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                     </TabsContent>
 
                     <TabsContent value="clausulas" className="space-y-8">
-                      {/* Obrigações Adicionais */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
-                      >
-                        <div className="flex items-center gap-3 mb-6">
-                          <motion.div 
-                            className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-red-500"
-                            whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
-                            transition={{ duration: 0.3 }}
-                          >
-                            <CheckCircle className="w-5 h-5 text-white" />
-                          </motion.div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-foreground">
-                              Obrigações Adicionais
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Responsabilidades específicas do inquilino durante a locação
-                            </p>
-                          </div>
-                        </div>
-
-                        {isViewing ? (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {[
-                                { key: 'obrigacao_manutencao', label: 'Manutenção Predial', icon: Settings },
-                                { key: 'obrigacao_pintura', label: 'Pintura do Imóvel', icon: Palette },
-                                { key: 'obrigacao_jardim', label: 'Cuidados com Jardim', icon: TreePine },
-                                { key: 'obrigacao_limpeza', label: 'Limpeza Profunda', icon: Sparkles },
-                                { key: 'obrigacao_pequenos_reparos', label: 'Pequenos Reparos', icon: Wrench },
-                                { key: 'obrigacao_vistoria', label: 'Vistoria Periódica', icon: Eye }
-                              ].map(({ key, label, icon: Icon }) => (
-                                <div key={key} className={`flex items-center gap-3 p-3 rounded-lg ${contratoData[key] ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' : 'bg-muted/30'}`}>
-                                  <Icon className={`w-4 h-4 ${contratoData[key] ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`} />
-                                  <span className={`text-sm font-medium ${contratoData[key] ? 'text-green-900 dark:text-green-100' : 'text-muted-foreground'}`}>
-                                    {label}
-                                  </span>
-                                  <div className={`ml-auto w-3 h-3 rounded-full ${contratoData[key] ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_manutencao"
-                                checked={contratoData.obrigacao_manutencao || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_manutencao', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_manutencao" className="cursor-pointer text-foreground">
-                                Manutenção Predial
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_pintura"
-                                checked={contratoData.obrigacao_pintura || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_pintura', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_pintura" className="cursor-pointer text-foreground">
-                                Pintura do Imóvel
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_jardim"
-                                checked={contratoData.obrigacao_jardim || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_jardim', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_jardim" className="cursor-pointer text-foreground">
-                                Cuidados com Jardim
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_limpeza"
-                                checked={contratoData.obrigacao_limpeza || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_limpeza', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_limpeza" className="cursor-pointer text-foreground">
-                                Limpeza Profunda
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_pequenos_reparos"
-                                checked={contratoData.obrigacao_pequenos_reparos || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_pequenos_reparos', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_pequenos_reparos" className="cursor-pointer text-foreground">
-                                Pequenos Reparos
-                              </Label>
-                            </div>
-
-                            <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                              <Checkbox
-                                id="obrigacao_vistoria"
-                                checked={contratoData.obrigacao_vistoria || false}
-                                onCheckedChange={(checked) => handleContratoInputChange('obrigacao_vistoria', !!checked)}
-                              />
-                              <Label htmlFor="obrigacao_vistoria" className="cursor-pointer text-foreground">
-                                Vistoria Periódica
-                              </Label>
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
 
                       {/* Multa por Quebra de Contrato */}
                       <motion.div
@@ -2269,8 +2453,23 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                   {/* Botão Salvar Alterações (apenas em modo editar) */}
                   {isEditing && (
                     <div className="pt-6 border-t">
-                      <Button className="w-full">
-                        Salvar Alterações
+                      <Button 
+                        type="button"
+                        onClick={handleSaveContract}
+                        disabled={loading}
+                        className="w-full btn-gradient py-4 text-lg font-semibold rounded-xl border-0 shadow-xl hover:shadow-primary/25 transition-all duration-300 disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                            <span>Salvando...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <span>Salvar Alterações</span>
+                          </div>
+                        )}
                       </Button>
                     </div>
                   )}
@@ -2285,7 +2484,6 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
   }
 
   // Modo cadastro normal (versão original completa)
-  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([]);
@@ -2302,10 +2500,6 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
     idade?: number;
     vacinacao_em_dia: boolean;
   }>>([]);
-  
-  // Estados para locadores e locatários do contrato
-  const [locadores, setLocadores] = useState<ContratoLocador[]>([]);
-  const [locatarios, setLocatarios] = useState<ContratoLocatario[]>([]);
 
   const [formData, setFormData] = useState<Contrato>({
     id_imovel: 0,
@@ -2387,7 +2581,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
     valores: ['valor_aluguel', 'valor_iptu', 'valor_condominio', 'taxa_administracao', 'fundo_conservacao'],
     garantias: ['tipo_garantia', 'fiadores', 'caucao', 'titulo_capitalizacao', 'apolice_seguro_fianca'],
     plano: ['tipo_plano_locacao', 'tem_corretor', 'corretor_nome', 'corretor_creci', 'dados_bancarios_corretor'],
-    clausulas: ['clausulas_adicionais', 'obrigacao_manutencao', 'obrigacao_pintura', 'multa_locador', 'multa_locatario', 'quantidade_pets', 'pets']
+    clausulas: ['clausulas_adicionais', 'multa_locador', 'multa_locatario', 'quantidade_pets', 'pets']
   });
 
   useEffect(() => {
@@ -3934,7 +4128,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                       <div className="space-y-2">
                         <Label>Tipo de Garantia *</Label>
                         <Select 
-                          value={formData.tipo_garantia || undefined}
+                          value={formData.tipo_garantia || ""}
                           onValueChange={(value) => handleInputChange('tipo_garantia', value)}
                         >
                           <SelectTrigger>
@@ -5491,99 +5685,6 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                 {/* Aba 6: Cláusulas */}
                 <TabsContent value="clausulas" className="space-y-8">
-                  {/* Obrigações Adicionais */}
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="card-interactive p-6 rounded-xl border shadow-lg hover:shadow-xl transition-all duration-300"
-                  >
-                    <div className="flex items-center gap-3 mb-6">
-                      <motion.div 
-                        className="p-3 rounded-xl shadow-lg bg-gradient-to-r from-orange-500 to-red-500"
-                        whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <CheckCircle className="w-5 h-5 text-white" />
-                      </motion.div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-foreground">
-                          Obrigações Adicionais
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Responsabilidades específicas do inquilino durante a locação
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_manutencao"
-                          checked={formData.obrigacao_manutencao || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_manutencao', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_manutencao" className="cursor-pointer text-foreground">
-                          Manutenção Predial
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_pintura"
-                          checked={formData.obrigacao_pintura || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_pintura', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_pintura" className="cursor-pointer text-foreground">
-                          Pintura do Imóvel
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_jardim"
-                          checked={formData.obrigacao_jardim || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_jardim', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_jardim" className="cursor-pointer text-foreground">
-                          Cuidados com Jardim
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_limpeza"
-                          checked={formData.obrigacao_limpeza || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_limpeza', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_limpeza" className="cursor-pointer text-foreground">
-                          Limpeza Profunda
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_pequenos_reparos"
-                          checked={formData.obrigacao_pequenos_reparos || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_pequenos_reparos', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_pequenos_reparos" className="cursor-pointer text-foreground">
-                          Pequenos Reparos
-                        </Label>
-                      </div>
-
-                      <div className="flex items-center space-x-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-                        <Checkbox
-                          id="obrigacao_vistoria"
-                          checked={formData.obrigacao_vistoria || false}
-                          onCheckedChange={(checked) => handleInputChange('obrigacao_vistoria', !!checked)}
-                        />
-                        <Label htmlFor="obrigacao_vistoria" className="cursor-pointer text-foreground">
-                          Vistoria Periódica
-                        </Label>
-                      </div>
-                    </div>
-                  </motion.div>
 
                   {/* Multa por Quebra de Contrato */}
                   <motion.div
@@ -5847,7 +5948,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
           </div>
         </div>
       </div>
-      
     </div>
-  );
+    );
+
+  // Por enquanto, se não estiver em modo de visualização/edição, não renderizar nada
+  return null;
 };

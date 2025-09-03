@@ -15,9 +15,11 @@ import {
   Heart,
   Phone,
   Mail,
-  IdCard
+  IdCard,
+  Percent
 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import type { ContratoLocatario } from '../../types';
 
 interface Locatario {
   id: number;
@@ -25,16 +27,6 @@ interface Locatario {
   cpf_cnpj: string;
   telefone?: string;
   email?: string;
-}
-
-interface ContratoLocatario {
-  id?: number;
-  locatario_id: number;
-  locatario_nome?: string;
-  locatario_cpf?: string;
-  locatario_telefone?: string;
-  locatario_email?: string;
-  responsabilidade_principal?: boolean;
 }
 
 interface ContractTenantsFormProps {
@@ -71,15 +63,21 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
     }
   };
 
-  const adicionarLocatario = () => {
+  const adicionarLocatario = (e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevenir submit do formulário
     const novoLocatario: ContratoLocatario = {
       locatario_id: 0,
-      responsabilidade_principal: locatarios.length === 0 // Primeiro locatário é sempre principal
+      responsabilidade_principal: locatarios.length === 0, // Primeiro locatário é sempre principal
+      percentual_responsabilidade: 0 // Será recalculado após adicionar
     };
-    onChange([...locatarios, novoLocatario]);
+    const novosLocatarios = [...locatarios, novoLocatario];
+    
+    // Dividir responsabilidade igualmente
+    distribuirPercentualIgualmente(novosLocatarios);
   };
 
-  const removerLocatario = (index: number) => {
+  const removerLocatario = (index: number, e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevenir submit do formulário
     const novosLocatarios = locatarios.filter((_, i) => i !== index);
     
     // Se removeu o principal e ainda há locatários, torna o primeiro como principal
@@ -89,6 +87,33 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
         novosLocatarios[0].responsabilidade_principal = true;
       }
     }
+    
+    // Redistribuir percentuais após remover
+    distribuirPercentualIgualmente(novosLocatarios);
+  };
+
+  const distribuirPercentualIgualmente = (listaLocatarios: ContratoLocatario[]) => {
+    if (listaLocatarios.length === 0) {
+      onChange([]);
+      return;
+    }
+    
+    const percentualPorLocatario = 100 / listaLocatarios.length;
+    const novosLocatarios = listaLocatarios.map((locatario, index) => {
+      // Para os primeiros locatários, usar o valor arredondado para baixo
+      if (index < listaLocatarios.length - 1) {
+        return {
+          ...locatario,
+          percentual_responsabilidade: Math.floor(percentualPorLocatario * 100) / 100
+        };
+      }
+      // Para o último locatário, calcular o resto para garantir soma exata de 100%
+      const somaAnteriores = Math.floor(percentualPorLocatario * 100) / 100 * (listaLocatarios.length - 1);
+      return {
+        ...locatario,
+        percentual_responsabilidade: Math.round((100 - somaAnteriores) * 100) / 100
+      };
+    });
     
     onChange(novosLocatarios);
   };
@@ -174,14 +199,29 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
             Inquilinos (Locatários)
           </h2>
           {!readonly && (
-            <Button 
-              onClick={adicionarLocatario}
-              size="sm"
-              className="btn-outline"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Adicionar Locatário
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                type="button"
+                onClick={() => distribuirPercentualIgualmente(locatarios)}
+                disabled={locatarios.length === 0}
+                variant="outline"
+                size="sm"
+                className="btn-outline hover:bg-primary hover:text-primary-foreground transition-colors"
+                title="Distribui automaticamente 100% entre todos os locatários de forma igual"
+              >
+                <Percent className="w-4 h-4 mr-2" />
+                Distribuir 100% Igualmente
+              </Button>
+              <Button 
+                type="button"
+                onClick={adicionarLocatario}
+                size="sm"
+                className="btn-outline"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Locatário
+              </Button>
+            </div>
           )}
         </div>
 
@@ -208,14 +248,29 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                 {status.mensagem}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-lg font-bold text-blue-600">
-                {locatarios.length}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                locatário{locatarios.length !== 1 ? 's' : ''}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <span className="text-lg font-bold text-blue-600">
+                  {locatarios.length}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  locatário{locatarios.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              {locatarios.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-muted-foreground" />
+                  <span className={`text-lg font-bold ${
+                    Math.abs(locatarios.reduce((sum, l) => sum + (l.percentual_responsabilidade || 0), 0) - 100) < 0.01 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    {locatarios.reduce((sum, l) => sum + (l.percentual_responsabilidade || 0), 0).toFixed(2)}%
+                  </span>
+                  <span className="text-sm text-muted-foreground">de 100%</span>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
@@ -237,7 +292,7 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
               Clique no botão "Adicionar Locatário" para começar
             </p>
             {!readonly && (
-              <Button onClick={adicionarLocatario} size="sm">
+              <Button type="button" onClick={adicionarLocatario} size="sm">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Primeiro Locatário
               </Button>
@@ -285,7 +340,8 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                       whileTap={{ scale: 0.95 }}
                     >
                       <Button 
-                        onClick={() => removerLocatario(index)}
+                        type="button"
+                        onClick={(e) => removerLocatario(index, e)}
                         variant="outline"
                         size="sm"
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
@@ -301,7 +357,7 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                   <div>
                     <Label>Locatário *</Label>
                     <Select
-                      value={locatario.locatario_id > 0 ? locatario.locatario_id.toString() : undefined}
+                      value={locatario.locatario_id > 0 ? locatario.locatario_id.toString() : ""}
                       onValueChange={(valor) => atualizarLocatario(index, 'locatario_id', parseInt(valor))}
                     >
                       <SelectTrigger className="bg-muted/50 border-border text-foreground">

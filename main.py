@@ -221,26 +221,29 @@ class ImovelUpdate(BaseModel):
     observacoes: Optional[str] = None
 
 class ContratoCreate(BaseModel):
+    # Campos obrigatórios essenciais
     id_imovel: int
     id_locatario: int
     data_inicio: date
     data_fim: date
-    tipo_garantia: str
-    vencimento_dia: int
-    taxa_administracao: float
-    antecipacao_encargos: bool
-    aluguel_garantido: bool
-    mes_de_referencia: str
-    tipo_plano_locacao: str
-    retidos: str
-    info_garantias: str
     valor_aluguel: float
-    valor_desconto: float
-    valor_multa: float
-    valor_caucao: float
-    data_caucao_dev: date
-    numero_contrato: str
-    status: str
+    vencimento_dia: int
+    tipo_garantia: str
+    
+    # Campos opcionais com valores padrão
+    taxa_administracao: float = 0.0
+    antecipacao_encargos: bool = False
+    aluguel_garantido: bool = False
+    mes_de_referencia: str = "mes_atual"
+    tipo_plano_locacao: str = "padrao"
+    retidos: str = ""
+    info_garantias: str = ""
+    valor_desconto: float = 0.0
+    valor_multa: float = 0.0
+    valor_caucao: float = 0.0
+    data_caucao_dev: Optional[date] = None
+    numero_contrato: str = ""
+    status: str = "ativo"
 
 class ContratoUpdate(BaseModel):
     id_locatario: Optional[int] = None
@@ -266,6 +269,64 @@ class ContratoUpdate(BaseModel):
     banco_pagamento: Optional[str] = None
     agencia_pagamento: Optional[str] = None
     conta_pagamento: Optional[str] = None
+    
+    # Campos que JÁ EXISTEM no banco (confirmados pela varredura)
+    data_assinatura: Optional[date] = None
+    ultimo_reajuste: Optional[date] = None
+    proximo_reajuste: Optional[date] = None
+    renovacao_automatica: Optional[str] = None
+    vencimento_dia: Optional[int] = None
+    taxa_administracao: Optional[float] = None
+    fundo_conservacao: Optional[float] = None
+    bonificacao: Optional[float] = None
+    valor_seguro_fianca: Optional[float] = None
+    valor_seguro_incendio: Optional[float] = None
+    seguro_fianca_inicio: Optional[date] = None
+    seguro_fianca_fim: Optional[date] = None
+    seguro_incendio_inicio: Optional[date] = None
+    seguro_incendio_fim: Optional[date] = None
+    percentual_multa_atraso: Optional[float] = None  # Mapeado do frontend multa_atraso
+    retido_fci: Optional[bool] = None
+    retido_iptu: Optional[bool] = None
+    retido_condominio: Optional[bool] = None
+    retido_seguro_fianca: Optional[bool] = None
+    retido_seguro_incendio: Optional[bool] = None
+    antecipa_condominio: Optional[bool] = None
+    antecipa_seguro_fianca: Optional[bool] = None
+    antecipa_seguro_incendio: Optional[bool] = None
+    
+    # Campos CRIADOS no banco (anteriormente marcados com *)
+    data_entrega_chaves: Optional[date] = None
+    proximo_reajuste_automatico: Optional[bool] = None
+    periodo_contrato: Optional[int] = None
+    tempo_renovacao: Optional[int] = None
+    tempo_reajuste: Optional[int] = None
+    data_inicio_iptu: Optional[date] = None
+    data_fim_iptu: Optional[date] = None
+    parcelas_iptu: Optional[int] = None
+    parcelas_seguro_fianca: Optional[int] = None
+    parcelas_seguro_incendio: Optional[int] = None
+    valor_fci: Optional[float] = None
+    
+    # Campos de CORRETOR (6 campos)
+    tem_corretor: Optional[bool] = None
+    corretor_nome: Optional[str] = None
+    corretor_creci: Optional[str] = None
+    corretor_cpf: Optional[str] = None
+    corretor_telefone: Optional[str] = None
+    corretor_email: Optional[str] = None
+    
+    # Campos de OBRIGAÇÕES ADICIONAIS (6 campos)
+    obrigacao_manutencao: Optional[bool] = None
+    obrigacao_pintura: Optional[bool] = None
+    obrigacao_jardim: Optional[bool] = None
+    obrigacao_limpeza: Optional[bool] = None
+    obrigacao_pequenos_reparos: Optional[bool] = None
+    obrigacao_vistoria: Optional[bool] = None
+    
+    # Campos de MULTAS ESPECÍFICAS (2 campos)
+    multa_locador: Optional[float] = None
+    multa_locatario: Optional[float] = None
 
 # Rotas para Locadores
 @app.post("/api/locadores")
@@ -525,7 +586,35 @@ async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
 @app.post("/api/contratos")
 async def criar_contrato(contrato: ContratoCreate):
     try:
-        novo_contrato = inserir_contrato(**contrato.dict())
+        # Chamar inserir_contrato com os parâmetros na ordem esperada
+        novo_contrato = inserir_contrato(
+            contrato.id_imovel,
+            contrato.id_locatario,  # Note: id_locatario -> id_inquilino
+            contrato.data_inicio,
+            contrato.data_fim,
+            contrato.taxa_administracao,
+            0.0,  # fundo_conservacao
+            "anual",  # tipo_reajuste
+            0.0,  # percentual_reajuste
+            contrato.vencimento_dia,
+            False,  # renovacao_automatica
+            False,  # seguro_obrigatorio
+            "",  # clausulas_adicionais
+            contrato.tipo_plano_locacao,
+            str(contrato.valor_aluguel),  # valores_contrato
+            None,  # data_vigencia_segfianca
+            None,  # data_vigencia_segincendio
+            None,  # data_assinatura
+            None,  # ultimo_reajuste
+            None,  # proximo_reajuste
+            contrato.antecipacao_encargos,
+            contrato.aluguel_garantido,
+            contrato.mes_de_referencia,
+            contrato.tipo_garantia,
+            0.0,  # bonificacao
+            contrato.retidos,
+            contrato.info_garantias,
+        )
         return {"data": novo_contrato, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar contrato: {str(e)}")
@@ -562,17 +651,32 @@ async def obter_contrato_por_id(contrato_id: int):
 @app.put("/api/contratos/{contrato_id}")
 async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
     try:
+        print(f"\n=== INICIANDO ATUALIZAÇÃO DO CONTRATO {contrato_id} ===")
+        dados_recebidos = contrato.dict(exclude_none=True)
+        print(f"Dados recebidos do frontend:")
+        for campo, valor in dados_recebidos.items():
+            print(f"  - {campo}: {valor}")
+        print(f"Total de campos enviados: {len(dados_recebidos)}")
+        
         from repositories_adapter import atualizar_contrato as atualizar_contrato_db
-        resultado = atualizar_contrato_db(contrato_id, **contrato.dict(exclude_unset=True))
+        # Filtrar campos None antes de enviar para o banco
+        dados_filtrados = {k: v for k, v in dados_recebidos.items() if v is not None}
+        print(f"Dados apos filtrar None: {len(dados_filtrados)} campos")
+        for campo, valor in dados_filtrados.items():
+            print(f"  - {campo}: {valor}")
+        
+        resultado = atualizar_contrato_db(contrato_id, **dados_filtrados)
         
         if resultado:
+            print(f"\u2713 Contrato {contrato_id} atualizado com sucesso!")
             return {"message": f"Contrato {contrato_id} atualizado com sucesso", "success": True}
         else:
+            print(f"\u2717 Falha ao atualizar contrato {contrato_id}")
             raise HTTPException(status_code=404, detail="Contrato não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Erro ao atualizar contrato: {str(e)}")
+        print(f"\u2717 ERRO ao atualizar contrato: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar contrato: {str(e)}")
 
 # Endpoints para Prestação de Contas
@@ -746,6 +850,87 @@ async def sugestoes_busca():
         return {"data": sugestoes, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter sugestões: {str(e)}")
+
+# ==========================================
+# ENDPOINTS PARA MÚLTIPLOS LOCADORES/LOCATÁRIOS
+# ==========================================
+
+@app.get("/api/contratos/{contrato_id}/locadores")
+async def listar_locadores_contrato(contrato_id: int):
+    """Lista todos os locadores de um contrato"""
+    try:
+        from repositories_adapter import buscar_locadores_contrato
+        locadores = buscar_locadores_contrato(contrato_id)
+        return {"data": locadores, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}/locatarios")
+async def listar_locatarios_contrato(contrato_id: int):
+    """Lista todos os locatários de um contrato"""
+    try:
+        from repositories_adapter import buscar_locatarios_contrato
+        locatarios = buscar_locatarios_contrato(contrato_id)
+        return {"data": locatarios, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar locatários: {str(e)}")
+
+@app.get("/api/locadores/ativos")
+async def listar_locadores_ativos():
+    """Lista todos os locadores ativos disponíveis"""
+    try:
+        from repositories_adapter import buscar_todos_locadores_ativos
+        locadores = buscar_todos_locadores_ativos()
+        return {"data": locadores, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores ativos: {str(e)}")
+
+class LocadoresContratoRequest(BaseModel):
+    locadores: list[dict]
+
+@app.post("/api/contratos/{contrato_id}/locadores")
+async def salvar_locadores_contrato(contrato_id: int, request: LocadoresContratoRequest):
+    """Salva múltiplos locadores para um contrato"""
+    try:
+        from repositories_adapter import salvar_locadores_contrato, validar_porcentagens_contrato
+        
+        # Validar dados
+        validacao = validar_porcentagens_contrato(request.locadores)
+        if not validacao["success"]:
+            raise HTTPException(status_code=400, detail=validacao["message"])
+        
+        # Salvar locadores
+        sucesso = salvar_locadores_contrato(contrato_id, request.locadores)
+        if sucesso:
+            return {"message": "Locadores salvos com sucesso", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao salvar locadores")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar locadores: {str(e)}")
+
+class LocatariosContratoRequest(BaseModel):
+    locatarios: list[dict]
+
+@app.post("/api/contratos/{contrato_id}/locatarios")
+async def salvar_locatarios_contrato(contrato_id: int, request: LocatariosContratoRequest):
+    """Salva múltiplos locatários para um contrato"""
+    try:
+        from repositories_adapter import salvar_locatarios_contrato
+        
+        # Salvar locatários
+        sucesso = salvar_locatarios_contrato(contrato_id, request.locatarios)
+        if sucesso:
+            return {"message": "Locatários salvos com sucesso", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao salvar locatários")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar locatários: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

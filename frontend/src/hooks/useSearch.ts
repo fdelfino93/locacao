@@ -9,7 +9,7 @@ const searchApi = {
     const params = new URLSearchParams({ q: query });
     if (tipos) params.append('tipos', tipos.join(','));
     
-    const response = await fetch(`http://localhost:8001/api/search/global?${params}`);
+    const response = await fetch(`http://localhost:8000/api/search/global?${params}`);
     if (!response.ok) throw new Error('Erro na busca');
     return response.json();
   },
