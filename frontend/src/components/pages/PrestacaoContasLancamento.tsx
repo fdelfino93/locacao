@@ -70,8 +70,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
   // Estados para configuração da fatura
   const [diaVencimento, setDiaVencimento] = useState(10);
   const [geracaoAutomatica, setGeracaoAutomatica] = useState(true);
-  const [descontoAteDia, setDescontoAteDia] = useState(0);
-  const [valorDesconto, setValorDesconto] = useState(0);
   const [multaPercentual, setMultaPercentual] = useState(2);
   const [mesReferencia, setMesReferencia] = useState(() => {
     const hoje = new Date();
@@ -182,57 +180,49 @@ export const PrestacaoContasLancamento: React.FC = () => {
   const buscarLocadores = async () => {
     setLoadingLocadores(true);
     
-    console.log('🔍 Carregando locadores mock...');
-    
-    // Simular delay da API
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const locadoresMock = [
-      {
-        id: 1,
-        nome: 'Maria Oliveira Lima',
-        cpf: '123.456.789-01',
-        email: 'maria.oliveira@email.com',
-        telefone: '(11) 98765-4321',
-        endereco: 'Rua das Palmeiras, 456 - Vila Madalena',
-        contratos_ativos: 2
-      },
-      {
-        id: 2,
-        nome: 'Carlos Eduardo Souza',
-        cpf: '987.654.321-09',
-        email: 'carlos.souza@email.com',
-        telefone: '(11) 91234-5678',
-        endereco: 'Av. Faria Lima, 123 - Itaim Bibi',
-        contratos_ativos: 1
-      },
-      {
-        id: 3,
-        nome: 'Luciana Martins',
-        cpf: '456.789.123-45',
-        email: 'luciana.martins@email.com',
-        telefone: '(11) 95555-6666',
-        endereco: 'Rua Oscar Freire, 789 - Jardins',
-        contratos_ativos: 1
+    try {
+      console.log('🔍 Buscando locadores ativos da API...');
+      
+      const response = await fetch('/api/locadores');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    ];
-    
-    setLocadores(locadoresMock);
-    console.log('✅ Locadores mock carregados:', locadoresMock.length);
-    setLoadingLocadores(false);
+      
+      const data = await response.json();
+      console.log('✅ Locadores carregados da API:', data.data?.length || 0);
+      
+      setLocadores(data.data || []);
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar locadores:', error);
+      toast.error("Erro ao carregar locadores. Verifique a conexão com o banco de dados.");
+      setLocadores([]);
+    } finally {
+      setLoadingLocadores(false);
+    }
   };
 
   const buscarContratos = async () => {
     setLoadingContratos(true);
     
     try {
-      console.log('🔍 Aguardando integração com banco de dados...');
+      console.log('🔍 Buscando contratos ativos da API...');
       
-      // Temporariamente vazio até conexão com banco real estar configurada
-      setContratos([]);
-      console.log('ℹ️ Sistema aguardando configuração do banco de dados');
+      const response = await fetch('/api/prestacao-contas/contratos-ativos');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Contratos carregados da API:', data.data?.length || 0);
+      
+      setContratos(data.data || []);
+      
     } catch (error) {
       console.error('❌ Erro ao carregar contratos:', error);
+      toast.error("Erro ao carregar contratos. Verifique a conexão com o banco de dados.");
       setContratos([]);
     } finally {
       setLoadingContratos(false);
@@ -370,7 +360,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const totalBruto = subtotalLancamentos + valorVencido;
     const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
     
-    return totalBruto - totalDescontos;
+    // Incluir desconto por bonificação de pontualidade
+    const descontoPontualidade = contratoSelecionado?.bonificacao || 0;
+    
+    return totalBruto - totalDescontos - descontoPontualidade;
   };
 
   const calcularTotais = () => {
@@ -388,15 +381,24 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const totalBruto = subtotalLancamentos + valorVencido;
     const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
     
-    // Valor do boleto = subtotal + acréscimos - descontos
-    const valorBoleto = totalBruto - totalDescontos;
+    // Incluir desconto por bonificação de pontualidade
+    const descontoPontualidade = contratoSelecionado?.bonificacao || 0;
+    const totalDescontosComBonificacao = totalDescontos + descontoPontualidade;
+    
+    // Valor do boleto = subtotal + acréscimos - descontos (incluindo bonificação)
+    const valorBoleto = totalBruto - totalDescontosComBonificacao;
     
     // Cálculos de retenção baseados na configuração
     const numProprietarios = proprietarios.length || 1;
-    const taxaAdmin = valorBoleto * (configuracaoRetencoes.percentual_admin / 100);
+    // Taxa de administração: (aluguel - desconto) × percentual do contrato
+    const valorAluguel = contratoSelecionado?.valor_aluguel || 0;
+    const baseCalculo = valorAluguel - descontoPontualidade;
+    const percentualAdmin = contratoSelecionado?.taxa_administracao || configuracaoRetencoes.percentual_admin;
+    const taxaAdmin = baseCalculo * (percentualAdmin / 100);
     const taxaBoleto = configuracaoRetencoes.taxa_boleto;
     // Taxa de transferência só se aplica para proprietários adicionais (além do primeiro)
     const taxaTransferencia = numProprietarios > 1 ? configuracaoRetencoes.taxa_transferencia * (numProprietarios - 1) : 0;
+    
     
     // Calcular TODOS os valores retidos (igual à seção Retidos)
     let totalRetido = 0;
@@ -423,10 +425,24 @@ export const PrestacaoContasLancamento: React.FC = () => {
     totalRetido += taxaBoleto;
     totalRetido += taxaTransferencia;
     
-    // Valores extras
-    totalRetido += contratoSelecionado?.valor_retido || 0;
-    totalRetido += contratoSelecionado?.valor_antecipado || 0;
-    totalRetido += retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
+    // Taxa de 5% sobre valores antecipados do contrato
+    if (contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0) {
+      const taxa = contratoSelecionado.valor_condominio * 0.05; // 5% de taxa
+      totalRetido += taxa;
+    }
+    if (contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
+      const taxa = contratoSelecionado.valor_seguro_fianca * 0.05; // 5% de taxa
+      totalRetido += taxa;
+    }
+    if (contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
+      const taxa = contratoSelecionado.valor_seguro_incendio * 0.05; // 5% de taxa
+      totalRetido += taxa;
+    }
+    
+    // Valores extras (lançados manualmente)
+    const retidosExtrasValor = retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
+    totalRetido += retidosExtrasValor;
+    
     
     // Valor final de repasse aos proprietários
     const valorRepasse = valorBoleto - totalRetido - deducoes;
@@ -514,8 +530,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
           dia_vencimento: diaVencimento,
           mes_referencia: mesReferencia,
           geracao_automatica: geracaoAutomatica,
-          desconto_ate_dia: descontoAteDia,
-          valor_desconto_percentual: valorDesconto,
           multa_percentual: multaPercentual,
           envio_email: envioEmail,
           dias_antes_envio_email: diasAntesEnvioEmail,
@@ -541,19 +555,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
       };
 
       try {
-        // Simular chamada para API que processará via SQL Server
+        // Chamada real para API que processará via SQL Server
         console.log('🔄 Enviando para SQL Server via API:', dadosParaAPI);
         
-        // Aqui seria feita a chamada real para a API
-        // const response = await fetch('/api/prestacao-contas/salvar', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   body: JSON.stringify(dadosParaAPI)
-        // });
-        
-        // Simular tempo de processamento como no módulo antigo
         setCalculando(true);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const response = await fetch('/api/prestacao-contas/salvar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dadosParaAPI)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        const resultado = await response.json();
+        console.log('✅ Resposta da API:', resultado);
         
         const tipoMsg = isNovaPrestacao 
           ? `${tipoLancamento === 'entrada' ? 'Entrada' : tipoLancamento === 'mensal' ? 'Cobrança mensal' : 'Rescisão'}`
@@ -1302,7 +1319,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             <div className="flex items-center space-x-2">
                               <Checkbox
                                 checked={geracaoAutomatica}
-                                onCheckedChange={setGeracaoAutomatica}
+                                onCheckedChange={(checked) => setGeracaoAutomatica(checked === true)}
                                 id="geracaoAutomatica"
                                 className="w-5 h-5"
                               />
@@ -1318,41 +1335,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* Desconto por Pagamento Antecipado */}
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-2">
-                            <TrendingDown className="w-4 h-4 text-green-500" />
-                            <Label className="text-sm font-medium text-foreground">Desconto por Pagamento Antecipado</Label>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label className="text-xs text-muted-foreground mb-1">Até o dia</Label>
-                              <Select value={descontoAteDia.toString()} onValueChange={(value) => setDescontoAteDia(Number(value))}>
-                                <SelectTrigger className="h-10">
-                                  <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="0">Sem desconto</SelectItem>
-                                  {Array.from({ length: 10 }, (_, i) => i + 1).map(dia => (
-                                    <SelectItem key={dia} value={dia.toString()}>Dia {dia}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-xs text-muted-foreground mb-1">Percentual (%)</Label>
-                              <InputWithIcon
-                                type="number"
-                                icon={Percent}
-                                value={valorDesconto}
-                                onChange={(e) => setValorDesconto(Number(e.target.value) || 0)}
-                                placeholder="0.00"
-                                className="h-10"
-                                disabled={descontoAteDia === 0}
-                              />
-                            </div>
-                          </div>
-                        </div>
 
                         {/* Resumo das Configurações */}
                         <div className="mt-4 p-3 bg-muted/30 rounded-lg">
@@ -1368,12 +1350,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             <div>
                               <span className="text-muted-foreground">Mês Ref.:</span>
                               <span className="ml-2 font-medium">{mesReferencia}</span>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Desconto:</span>
-                              <span className="ml-2 font-medium">
-                                {descontoAteDia > 0 ? `${valorDesconto}% até dia ${descontoAteDia}` : 'Não configurado'}
-                              </span>
                             </div>
                           </div>
                         </div>
@@ -2092,13 +2068,13 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               <div className="flex-1">
                                 <p className="font-medium text-foreground">Taxa de Administração</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {contratoSelecionado?.taxa_administracao || 10}% do aluguel
+                                  {contratoSelecionado?.taxa_administracao || 10}% do aluguel líquido
                                 </p>
                               </div>
                             </div>
                             <div className="text-right">
                               <span className="text-sm font-bold text-green-600">
-                                +{formatCurrency(calcularTaxaAdministracao(contratoSelecionado))}
+                                +{formatCurrency(calcularTotais().taxaAdmin)}
                               </span>
                             </div>
                           </div>
@@ -2157,73 +2133,98 @@ export const PrestacaoContasLancamento: React.FC = () => {
 
                       {/* Valores Extras */}
                       <div className="space-y-3">
-                        {(contratoSelecionado?.valor_retido > 0 || contratoSelecionado?.valor_antecipado > 0 || retidosExtras.length > 0) && (
+                        {(contratoSelecionado?.antecipa_condominio || contratoSelecionado?.antecipa_seguro_fianca || contratoSelecionado?.antecipa_seguro_incendio || retidosExtras.length > 0) && (
                           <div className="border-t pt-3">
                             <h4 className="text-sm font-medium text-muted-foreground mb-3">Valores Extras</h4>
                           </div>
                         )}
                         
-                        {/* Valores Fixos do Contrato */}
-                        {(contratoSelecionado?.valor_retido > 0 || contratoSelecionado?.valor_antecipado > 0) && (
-                          <>
-                            {contratoSelecionado?.valor_retido > 0 && (
-                              <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-3 flex-1">
-                                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/20">
-                                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                                        retido
-                                      </span>
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="font-medium text-foreground">Valor Retido do Contrato</p>
-                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                        <Calendar className="w-3 h-3 mr-1" />
-                                        Valor fixo do contrato
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-base font-bold text-green-600">
-                                      +{formatCurrency(contratoSelecionado?.valor_retido)}
-                                    </span>
-                                    <div className="w-8 h-8 flex items-center justify-center">
-                                      <span className="text-xs text-muted-foreground">Fixo</span>
-                                    </div>
-                                  </div>
+                        {/* Valores Antecipados do Contrato */}
+                        {contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0 && (
+                          <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    antecipado
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Taxa Condomínio Antecipado</p>
+                                  <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                    <Calendar className="w-3 h-3 mr-1" />
+                                    5% sobre {formatCurrency(contratoSelecionado?.valor_condominio)}
+                                  </p>
                                 </div>
                               </div>
-                            )}
-                            
-                            {contratoSelecionado?.valor_antecipado > 0 && (
-                              <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-3 flex-1">
-                                    <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
-                                      <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                        antecipado
-                                      </span>
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="font-medium text-foreground">Valor Antecipado do Contrato</p>
-                                      <p className="text-xs text-muted-foreground flex items-center mt-1">
-                                        <Calendar className="w-3 h-3 mr-1" />
-                                        Valor fixo do contrato
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center space-x-3">
-                                    <span className="text-base font-bold text-green-600">
-                                      +{formatCurrency(contratoSelecionado?.valor_antecipado)}
-                                    </span>
-                                    <div className="w-8 h-8 flex items-center justify-center">
-                                      <span className="text-xs text-muted-foreground">Fixo</span>
-                                    </div>
-                                  </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-base font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado?.valor_condominio * 0.05)}
+                                </span>
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">Fixo</span>
                                 </div>
                               </div>
-                            )}
-                          </>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
+                          <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    antecipado
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Taxa Seguro Fiança Antecipado</p>
+                                  <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                    <Calendar className="w-3 h-3 mr-1" />
+                                    5% sobre {formatCurrency(contratoSelecionado?.valor_seguro_fianca)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-base font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado?.valor_seguro_fianca * 0.05)}
+                                </span>
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">Fixo</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
+                          <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3 flex-1">
+                                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    antecipado
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-foreground">Taxa Seguro Incêndio Antecipado</p>
+                                  <p className="text-xs text-muted-foreground flex items-center mt-1">
+                                    <Calendar className="w-3 h-3 mr-1" />
+                                    5% sobre {formatCurrency(contratoSelecionado?.valor_seguro_incendio)}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-base font-bold text-green-600">
+                                  +{formatCurrency(contratoSelecionado?.valor_seguro_incendio * 0.05)}
+                                </span>
+                                <div className="w-8 h-8 flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">Fixo</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         )}
                         
                         {/* Retidos Extras */}
@@ -2322,16 +2323,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               }
                               
                               // Taxas administrativas - usar o mesmo cálculo da função calcularTotais()
-                              const valorBoletoParcial = calcularValorBoleto();
-                              total += valorBoletoParcial * (configuracaoRetencoes.percentual_admin / 100);
-                              total += configuracaoRetencoes.taxa_boleto;
-                              if (proprietarios.length > 1) {
-                                total += configuracaoRetencoes.taxa_transferencia * (proprietarios.length - 1);
+                              total += calcularTotais().taxaAdmin;
+                              total += calcularTotais().taxaBoleto;
+                              total += calcularTotais().taxaTransferencia;
+                              
+                              // Taxas de antecipação (5% do valor)
+                              if (contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0) {
+                                total += contratoSelecionado.valor_condominio * 0.05;
+                              }
+                              if (contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
+                                total += contratoSelecionado.valor_seguro_fianca * 0.05;
+                              }
+                              if (contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
+                                total += contratoSelecionado.valor_seguro_incendio * 0.05;
                               }
                               
-                              // Valores extras
-                              total += contratoSelecionado?.valor_retido || 0;
-                              total += contratoSelecionado?.valor_antecipado || 0;
+                              // Valores extras (lançados manualmente)
                               total += retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
                               
                               return total;
@@ -2555,7 +2562,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             <div className="flex items-center space-x-3 mb-3">
                               <Checkbox
                                 checked={envioEmail}
-                                onCheckedChange={setEnvioEmail}
+                                onCheckedChange={(checked) => setEnvioEmail(checked === true)}
                                 id="envioEmail"
                                 className="w-4 h-4"
                               />
@@ -2600,7 +2607,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             <div className="flex items-center space-x-3 mb-3">
                               <Checkbox
                                 checked={envioWhatsapp}
-                                onCheckedChange={setEnvioWhatsapp}
+                                onCheckedChange={(checked) => setEnvioWhatsapp(checked === true)}
                                 id="envioWhatsapp"
                                 className="w-4 h-4"
                               />
@@ -2764,8 +2771,17 @@ export const PrestacaoContasLancamento: React.FC = () => {
                     <div className="space-y-2">
                       <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Taxas Administrativas</h5>
                       <div className="flex justify-between">
-                        <span className="text-xs text-muted-foreground">Taxa Administração ({configuracaoRetencoes.percentual_admin}%):</span>
-                        <span className="text-xs font-medium text-red-600">-{formatCurrency(calcularTotais().taxaAdmin)}</span>
+                        <span className="text-xs text-muted-foreground">Taxa Administração ({(() => {
+                          const percentualAdmin = contratoSelecionado?.taxa_administracao || configuracaoRetencoes.percentual_admin;
+                          return percentualAdmin;
+                        })()}%):</span>
+                        <span className="text-xs font-medium text-red-600">-{formatCurrency((() => {
+                          const valorAluguel = contratoSelecionado?.valor_aluguel || 0;
+                          const descontoPontualidade = contratoSelecionado?.bonificacao || 0;
+                          const baseCalculo = valorAluguel - descontoPontualidade;
+                          const percentualAdmin = contratoSelecionado?.taxa_administracao || configuracaoRetencoes.percentual_admin;
+                          return baseCalculo * (percentualAdmin / 100);
+                        })())}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-xs text-muted-foreground">Taxa Boleto:</span>
@@ -2808,10 +2824,32 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_iptu)}</span>
                         </div>
                       )}
-                      {((contratoSelecionado?.valor_retido || 0) + (contratoSelecionado?.valor_antecipado || 0) + retidosExtras.reduce((sum, retido) => sum + retido.valor, 0)) > 0 && (
+                      
+                      {/* Taxas de Antecipação */}
+                      {contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Taxa Condomínio Antecipado (5%):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_condominio * 0.05)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Taxa Seguro Fiança Antecipado (5%):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_fianca * 0.05)}</span>
+                        </div>
+                      )}
+                      {contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-xs text-muted-foreground">Taxa Seguro Incêndio Antecipado (5%):</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_incendio * 0.05)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Retidos Extras apenas se houver */}
+                      {retidosExtras.length > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Valores Extras:</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency((contratoSelecionado?.valor_retido || 0) + (contratoSelecionado?.valor_antecipado || 0) + retidosExtras.reduce((sum, retido) => sum + retido.valor, 0))}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(retidosExtras.reduce((sum, retido) => sum + retido.valor, 0))}</span>
                         </div>
                       )}
                       <div className="border-t pt-2 flex justify-between">

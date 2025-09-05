@@ -359,7 +359,8 @@ def atualizar_locador(locador_id, **kwargs):
     try:
         print(f"ATUALIZANDO LOCADOR ID {locador_id} - Dados recebidos: {kwargs}")
         
-        with get_conexao() as conn:
+        conn = get_conexao()
+        try:
             cursor = conn.cursor()
             
             # Verificar se o locador existe
@@ -408,13 +409,18 @@ def atualizar_locador(locador_id, **kwargs):
                         elif isinstance(valor, bool):
                             valor = 1 if valor else 0
                     
-                    # Processar endereço estruturado
+                    # Processar endereço estruturado - inserir na mesma transação
                     if campo == 'endereco' and isinstance(valor, dict):
-                        endereco_id = inserir_endereco_locador(valor)
-                        if endereco_id:
-                            campos_para_atualizar['endereco_id'] = endereco_id
-                            # Criar string de endereço para compatibilidade
-                            valor = f"{valor.get('rua', '')}, {valor.get('numero', '')} - {valor.get('bairro', '')} - {valor.get('cidade', '')}/{valor.get('estado', 'PR')}"
+                        # Apenas processar se tiver dados válidos
+                        if valor.get('rua') and valor.get('cidade'):
+                            endereco_id = inserir_endereco_locador_com_conexao(cursor, valor)
+                            if endereco_id:
+                                campos_para_atualizar['endereco_id'] = endereco_id
+                                # Criar string de endereço para compatibilidade
+                                valor = f"{valor.get('rua', '')}, {valor.get('numero', '')} - {valor.get('bairro', '')} - {valor.get('cidade', '')}/{valor.get('estado', 'PR')}"
+                        else:
+                            # Ignorar endereço vazio
+                            continue
                     
                     # Processar arrays de telefones e emails
                     if campo == 'telefones' and isinstance(valor, list):
@@ -426,11 +432,13 @@ def atualizar_locador(locador_id, **kwargs):
                         valor = ', '.join(valor) if valor else ''
                         campo = 'email'  # Mapear para campo do banco
                     
-                    # Processar endereco_estruturado especialmente
+                    # Processar endereco_estruturado especialmente - inserir na mesma transação
                     if campo == 'endereco_estruturado' and isinstance(valor, dict):
-                        endereco_id = inserir_endereco_locador(valor)
-                        if endereco_id:
-                            campos_para_atualizar['endereco_id'] = endereco_id
+                        # Apenas processar se tiver dados válidos
+                        if valor.get('rua') and valor.get('cidade'):
+                            endereco_id = inserir_endereco_locador_com_conexao(cursor, valor)
+                            if endereco_id:
+                                campos_para_atualizar['endereco_id'] = endereco_id
                         # Não salvar no campo endereco_estruturado do banco principal
                         continue
                     
@@ -464,20 +472,36 @@ def atualizar_locador(locador_id, **kwargs):
                 if isinstance(contas, list):
                     # Desativar contas existentes
                     cursor.execute("UPDATE ContasBancariasLocador SET ativo = 0 WHERE locador_id = ?", (locador_id,))
-                    # Inserir novas contas
+                    # Inserir novas contas usando o cursor existente
                     for i, conta in enumerate(contas):
                         if i == 0 and 'principal' not in conta:
                             conta['principal'] = True
-                        inserir_conta_bancaria_locador(locador_id, conta)
+                        inserir_conta_bancaria_locador_com_cursor(cursor, locador_id, conta)
             
             # Processar representante legal se for PJ
             if kwargs.get('tipo_pessoa') == 'PJ' and 'representante_legal' in kwargs:
                 representante = kwargs['representante_legal']
-                if isinstance(representante, dict):
+                if isinstance(representante, dict) and representante.get('nome'):
                     # Remover representante anterior
                     cursor.execute("DELETE FROM RepresentanteLegalLocador WHERE id_locador = ?", (locador_id,))
-                    # Inserir novo representante
-                    inserir_representante_legal_locador(locador_id, representante)
+                    # Inserir novo representante usando a mesma conexão
+                    from datetime import datetime
+                    cursor.execute("""
+                        INSERT INTO RepresentanteLegalLocador (
+                            id_locador, nome, cpf, rg, endereco, telefone, email, cargo, created_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        locador_id,
+                        representante.get('nome', ''),
+                        representante.get('cpf', ''),
+                        representante.get('rg', ''),
+                        representante.get('endereco', ''),
+                        representante.get('telefone', ''),
+                        representante.get('email', ''),
+                        representante.get('cargo', 'Administrador'),
+                        datetime.now()
+                    ))
             
             conn.commit()
             
@@ -488,6 +512,9 @@ def atualizar_locador(locador_id, **kwargs):
                 print(f"AVISO: Nenhuma linha foi afetada")
                 return False
                 
+        finally:
+            conn.close()
+            
     except Exception as e:
         print(f"ERRO ao atualizar locador {locador_id}: {e}")
         import traceback
@@ -625,6 +652,93 @@ def gerar_relatorio_pdf(dados):
     """Gera relatório em PDF da prestacao de contas"""
     return None
 
+def buscar_contratos_ativos():
+    """Busca todos os contratos para seleção na prestação de contas"""
+    try:
+        print("🔍 PRESTACAO: Iniciando busca SIMPLES de contratos...")
+        
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # Query com JOIN para buscar dados do locador da tabela ContratoLocadores -> Locadores
+            # Inclui campos de retenção e antecipação para calcular valores retidos
+            cursor.execute("""
+                SELECT 
+                    c.id,
+                    c.id_imovel,
+                    c.id_locatario,
+                    c.data_inicio,
+                    c.data_fim,
+                    c.valor_aluguel,
+                    c.taxa_administracao,
+                    c.vencimento_dia,
+                    c.status,
+                    c.valor_iptu,
+                    c.valor_condominio,
+                    c.valor_seguro_fianca,
+                    c.valor_seguro_incendio,
+                    c.valor_fci,
+                    c.bonificacao,
+                    -- Campos de retenção
+                    c.retido_fci,
+                    c.retido_condominio,
+                    c.retido_seguro_fianca,
+                    c.retido_seguro_incendio,
+                    c.retido_iptu,
+                    -- Campos de antecipação
+                    c.antecipa_condominio,
+                    c.antecipa_seguro_fianca,
+                    c.antecipa_seguro_incendio,
+                    c.antecipa_iptu,
+                    -- Calcular valor total retido (valores retidos do aluguel)
+                    (CASE WHEN c.retido_fci = 1 THEN ISNULL(c.valor_fci, 0) ELSE 0 END +
+                     CASE WHEN c.retido_condominio = 1 THEN ISNULL(c.valor_condominio, 0) ELSE 0 END +
+                     CASE WHEN c.retido_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
+                     CASE WHEN c.retido_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
+                     CASE WHEN c.retido_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_retido,
+                    -- Calcular valor total antecipado (valores que a empresa antecipa ao locador)
+                    (CASE WHEN c.antecipa_condominio = 1 THEN ISNULL(c.valor_condominio, 0) ELSE 0 END +
+                     CASE WHEN c.antecipa_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
+                     CASE WHEN c.antecipa_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
+                     CASE WHEN c.antecipa_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_antecipado,
+                    cl.locador_id,
+                    loc.nome as locador_nome,
+                    loc.cpf_cnpj as locador_cpf,
+                    loc.telefone as locador_telefone,
+                    loc.email as locador_email,
+                    i.endereco as imovel_endereco,
+                    i.tipo as imovel_tipo
+                FROM Contratos c
+                LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
+                LEFT JOIN Locadores loc ON cl.locador_id = loc.id
+                LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                ORDER BY c.data_inicio DESC
+            """)
+            
+            rows = cursor.fetchall()
+            print(f"📊 PRESTACAO: Encontrados {len(rows)} contratos no banco")
+            
+            columns = [column[0] for column in cursor.description]
+            contratos = []
+            
+            for row in rows:
+                contrato_dict = {}
+                for i, value in enumerate(row):
+                    if hasattr(value, 'strftime'):
+                        contrato_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                    else:
+                        contrato_dict[columns[i]] = value
+                contratos.append(contrato_dict)
+            
+            print(f"✅ PRESTACAO: Retornando {len(contratos)} contratos com valores retidos calculados")
+            return contratos
+            
+    except Exception as e:
+        print(f"❌ PRESTACAO: Erro ao buscar contratos: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return []
+
 def inserir_contrato_locadores(contrato_id, locadores):
     """Define os locadores associados a um contrato com suas contas e porcentagens"""
     return False
@@ -664,6 +778,56 @@ def buscar_contas_bancarias_locador(locador_id):
     except Exception as e:
         print(f"Erro ao buscar contas bancárias: {e}")
         return []
+
+def inserir_conta_bancaria_locador_com_cursor(cursor, locador_id, dados_conta):
+    """Insere uma conta bancária para um locador usando cursor existente"""
+    try:
+        print(f"Inserindo conta bancária para locador {locador_id} com cursor existente")
+        
+        # Se for marcada como principal, desmarcar outras
+        if dados_conta.get('principal', False):
+            cursor.execute("""
+                UPDATE ContasBancariasLocador 
+                SET principal = 0 
+                WHERE locador_id = ?
+            """, (locador_id,))
+        
+        from datetime import datetime
+        
+        # Truncar campos com limite de tamanho
+        tipo_conta = dados_conta.get('tipo_conta', 'Conta Corrente')
+        if len(tipo_conta) > 20:
+            tipo_conta = tipo_conta[:17] + '...'  # Truncar para 20 chars
+        
+        cursor.execute("""
+            INSERT INTO ContasBancariasLocador (
+                locador_id, tipo_recebimento, principal, chave_pix,
+                banco, agencia, conta, tipo_conta, titular, cpf_titular,
+                data_cadastro, data_atualizacao, ativo
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            locador_id,
+            dados_conta.get('tipo_recebimento', 'PIX'),
+            dados_conta.get('principal', False),
+            dados_conta.get('chave_pix', ''),
+            dados_conta.get('banco', ''),
+            dados_conta.get('agencia', ''),
+            dados_conta.get('conta', ''),
+            tipo_conta,
+            dados_conta.get('titular', ''),
+            dados_conta.get('cpf_titular', ''),
+            datetime.now(),
+            datetime.now(),
+            True
+        ))
+        
+        print(f"Conta bancária inserida para locador {locador_id}")
+        return True
+        
+    except Exception as e:
+        print(f"ERRO: Erro ao inserir conta bancária: {e}")
+        return False
 
 def inserir_conta_bancaria_locador(locador_id, dados_conta):
     """Insere uma conta bancária para um locador"""
@@ -724,6 +888,40 @@ def inserir_conta_bancaria_locador(locador_id, dados_conta):
         print(f"ERRO: Erro ao inserir conta bancária: {e}")
         return None
 
+def inserir_endereco_locador_com_conexao(cursor, dados_endereco):
+    """Insere um endereço estruturado para locador usando cursor existente (para evitar deadlock)"""
+    try:
+        print(f"Inserindo endereço do locador com cursor existente: {dados_endereco}")
+        
+        from datetime import datetime
+        
+        cursor.execute("""
+            INSERT INTO EnderecoLocador (
+                rua, numero, complemento, bairro, cidade, uf, cep, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            dados_endereco.get('rua', ''),
+            dados_endereco.get('numero', ''),
+            dados_endereco.get('complemento', ''),
+            dados_endereco.get('bairro', ''),
+            dados_endereco.get('cidade', ''),
+            dados_endereco.get('uf', dados_endereco.get('estado', 'PR')),
+            dados_endereco.get('cep', ''),
+            datetime.now()
+        ))
+        
+        # Buscar o ID do endereço inserido
+        cursor.execute("SELECT @@IDENTITY")
+        endereco_id = cursor.fetchone()[0]
+        
+        print(f"Endereço inserido com ID: {endereco_id}")
+        return endereco_id
+        
+    except Exception as e:
+        print(f"Erro ao inserir endereço do locador: {e}")
+        return None
+
 def inserir_endereco_locador(dados_endereco):
     """Insere um endereço estruturado para locador na tabela EnderecoLocador"""
     try:
@@ -731,33 +929,13 @@ def inserir_endereco_locador(dados_endereco):
         
         with get_conexao() as conn:
             cursor = conn.cursor()
+            endereco_id = inserir_endereco_locador_com_conexao(cursor, dados_endereco)
             
-            from datetime import datetime
-            
-            cursor.execute("""
-                INSERT INTO EnderecoLocador (
-                    rua, numero, complemento, bairro, cidade, uf, cep, created_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                dados_endereco.get('rua', ''),
-                dados_endereco.get('numero', ''),
-                dados_endereco.get('complemento', ''),
-                dados_endereco.get('bairro', ''),
-                dados_endereco.get('cidade', ''),
-                dados_endereco.get('uf', dados_endereco.get('estado', 'PR')),
-                dados_endereco.get('cep', ''),
-                datetime.now()
-            ))
-            
-            conn.commit()
-            
-            # Buscar o ID do endereço inserido
-            cursor.execute("SELECT @@IDENTITY")
-            endereco_id = cursor.fetchone()[0]
-            
-            print(f"SUCESSO: Endereço locador inserido com ID: {endereco_id}")
-            return int(endereco_id)
+            if endereco_id:
+                conn.commit()
+                return endereco_id
+            else:
+                return None
             
     except Exception as e:
         print(f"ERRO: Erro ao inserir endereço locador: {e}")
@@ -946,6 +1124,17 @@ def buscar_contrato_por_id(contrato_id):
         cursor.execute("""
             SELECT 
                 c.*,
+                -- Calcular valor total retido (valores retidos do aluguel)
+                (CASE WHEN c.retido_fci = 1 THEN ISNULL(c.valor_fci, 0) ELSE 0 END +
+                 CASE WHEN c.retido_condominio = 1 THEN ISNULL(c.valor_condominio, 0) ELSE 0 END +
+                 CASE WHEN c.retido_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
+                 CASE WHEN c.retido_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
+                 CASE WHEN c.retido_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_retido,
+                -- Calcular valor total antecipado (valores que a empresa antecipa ao locador)
+                (CASE WHEN c.antecipa_condominio = 1 THEN ISNULL(c.valor_condominio, 0) ELSE 0 END +
+                 CASE WHEN c.antecipa_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
+                 CASE WHEN c.antecipa_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
+                 CASE WHEN c.antecipa_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_antecipado,
                 i.endereco as imovel_endereco,
                 i.tipo as imovel_tipo,
                 i.id_locador,
@@ -2980,3 +3169,163 @@ def buscar_dados_bancarios_corretor(contrato_id):
     except Exception as e:
         print(f"Erro ao buscar dados bancários do corretor: {e}")
         return {}
+
+# ==========================================
+# FUNÇÕES PARA PRESTAÇÃO DE CONTAS
+# ==========================================
+
+def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, status, observacoes=None, 
+                          lancamentos_extras=None, contrato_dados=None, configuracao_calculo=None, 
+                          configuracao_fatura=None):
+    """Salva uma nova prestação de contas no banco de dados"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Obter dados do mês atual ou do mês especificado na configuração
+        from datetime import datetime
+        agora = datetime.now()
+        mes = agora.month
+        ano = agora.year
+        referencia = f"{mes:02d}/{ano}"
+        
+        # Se houver configuração de fatura com mês específico
+        if configuracao_fatura and configuracao_fatura.get('mes_referencia'):
+            try:
+                mes_ref = configuracao_fatura['mes_referencia']
+                if '/' in mes_ref:
+                    mes, ano = mes_ref.split('/')
+                    mes = int(mes)
+                    ano = int(ano)
+                    referencia = f"{mes:02d}/{ano}"
+            except:
+                pass
+        
+        # Obter locador_id do contrato
+        cursor.execute("SELECT locador_id FROM Contratos WHERE id = ?", (contrato_id,))
+        resultado_contrato = cursor.fetchone()
+        if not resultado_contrato:
+            raise Exception(f"Contrato {contrato_id} não encontrado")
+        
+        locador_id = resultado_contrato[0]
+        
+        # Inserir na tabela PrestacaoContas
+        cursor.execute("""
+            INSERT INTO PrestacaoContas (
+                locador_id, mes, ano, referencia, valor_pago, valor_vencido, 
+                encargos, deducoes, total_bruto, total_liquido, status, 
+                pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+        """, (
+            locador_id,
+            f"{mes:02d}",
+            str(ano),
+            referencia,
+            dados_financeiros.get('valor_pago', 0),
+            dados_financeiros.get('valor_vencido', 0),
+            dados_financeiros.get('encargos', 0),
+            dados_financeiros.get('deducoes', 0),
+            dados_financeiros.get('total_bruto', 0),
+            dados_financeiros.get('total_liquido', 0),
+            status,
+            status == 'atrasado',
+            observacoes
+        ))
+        
+        # Obter ID da prestação recém criada
+        cursor.execute("SELECT @@IDENTITY")
+        prestacao_id = cursor.fetchone()[0]
+        
+        # Inserir lançamentos extras se houver
+        if lancamentos_extras:
+            for lancamento in lancamentos_extras:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+                """, (
+                    prestacao_id,
+                    lancamento.get('tipo', 'extra'),
+                    lancamento.get('descricao', 'Lançamento extra'),
+                    lancamento.get('valor', 0)
+                ))
+        
+        # Inserir lançamentos automáticos baseados no contrato
+        if contrato_dados:
+            # Aluguel
+            if contrato_dados.get('valor_aluguel', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'aluguel', 'Valor do aluguel', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, contrato_dados['valor_aluguel']))
+            
+            # Valores retidos
+            if contrato_dados.get('retido_condominio') and contrato_dados.get('valor_condominio', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido', 'Condomínio (Retido)', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, -contrato_dados['valor_condominio']))
+            
+            if contrato_dados.get('retido_fci') and contrato_dados.get('valor_fci', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido', 'FCI (Retido)', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, -contrato_dados['valor_fci']))
+            
+            if contrato_dados.get('retido_iptu') and contrato_dados.get('valor_iptu', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido', 'IPTU (Retido)', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, -contrato_dados['valor_iptu']))
+            
+            # Antecipações (5% de taxa)
+            if contrato_dados.get('antecipa_condominio') and contrato_dados.get('valor_condominio', 0) > 0:
+                taxa = contrato_dados['valor_condominio'] * 0.05
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa', 'Taxa Antecipação Condomínio (5%)', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, -taxa))
+            
+            if contrato_dados.get('antecipa_seguro_fianca') and contrato_dados.get('valor_seguro_fianca', 0) > 0:
+                taxa = contrato_dados['valor_seguro_fianca'] * 0.05
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa', 'Taxa Antecipação Seguro Fiança (5%)', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, -taxa))
+            
+            # Taxa de administração
+            if contrato_dados.get('taxa_administracao', 0) > 0 and contrato_dados.get('valor_aluguel', 0) > 0:
+                aluguel = contrato_dados['valor_aluguel']
+                desconto = contrato_dados.get('bonificacao', 0)
+                base_calculo = aluguel - desconto
+                taxa_admin = base_calculo * (contrato_dados['taxa_administracao'] / 100)
+                
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa', ?, ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa de Administração ({contrato_dados["taxa_administracao"]}%)', -taxa_admin))
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"✅ Prestação de contas salva com sucesso - ID: {prestacao_id}")
+        return {
+            "success": True,
+            "prestacao_id": prestacao_id,
+            "locador_id": locador_id,
+            "referencia": referencia
+        }
+        
+    except Exception as e:
+        print(f"❌ Erro ao salvar prestação de contas: {e}")
+        if conn:
+            conn.rollback()
+            conn.close()
+        raise e

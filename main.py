@@ -769,12 +769,32 @@ async def listar_faturas(
     status: Optional[str] = None, 
     mes: Optional[int] = None,
     ano: Optional[int] = None,
-    sort_field: Optional[str] = None,
-    sort_direction: Optional[str] = 'DESC',
-    search: Optional[str] = None
+    order_by: Optional[str] = 'data_vencimento',
+    order_dir: Optional[str] = 'DESC',
+    search: Optional[str] = None,
+    page: Optional[int] = 1,
+    limit: Optional[int] = 20
 ):
     try:
-        faturas = buscar_faturas(status, mes, ano, sort_field, sort_direction, search)
+        from repositories_adapter import buscar_faturas
+        # Criar objeto de filtros
+        filtros = {}
+        if status:
+            filtros['status'] = status
+        if mes:
+            filtros['mes'] = mes
+        if ano:
+            filtros['ano'] = ano
+        if search:
+            filtros['search'] = search
+            
+        faturas = buscar_faturas(
+            filtros=filtros if filtros else None,
+            page=page,
+            limit=limit,
+            order_by=order_by,
+            order_dir=order_dir
+        )
         return faturas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar faturas: {str(e)}")
@@ -782,6 +802,7 @@ async def listar_faturas(
 @app.get("/api/faturas/stats")
 async def obter_estatisticas_faturas():
     try:
+        from repositories_adapter import buscar_estatisticas_faturas
         stats = buscar_estatisticas_faturas()
         return stats
     except Exception as e:
@@ -790,6 +811,7 @@ async def obter_estatisticas_faturas():
 @app.get("/api/faturas/{fatura_id}")
 async def obter_fatura(fatura_id: int):
     try:
+        from repositories_adapter import buscar_fatura_por_id
         fatura = buscar_fatura_por_id(fatura_id)
         if not fatura:
             raise HTTPException(status_code=404, detail="Fatura não encontrada")
@@ -800,6 +822,7 @@ async def obter_fatura(fatura_id: int):
 @app.post("/api/faturas/{fatura_id}/gerar-boleto")
 async def gerar_boleto(fatura_id: int):
     try:
+        from repositories_adapter import gerar_boleto_fatura
         boleto = gerar_boleto_fatura(fatura_id)
         if not boleto:
             raise HTTPException(status_code=404, detail="Fatura não encontrada")
@@ -819,6 +842,17 @@ async def cancelar_fatura(fatura_id: int):
             raise HTTPException(status_code=404, detail="Fatura não encontrada")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao cancelar fatura: {str(e)}")
+
+@app.get("/api/prestacao-contas/contratos-ativos")
+async def listar_contratos_ativos_prestacao():
+    """Lista todos os contratos ativos para seleção na prestação de contas"""
+    try:
+        from repositories_adapter import buscar_contratos_ativos
+        contratos = buscar_contratos_ativos()
+        return {"data": contratos, "success": True}
+    except Exception as e:
+        print(f"Erro ao buscar contratos ativos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos ativos: {str(e)}")
 
 class AlterarStatusRequest(BaseModel):
     status: str
@@ -873,6 +907,40 @@ async def dashboard_alertas():
         return alertas
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar alertas: {str(e)}")
+
+class PrestacaoContasRequest(BaseModel):
+    contrato_id: int
+    tipo_prestacao: str
+    configuracao_calculo: Optional[dict] = None
+    configuracao_fatura: Optional[dict] = None
+    dados_financeiros: dict
+    status: str
+    observacoes: Optional[str] = None
+    lancamentos_extras: Optional[list] = None
+    contrato_dados: Optional[dict] = None
+    fatura_origem: Optional[dict] = None
+    data_processamento: str
+
+@app.post("/api/prestacao-contas/salvar")
+async def salvar_prestacao_contas(request: PrestacaoContasRequest):
+    """Endpoint para salvar prestação de contas"""
+    try:
+        from repositories_adapter import salvar_prestacao_contas
+        resultado = salvar_prestacao_contas(
+            contrato_id=request.contrato_id,
+            tipo_prestacao=request.tipo_prestacao,
+            dados_financeiros=request.dados_financeiros,
+            status=request.status,
+            observacoes=request.observacoes,
+            lancamentos_extras=request.lancamentos_extras or [],
+            contrato_dados=request.contrato_dados,
+            configuracao_calculo=request.configuracao_calculo,
+            configuracao_fatura=request.configuracao_fatura
+        )
+        return {"success": True, "data": resultado, "message": "Prestação de contas salva com sucesso"}
+    except Exception as e:
+        print(f"Erro ao salvar prestação de contas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar prestação de contas: {str(e)}")
 
 @app.get("/api/dashboard/completo")
 async def dashboard_completo(mes: Optional[int] = None, ano: Optional[int] = None):

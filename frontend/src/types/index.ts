@@ -12,6 +12,7 @@ export * from './Contrato';
 export * from './ApiResponse';
 export * from './CalculoPrestacao';
 export * from './PrestacaoContas';
+export * from './Fatura';
 
 // Interfaces para boletos
 export interface Boleto {

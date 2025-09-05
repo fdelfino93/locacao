@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithIcon } from "@/components/ui/input-with-icon";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown } from 'lucide-react';
+import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown, Hash, Building, User, Users } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
@@ -264,17 +264,9 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const abrirLancamentoFatura = (fatura: Fatura) => {
     console.log('🎯 Redirecionando para lançamento de fatura:', fatura.numero_fatura);
     
-    // IMPORTANTE: Sempre usar dados originais dos mocks, não os editados
-    const faturaOriginal = faturasMock.find(f => f.id === fatura.id) || fatura;
-    console.log('📊 Usando dados originais para lançamento:', {
-      faturaUsada: faturaOriginal,
-      faturaRecebida: fatura,
-      saoIguais: JSON.stringify(faturaOriginal) === JSON.stringify(fatura)
-    });
-    
-    // Salvar dados da fatura ORIGINAL no localStorage para a página de lançamento
+    // Salvar dados da fatura no localStorage para a página de lançamento
     const dadosFatura = {
-      fatura: faturaOriginal,
+      fatura: fatura,
       tipo: 'fatura_existente',
       timestamp: Date.now()
     };
@@ -345,11 +337,6 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   // Função para salvar edições de fatura
   const salvarEdicaoFatura = (faturaId: number, dadosEditados: Partial<Fatura>) => {
     console.log('💾 Salvando edição da fatura:', faturaId, dadosEditados);
-    console.log('📊 Dados originais vs editados:', {
-      faturaId,
-      dadosOriginais: faturasMock.find(f => f.id === faturaId),
-      dadosEditados
-    });
     
     setFaturasEditadas(prev => ({
       ...prev,

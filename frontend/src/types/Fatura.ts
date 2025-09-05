@@ -10,8 +10,12 @@ export interface Fatura {
   valor_condominio?: number;
   valor_fci?: number;
   valor_gas?: number;
+  valor_seguro_fianca?: number;
+  valor_seguro_incendio?: number;
+  valor_energia?: number;
   valor_acrescimos?: number;
   valor_total: number;
+  valor_liquido?: number;
   
   // Descontos e fundos
   desconto_pontualidade?: number;
