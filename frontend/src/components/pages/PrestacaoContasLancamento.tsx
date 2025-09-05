@@ -458,7 +458,20 @@ export const PrestacaoContasLancamento: React.FC = () => {
       taxaBoleto,
       taxaTransferencia,
       valorRepasse,
-      numProprietarios
+      numProprietarios,
+      repassePorLocador: contratoSelecionado?.locadores?.map(locador => ({
+        locador_id: locador.locador_id,
+        locador_nome: locador.locador_nome,
+        porcentagem: locador.porcentagem || 100,
+        valor_repasse: (valorRepasse * (locador.porcentagem || 100)) / 100,
+        responsabilidade_principal: locador.responsabilidade_principal
+      })) || [{
+        locador_id: null,
+        locador_nome: 'Locador Principal',
+        porcentagem: 100,
+        valor_repasse: valorRepasse,
+        responsabilidade_principal: true
+      }]
     };
   };
 
@@ -2760,6 +2773,47 @@ export const PrestacaoContasLancamento: React.FC = () => {
                     <p className="text-xs text-green-500 mt-1">Líquido para o proprietário</p>
                   </div>
                 </div>
+
+                {/* Repasse por Locador */}
+                {contratoSelecionado && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-3 flex items-center space-x-2">
+                      <Crown className="w-4 h-4 text-blue-600" />
+                      <span>Repasse por Locador</span>
+                    </h4>
+                    <div className="space-y-3">
+                      {(() => {
+                        const totais = calcularTotais();
+                        console.log('🔍 Repasse por locador:', totais.repassePorLocador);
+                        console.log('🏠 Contrato selecionado locadores:', contratoSelecionado?.locadores);
+                        return totais.repassePorLocador;
+                      })().map((locador, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-blue-200 dark:border-blue-700/50">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <h5 className="text-sm font-medium text-foreground">
+                                {locador.locador_nome}
+                              </h5>
+                              {locador.responsabilidade_principal && (
+                                <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-1 rounded-full">
+                                  Principal
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {locador.porcentagem}% do valor líquido
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-blue-600">
+                              {formatCurrency(locador.valor_repasse)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Detalhamento das Retenções */}
                 <div className="p-4 bg-muted/30 rounded-xl border border-border">

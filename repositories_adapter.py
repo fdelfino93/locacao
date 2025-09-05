@@ -728,6 +728,10 @@ def buscar_contratos_ativos():
                         contrato_dict[columns[i]] = value.strftime('%Y-%m-%d')
                     else:
                         contrato_dict[columns[i]] = value
+                
+                # Buscar locadores associados ao contrato
+                contrato_dict['locadores'] = buscar_locadores_contrato(contrato_dict['id'])
+                
                 contratos.append(contrato_dict)
             
             print(f"✅ PRESTACAO: Retornando {len(contratos)} contratos com valores retidos calculados")
@@ -3201,16 +3205,55 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             except:
                 pass
         
-        # Obter locador_id do contrato
-        cursor.execute("SELECT locador_id FROM Contratos WHERE id = ?", (contrato_id,))
+        # Obter locador_id do contrato através do imóvel
+        cursor.execute("""
+            SELECT i.id_locador 
+            FROM Contratos c 
+            INNER JOIN Imoveis i ON c.id_imovel = i.id 
+            WHERE c.id = ?
+        """, (contrato_id,))
         resultado_contrato = cursor.fetchone()
         if not resultado_contrato:
-            raise Exception(f"Contrato {contrato_id} não encontrado")
+            raise Exception(f"Contrato {contrato_id} não encontrado ou sem locador")
         
         locador_id = resultado_contrato[0]
         
-        # Inserir na tabela PrestacaoContas
+        # Verificar se já existe prestação para este período
         cursor.execute("""
+            SELECT id FROM PrestacaoContas 
+            WHERE locador_id = ? AND mes = ? AND ano = ? AND ativo = 1
+        """, (locador_id, f"{mes:02d}", str(ano)))
+        prestacao_existente = cursor.fetchone()
+        
+        if prestacao_existente:
+            # Atualizar prestação existente ao invés de criar nova
+            print(f"⚠️ Prestação já existe para locador {locador_id} em {mes:02d}/{ano} - Atualizando...")
+            cursor.execute("""
+                UPDATE PrestacaoContas SET
+                    valor_pago = ?, valor_vencido = ?, encargos = ?, deducoes = ?,
+                    total_bruto = ?, total_liquido = ?, status = ?, 
+                    pagamento_atrasado = ?, observacoes_manuais = ?, data_atualizacao = GETDATE()
+                WHERE id = ?
+            """, (
+                dados_financeiros.get('valor_pago', 0),
+                dados_financeiros.get('valor_vencido', 0),
+                dados_financeiros.get('encargos', 0),
+                dados_financeiros.get('deducoes', 0),
+                dados_financeiros.get('total_bruto', 0),
+                dados_financeiros.get('total_liquido', 0),
+                status,
+                status == 'atrasado',
+                observacoes,
+                prestacao_existente[0]
+            ))
+            prestacao_id = prestacao_existente[0]
+            
+            # Remover lançamentos antigos desta prestação
+            cursor.execute("DELETE FROM LancamentosPrestacaoContas WHERE prestacao_id = ?", (prestacao_id,))
+            
+        else:
+            # Inserir nova prestação
+            cursor.execute("""
             INSERT INTO PrestacaoContas (
                 locador_id, mes, ano, referencia, valor_pago, valor_vencido, 
                 encargos, deducoes, total_bruto, total_liquido, status, 
@@ -3230,11 +3273,11 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             status,
             status == 'atrasado',
             observacoes
-        ))
-        
-        # Obter ID da prestação recém criada
-        cursor.execute("SELECT @@IDENTITY")
-        prestacao_id = cursor.fetchone()[0]
+            ))
+            
+            # Obter ID da prestação recém criada
+            cursor.execute("SELECT @@IDENTITY")
+            prestacao_id = cursor.fetchone()[0]
         
         # Inserir lançamentos extras se houver
         if lancamentos_extras:
