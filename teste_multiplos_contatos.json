@@ -1,0 +1,15 @@
+{
+  "nome": "Teste Múltiplos Contatos",
+  "cpf_cnpj": "77777777777",
+  "telefone": "11111111111",
+  "email": "principal@teste.com",
+  "telefones": ["11111111111", "11222222222", "11333333333"],
+  "emails": ["principal@teste.com", "secundario@teste.com", "comercial@teste.com"],
+  "tipo_pessoa": "PF",
+  "estado_civil": "Solteiro",
+  "regime_bens": "Separação total de bens",
+  "email_recebimento": "relatorios@teste.com",
+  "usa_multiplos_metodos": true,
+  "observacoes": "Locador com múltiplos telefones e emails para teste",
+  "tipo_cliente": "Proprietário"
+}

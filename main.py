@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Union
+from typing import Optional, Union, List
 from datetime import date
 import os
 from dotenv import load_dotenv
@@ -14,7 +14,10 @@ from repositories_adapter import (
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura,
     buscar_historico_contrato, registrar_mudanca_contrato, listar_planos_locacao,
-    salvar_dados_bancarios_corretor, buscar_dados_bancarios_corretor
+    salvar_dados_bancarios_corretor, buscar_dados_bancarios_corretor,
+    buscar_contas_bancarias_locador, inserir_conta_bancaria_locador,
+    inserir_endereco_locador, buscar_endereco_locador,
+    inserir_representante_legal_locador
 )
 
 # Importar funções específicas para dashboard
@@ -49,30 +52,69 @@ app.add_middleware(
 
 # Modelos Pydantic para validação dos dados
 class LocadorCreate(BaseModel):
-    nome: str
-    cpf_cnpj: str
-    telefone: str
-    email: str
-    endereco: str
-    tipo_recebimento: str
-    conta_bancaria: str
-    deseja_fci: str
-    deseja_seguro_fianca: str
-    deseja_seguro_incendio: str
-    rg: str
-    dados_empresa: str
-    representante: str
-    nacionalidade: str
-    estado_civil: str
-    profissao: str
+    model_config = {"extra": "allow"}  # Permitir campos extras
+    # Campos básicos - obrigatórios para cadastro, opcionais para edição
+    nome: Optional[str] = ""
+    cpf_cnpj: Optional[str] = ""
+    telefone: Optional[str] = ""
+    telefones: Optional[List[str]] = []
+    email: Optional[str] = ""
+    emails: Optional[List[str]] = []
+    endereco: Optional[Union[str, dict]] = ""  # Pode ser string ou objeto estruturado
+    endereco_estruturado: Optional[dict] = None  # Endereço estruturado
+    
+    # Campos financeiros
+    tipo_recebimento: Optional[str] = "PIX"
+    conta_bancaria: Optional[str] = ""
+    contas_bancarias: Optional[List[dict]] = []
+    deseja_fci: Optional[str] = "Não"
+    deseja_seguro_fianca: Optional[str] = "Não" 
+    deseja_seguro_incendio: Optional[Union[str, int]] = "Não"
+    dados_bancarios_id: Optional[int] = None
+    
+    # Dados pessoais
+    rg: Optional[str] = ""
+    nacionalidade: Optional[str] = "Brasileira"
+    estado_civil: Optional[str] = "Solteiro"
+    profissao: Optional[str] = ""
+    data_nascimento: Optional[Union[date, str]] = None
+    tipo_cliente: Optional[str] = "Proprietário"
+    
+    # Campos empresa/PJ
+    dados_empresa: Optional[str] = ""
+    representante: Optional[str] = ""
+    tipo_pessoa: Optional[str] = "PF"
+    razao_social: Optional[str] = ""
+    nome_fantasia: Optional[str] = ""
+    inscricao_estadual: Optional[str] = ""
+    inscricao_municipal: Optional[str] = ""
+    atividade_principal: Optional[str] = ""
+    
+    # Campos cônjuge
     existe_conjuge: Optional[int] = None
     nome_conjuge: Optional[str] = None
     cpf_conjuge: Optional[str] = None
     rg_conjuge: Optional[str] = None
     endereco_conjuge: Optional[str] = None
     telefone_conjuge: Optional[str] = None
-    tipo_cliente: str
-    data_nascimento: date
+    regime_bens: Optional[str] = None
+    
+    # Campos adicionais
+    observacoes: Optional[str] = ""
+    ativo: Optional[bool] = True
+    email_recebimento: Optional[str] = None
+    usa_multiplos_metodos: Optional[bool] = False
+    representante_legal: Optional[dict] = None
+    
+    # Campos para funcionalidades avançadas
+    contas_bancarias: Optional[list] = None
+    representante_legal: Optional[dict] = None
+    dados_bancarios: Optional[dict] = None
+    documentos_empresa: Optional[dict] = None
+    
+    # Campos de arrays do frontend
+    telefones: Optional[list] = None
+    emails: Optional[list] = None
 
 class LocatarioCreate(BaseModel):
     nome: str
@@ -334,56 +376,63 @@ class ContratoUpdate(BaseModel):
 @app.post("/api/locadores")
 async def criar_locador(locador: LocadorCreate):
     try:
-        novo_locador = inserir_locador(**locador.dict())
-        return {"data": novo_locador, "success": True}
+        print(f"💾 Criando novo locador: {locador.nome}")
+        
+        # Usar novo repository v2 com dados completos
+        from locacao.repositories.locador_repository_v2 import inserir_locador_v2
+        resultado = inserir_locador_v2(locador.dict(exclude_none=True))
+        
+        if resultado.get("success"):
+            return {"data": {"id": resultado["id"]}, "success": True, "message": resultado["message"]}
+        else:
+            raise HTTPException(status_code=500, detail=resultado.get("error", "Erro desconhecido"))
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"❌ Erro ao criar locador: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
 
 @app.put("/api/locadores/{locador_id}")
 async def atualizar_locador_endpoint(locador_id: int, locador: LocadorCreate):
     try:
-        print(f"ENDPOINT: Iniciando atualização de locador ID: {locador_id}")
-        print(f"ENDPOINT: Dados recebidos: {locador.model_dump()}")
+        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCADOR {locador_id} ===")
+        dados_recebidos = locador.model_dump(exclude_none=True)
+        print(f"Dados recebidos do frontend:")
+        for campo, valor in dados_recebidos.items():
+            print(f"  - {campo}: {valor}")
+        print(f"Total de campos enviados: {len(dados_recebidos)}")
         
-        # Primeiro verificar se conseguimos buscar o locador
-        print(f"ENDPOINT: Tentando buscar locador {locador_id} antes da atualização...")
-        locadores = buscar_locadores()
-        locador_existente = next((loc for loc in locadores if loc.get('id') == locador_id), None)
+        from repositories_adapter import atualizar_locador as atualizar_locador_db
+        # Filtrar campos None antes de enviar para o banco
+        dados_filtrados = {k: v for k, v in dados_recebidos.items() if v is not None}
+        print(f"Dados após filtrar None: {len(dados_filtrados)} campos")
+        for campo, valor in dados_filtrados.items():
+            print(f"  - {campo}: {valor}")
         
-        if locador_existente:
-            print(f"ENDPOINT: Locador encontrado na busca: {locador_existente.get('nome')}")
+        resultado = atualizar_locador_db(locador_id, **dados_filtrados)
+        
+        if resultado:
+            print(f"✓ Locador {locador_id} atualizado com sucesso!")
+            return {"message": f"Locador {locador_id} atualizado com sucesso", "success": True}
         else:
-            print(f"ENDPOINT: Locador {locador_id} não encontrado na busca geral")
-        
-        # Chamar função de atualização real
-        print(f"ENDPOINT: Chamando atualizar_locador({locador_id}, **kwargs)")
-        sucesso = atualizar_locador(locador_id, **locador.model_dump())
-        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
-        
-        if not sucesso:
-            raise HTTPException(status_code=404, detail="Locador não encontrado ou erro na atualização")
-            
-        locador_atualizado = {"id": locador_id, **locador.model_dump()}
-        
-        return {
-            "data": locador_atualizado, 
-            "success": True, 
-            "message": f"Locador {locador_id} atualizado com sucesso!"
-        }
+            print(f"✗ Falha ao atualizar locador {locador_id}")
+            raise HTTPException(status_code=404, detail="Locador não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ENDPOINT ERROR: Erro geral ao atualizar locador: {str(e)}")
+        print(f"❌ ERRO no endpoint PUT /api/locadores/{locador_id}: {str(e)}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
 
 @app.get("/api/locadores/{locador_id}")
 async def buscar_locador_por_id(locador_id: int):
     try:
-        print(f"Buscando locador ID: {locador_id}")
+        print(f"🔍 Buscando locador completo ID: {locador_id}")
         
-        # Por enquanto, usar busca geral e filtrar
-        locadores = buscar_locadores()
-        locador = next((loc for loc in locadores if loc.get('id') == locador_id), None)
+        # Usar novo repository v2 com dados completos
+        from locacao.repositories.locador_repository_v2 import buscar_locador_completo
+        locador = buscar_locador_completo(locador_id)
         
         if not locador:
             raise HTTPException(status_code=404, detail="Locador não encontrado")
@@ -398,9 +447,14 @@ async def buscar_locador_por_id(locador_id: int):
 @app.get("/api/locadores")
 async def listar_locadores():
     try:
-        locadores = buscar_locadores()
+        print("📋 Listando locadores")
+        
+        # Usar novo repository v2
+        from locacao.repositories.locador_repository_v2 import listar_locadores
+        locadores = listar_locadores()
         return {"data": locadores, "success": True}
     except Exception as e:
+        print(f"❌ Erro ao listar locadores: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores: {str(e)}")
 
 class StatusRequest(BaseModel):
@@ -914,6 +968,41 @@ async def listar_locadores_ativos():
         return {"data": locadores, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores ativos: {str(e)}")
+
+# Rotas para Contas Bancárias de Locadores
+@app.get("/api/locadores/{locador_id}/contas-bancarias")
+async def listar_contas_bancarias_locador(locador_id: int):
+    """Lista todas as contas bancárias de um locador"""
+    try:
+        from repositories_adapter import buscar_contas_bancarias_locador
+        contas = buscar_contas_bancarias_locador(locador_id)
+        return {"data": contas, "success": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar contas bancárias: {str(e)}")
+
+class ContaBancariaCreate(BaseModel):
+    tipo_recebimento: str = "PIX"
+    principal: Optional[bool] = False
+    chave_pix: Optional[str] = ""
+    banco: Optional[str] = ""
+    agencia: Optional[str] = ""
+    conta: Optional[str] = ""
+    tipo_conta: Optional[str] = "Conta Corrente"
+    titular: Optional[str] = ""
+    cpf_titular: Optional[str] = ""
+
+@app.post("/api/locadores/{locador_id}/contas-bancarias")
+async def criar_conta_bancaria_locador(locador_id: int, conta: ContaBancariaCreate):
+    """Cria uma nova conta bancária para um locador"""
+    try:
+        from repositories_adapter import inserir_conta_bancaria_locador
+        conta_id = inserir_conta_bancaria_locador(locador_id, conta.dict())
+        if conta_id:
+            return {"data": {"id": conta_id}, "success": True, "message": "Conta bancária criada com sucesso"}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao criar conta bancária")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao criar conta bancária: {str(e)}")
 
 class LocadoresContratoRequest(BaseModel):
     locadores: list[dict]

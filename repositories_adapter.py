@@ -196,6 +196,124 @@ from locacao.repositories.inquilino_repository import inserir_inquilino
 from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
 from locacao.repositories.contrato_repository import inserir_contrato
 
+def inserir_cliente(**kwargs):
+    """Insere um cliente (locador) na tabela Locadores com todos os campos suportados"""
+    try:
+        print(f"Inserindo cliente/locador - Dados recebidos: {kwargs}")
+        
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # Campos básicos obrigatórios
+            nome = kwargs.get('nome', '')
+            cpf_cnpj = kwargs.get('cpf_cnpj', '')
+            telefone = kwargs.get('telefone', '')
+            email = kwargs.get('email', '')
+            endereco = kwargs.get('endereco', '')
+            
+            # Campos opcionais com valores padrão
+            tipo_recebimento = kwargs.get('tipo_recebimento', 'PIX')
+            conta_bancaria = kwargs.get('conta_bancaria', '')
+            deseja_fci = kwargs.get('deseja_fci', 'Não')
+            deseja_seguro_fianca = kwargs.get('deseja_seguro_fianca', 'Não')
+            deseja_seguro_incendio = kwargs.get('deseja_seguro_incendio', 0)
+            rg = kwargs.get('rg', '')
+            dados_empresa = kwargs.get('dados_empresa', '')
+            representante = kwargs.get('representante', '')
+            nacionalidade = kwargs.get('nacionalidade', 'Brasileira')
+            estado_civil = kwargs.get('estado_civil', 'Solteiro')
+            profissao = kwargs.get('profissao', '')
+            
+            # Campos cônjuge
+            existe_conjuge = kwargs.get('existe_conjuge', 0)
+            nome_conjuge = kwargs.get('nome_conjuge', '')
+            cpf_conjuge = kwargs.get('cpf_conjuge', '')
+            rg_conjuge = kwargs.get('rg_conjuge', '')
+            endereco_conjuge = kwargs.get('endereco_conjuge', '')
+            telefone_conjuge = kwargs.get('telefone_conjuge', '')
+            
+            # Outros campos
+            tipo_cliente = kwargs.get('tipo_cliente', 'Proprietário')
+            data_nascimento = kwargs.get('data_nascimento')
+            tipo_pessoa = kwargs.get('tipo_pessoa', 'PF')
+            observacoes = kwargs.get('observacoes', '')
+            
+            # Novos campos PJ
+            razao_social = kwargs.get('razao_social', '')
+            nome_fantasia = kwargs.get('nome_fantasia', '')
+            inscricao_estadual = kwargs.get('inscricao_estadual', '')
+            inscricao_municipal = kwargs.get('inscricao_municipal', '')
+            atividade_principal = kwargs.get('atividade_principal', '')
+            
+            # Campos de auditoria
+            from datetime import datetime
+            data_cadastro = datetime.now()
+            data_atualizacao = data_cadastro
+            ativo = kwargs.get('ativo', True)
+            
+            # Processar endereço estruturado se fornecido
+            endereco_id = None
+            endereco_completo = endereco
+            if isinstance(endereco, dict):
+                endereco_id = inserir_endereco_locador(endereco)
+                if endereco_id:
+                    endereco_completo = f"{endereco.get('rua', '')}, {endereco.get('numero', '')} - {endereco.get('bairro', '')} - {endereco.get('cidade', '')}/{endereco.get('estado', 'PR')}"
+                else:
+                    endereco_completo = str(endereco)
+            
+            cursor.execute("""
+                INSERT INTO Locadores (
+                    nome, cpf_cnpj, telefone, email, endereco, endereco_id,
+                    tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
+                    deseja_seguro_incendio, rg, dados_empresa, representante,
+                    nacionalidade, estado_civil, profissao, existe_conjuge,
+                    nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
+                    tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
+                    razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
+                    atividade_principal, ativo, data_cadastro, data_atualizacao
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                nome, cpf_cnpj, telefone, email, endereco_completo, endereco_id,
+                tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
+                deseja_seguro_incendio, rg, dados_empresa, representante,
+                nacionalidade, estado_civil, profissao, existe_conjuge,
+                nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
+                tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
+                razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
+                atividade_principal, ativo, data_cadastro, data_atualizacao
+            ))
+            
+            conn.commit()
+            
+            # Buscar o ID do locador inserido
+            cursor.execute("SELECT @@IDENTITY")
+            locador_id = cursor.fetchone()[0]
+            
+            # Processar múltiplas contas bancárias se fornecidas
+            contas_bancarias = kwargs.get('contas_bancarias', [])
+            if contas_bancarias and isinstance(contas_bancarias, list):
+                for i, conta in enumerate(contas_bancarias):
+                    # Primeira conta é sempre principal se não especificado
+                    if i == 0 and 'principal' not in conta:
+                        conta['principal'] = True
+                    inserir_conta_bancaria_locador(locador_id, conta)
+            
+            # Processar representante legal se for PJ e fornecido
+            if tipo_pessoa == 'PJ':
+                representante_legal = kwargs.get('representante_legal')
+                if representante_legal and isinstance(representante_legal, dict):
+                    inserir_representante_legal_locador(locador_id, representante_legal)
+            
+            print(f"SUCESSO: Locador inserido com ID: {locador_id}")
+            return int(locador_id)
+            
+    except Exception as e:
+        print(f"ERRO: Erro ao inserir locador: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 def inserir_locador(**kwargs):
     return inserir_cliente(**kwargs)
 
@@ -237,88 +355,143 @@ def inserir_imovel(**kwargs):
             raise e2
 
 def atualizar_locador(locador_id, **kwargs):
-    """Atualiza um locador na tabela Locadores"""
+    """Atualiza um locador na tabela Locadores com suporte completo a todos os campos"""
     try:
-        conn = get_conexao()
-        cursor = conn.cursor()
+        print(f"ATUALIZANDO LOCADOR ID {locador_id} - Dados recebidos: {kwargs}")
         
-        # Primeiro verificar se o locador existe
-        cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", locador_id)
-        locador_existente = cursor.fetchone()
-        
-        if not locador_existente:
-            print(f"Locador ID {locador_id} nao encontrado na tabela Locadores")
+        with get_conexao() as conn:
+            cursor = conn.cursor()
             
-            # Verificar se existe na tabela Clientes
-            cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
-            cliente_existente = cursor.fetchone()
+            # Verificar se o locador existe
+            cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", (locador_id,))
+            locador_existente = cursor.fetchone()
             
-            if cliente_existente:
-                print(f"Locador ID {locador_id} encontrado na tabela Clientes: {cliente_existente[1]}")
-                print("Tentando atualizar na tabela Clientes...")
-                return atualizar_cliente(locador_id, **kwargs)
-            else:
-                print(f"ID {locador_id} nao encontrado nem em Locadores nem em Clientes")
-                conn.close()
+            if not locador_existente:
+                print(f"ERRO: Locador ID {locador_id} não encontrado")
                 return False
-        
-        print(f"Locador encontrado: ID {locador_existente[0]}, Nome: {locador_existente[1]}")
-        
-        # Listar campos que podem ser atualizados
-        campos_atualizaveis = [
-            'nome', 'cpf_cnpj', 'telefone', 'email', 'endereco', 
-            'tipo_recebimento', 'rg', 'nacionalidade', 'estado_civil', 
-            'profissao', 'deseja_fci', 'deseja_seguro_fianca', 
-            'deseja_seguro_incendio', 'existe_conjuge', 'nome_conjuge', 
-            'cpf_conjuge', 'rg_conjuge', 'endereco_conjuge', 
-            'telefone_conjuge', 'tipo_cliente', 'data_nascimento'
-        ]
-        
-        # Filtrar apenas os campos que foram enviados e sao atualizáveis
-        campos_para_atualizar = {}
-        for campo, valor in kwargs.items():
-            if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int quando necessario
-                if campo in ['deseja_fci', 'deseja_seguro_fianca', 'deseja_seguro_incendio', 'existe_conjuge']:
-                    original_valor = valor
-                    if isinstance(valor, str):
-                        if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
-                            valor = 1
-                        elif valor.upper() in ['NAO', 'N', 'FALSE', '0', 'NÃO']:
-                            valor = 0
-                        else:
-                            valor = int(valor) if valor.isdigit() else 0
-                    elif isinstance(valor, bool):
-                        valor = 1 if valor else 0
-                campos_para_atualizar[campo] = valor
-        
-        if not campos_para_atualizar:
-            print("Nenhum campo válido para atualizar")
-            return False
             
-        # Construir query de UPDATE dinamicamente
-        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
-        query = f"UPDATE Locadores SET {set_clause} WHERE id = ?"
-        
-        valores = list(campos_para_atualizar.values()) + [locador_id]
-        
-        print(f"Executando UPDATE: {query}")
-        print(f"Valores: {valores}")
-        
-        cursor.execute(query, valores)
-        linhas_afetadas = cursor.rowcount
-        conn.commit()
-        conn.close()
-        
-        if linhas_afetadas > 0:
-            print(f"Locador {locador_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
-            return True
-        else:
-            print(f"Nenhuma linha foi atualizada - locador {locador_id} pode nao existir")
-            return False
+            print(f"Locador encontrado: {locador_existente[1]}")
             
+            # Todos os campos atualizáveis da tabela Locadores
+            campos_atualizaveis = {
+                # Campos básicos
+                'nome', 'cpf_cnpj', 'telefone', 'email', 'endereco',
+                # Campos financeiros
+                'tipo_recebimento', 'conta_bancaria', 'deseja_fci', 'deseja_seguro_fianca',
+                'deseja_seguro_incendio',
+                # Dados pessoais
+                'rg', 'nacionalidade', 'estado_civil', 'profissao', 'data_nascimento',
+                # Empresa/PJ
+                'dados_empresa', 'representante', 'tipo_pessoa', 'razao_social',
+                'nome_fantasia', 'inscricao_estadual', 'inscricao_municipal', 'atividade_principal',
+                # Cônjuge
+                'existe_conjuge', 'nome_conjuge', 'cpf_conjuge', 'rg_conjuge',
+                'endereco_conjuge', 'telefone_conjuge', 'regime_bens',
+                # Outros
+                'tipo_cliente', 'observacoes', 'ativo', 'endereco_id', 'dados_bancarios_id',
+                'email_recebimento', 'usa_multiplos_metodos', 'endereco_estruturado'
+            }
+            
+            # Filtrar campos para atualizar
+            campos_para_atualizar = {}
+            for campo, valor in kwargs.items():
+                if campo in campos_atualizaveis:
+                    # Processamento de valores especiais
+                    if campo in ['deseja_seguro_incendio', 'existe_conjuge']:
+                        if isinstance(valor, str):
+                            if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
+                                valor = 1
+                            elif valor.upper() in ['NAO', 'N', 'FALSE', '0', 'NÃO']:
+                                valor = 0
+                            elif valor.isdigit():
+                                valor = int(valor)
+                        elif isinstance(valor, bool):
+                            valor = 1 if valor else 0
+                    
+                    # Processar endereço estruturado
+                    if campo == 'endereco' and isinstance(valor, dict):
+                        endereco_id = inserir_endereco_locador(valor)
+                        if endereco_id:
+                            campos_para_atualizar['endereco_id'] = endereco_id
+                            # Criar string de endereço para compatibilidade
+                            valor = f"{valor.get('rua', '')}, {valor.get('numero', '')} - {valor.get('bairro', '')} - {valor.get('cidade', '')}/{valor.get('estado', 'PR')}"
+                    
+                    # Processar arrays de telefones e emails
+                    if campo == 'telefones' and isinstance(valor, list):
+                        # Converter array para string separada por vírgula
+                        valor = ', '.join(valor) if valor else ''
+                        campo = 'telefone'  # Mapear para campo do banco
+                    elif campo == 'emails' and isinstance(valor, list):
+                        # Converter array para string separada por vírgula
+                        valor = ', '.join(valor) if valor else ''
+                        campo = 'email'  # Mapear para campo do banco
+                    
+                    # Processar endereco_estruturado especialmente
+                    if campo == 'endereco_estruturado' and isinstance(valor, dict):
+                        endereco_id = inserir_endereco_locador(valor)
+                        if endereco_id:
+                            campos_para_atualizar['endereco_id'] = endereco_id
+                        # Não salvar no campo endereco_estruturado do banco principal
+                        continue
+                    
+                    campos_para_atualizar[campo] = valor
+                    
+                elif campo in ['contas_bancarias', 'representante_legal']:
+                    # Estes serão processados separadamente após a atualização principal
+                    continue
+                else:
+                    print(f"AVISO: Campo '{campo}' ignorado (não está na lista de atualizáveis)")
+            
+            if not campos_para_atualizar:
+                print("ERRO: Nenhum campo válido para atualizar")
+                return False
+            
+            # Atualizar data_atualizacao
+            from datetime import datetime
+            campos_para_atualizar['data_atualizacao'] = datetime.now()
+            
+            # Construir e executar UPDATE
+            set_clause = ", ".join([f"[{campo}] = ?" for campo in campos_para_atualizar.keys()])
+            query = f"UPDATE Locadores SET {set_clause} WHERE id = ?"
+            valores = list(campos_para_atualizar.values()) + [locador_id]
+            
+            print(f"Executando UPDATE com {len(campos_para_atualizar)} campos")
+            cursor.execute(query, valores)
+            
+            # Processar contas bancárias múltiplas se fornecidas
+            if 'contas_bancarias' in kwargs:
+                contas = kwargs['contas_bancarias']
+                if isinstance(contas, list):
+                    # Desativar contas existentes
+                    cursor.execute("UPDATE ContasBancariasLocador SET ativo = 0 WHERE locador_id = ?", (locador_id,))
+                    # Inserir novas contas
+                    for i, conta in enumerate(contas):
+                        if i == 0 and 'principal' not in conta:
+                            conta['principal'] = True
+                        inserir_conta_bancaria_locador(locador_id, conta)
+            
+            # Processar representante legal se for PJ
+            if kwargs.get('tipo_pessoa') == 'PJ' and 'representante_legal' in kwargs:
+                representante = kwargs['representante_legal']
+                if isinstance(representante, dict):
+                    # Remover representante anterior
+                    cursor.execute("DELETE FROM RepresentanteLegalLocador WHERE id_locador = ?", (locador_id,))
+                    # Inserir novo representante
+                    inserir_representante_legal_locador(locador_id, representante)
+            
+            conn.commit()
+            
+            if cursor.rowcount > 0:
+                print(f"SUCESSO: Locador {locador_id} atualizado ({cursor.rowcount} linha(s))")
+                return True
+            else:
+                print(f"AVISO: Nenhuma linha foi afetada")
+                return False
+                
     except Exception as e:
-        print(f"Erro ao atualizar locador {locador_id}: {e}")
+        print(f"ERRO ao atualizar locador {locador_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def alterar_status_locador(locador_id, ativo):
@@ -460,7 +633,203 @@ def inserir_contrato_locadores(contrato_id, locadores):
 
 def buscar_contas_bancarias_locador(locador_id):
     """Lista todas as contas bancárias de um locador específico"""
-    return []
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    id, locador_id, tipo_recebimento, principal, chave_pix,
+                    banco, agencia, conta, tipo_conta, titular, cpf_titular,
+                    data_cadastro, data_atualizacao, ativo
+                FROM ContasBancariasLocador 
+                WHERE locador_id = ? AND ativo = 1
+                ORDER BY principal DESC, data_cadastro ASC
+            """, (locador_id,))
+            
+            columns = [column[0] for column in cursor.description]
+            rows = cursor.fetchall()
+            result = []
+            
+            for row in rows:
+                row_dict = {}
+                for i, value in enumerate(row):
+                    if hasattr(value, 'strftime'):
+                        row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        row_dict[columns[i]] = value
+                result.append(row_dict)
+            
+            return result
+            
+    except Exception as e:
+        print(f"Erro ao buscar contas bancárias: {e}")
+        return []
+
+def inserir_conta_bancaria_locador(locador_id, dados_conta):
+    """Insere uma conta bancária para um locador"""
+    try:
+        print(f"Inserindo conta bancária para locador {locador_id}: {dados_conta}")
+        
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # Se for marcada como principal, desmarcar outras
+            if dados_conta.get('principal', False):
+                cursor.execute("""
+                    UPDATE ContasBancariasLocador 
+                    SET principal = 0 
+                    WHERE locador_id = ?
+                """, (locador_id,))
+            
+            from datetime import datetime
+            
+            # Truncar campos com limite de tamanho
+            tipo_conta = dados_conta.get('tipo_conta', 'Conta Corrente')
+            if len(tipo_conta) > 20:
+                tipo_conta = tipo_conta[:17] + '...'  # Truncar para 20 chars
+            
+            cursor.execute("""
+                INSERT INTO ContasBancariasLocador (
+                    locador_id, tipo_recebimento, principal, chave_pix,
+                    banco, agencia, conta, tipo_conta, titular, cpf_titular,
+                    data_cadastro, data_atualizacao, ativo
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                locador_id,
+                dados_conta.get('tipo_recebimento', 'PIX'),
+                dados_conta.get('principal', False),
+                dados_conta.get('chave_pix', ''),
+                dados_conta.get('banco', ''),
+                dados_conta.get('agencia', ''),
+                dados_conta.get('conta', ''),
+                tipo_conta,
+                dados_conta.get('titular', ''),
+                dados_conta.get('cpf_titular', ''),
+                datetime.now(),
+                datetime.now(),
+                True
+            ))
+            
+            conn.commit()
+            
+            # Buscar o ID da conta inserida
+            cursor.execute("SELECT @@IDENTITY")
+            conta_id = cursor.fetchone()[0]
+            
+            print(f"SUCESSO: Conta bancária inserida com ID: {conta_id}")
+            return int(conta_id)
+            
+    except Exception as e:
+        print(f"ERRO: Erro ao inserir conta bancária: {e}")
+        return None
+
+def inserir_endereco_locador(dados_endereco):
+    """Insere um endereço estruturado para locador na tabela EnderecoLocador"""
+    try:
+        print(f"Inserindo endereço do locador: {dados_endereco}")
+        
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            from datetime import datetime
+            
+            cursor.execute("""
+                INSERT INTO EnderecoLocador (
+                    rua, numero, complemento, bairro, cidade, uf, cep, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                dados_endereco.get('rua', ''),
+                dados_endereco.get('numero', ''),
+                dados_endereco.get('complemento', ''),
+                dados_endereco.get('bairro', ''),
+                dados_endereco.get('cidade', ''),
+                dados_endereco.get('uf', dados_endereco.get('estado', 'PR')),
+                dados_endereco.get('cep', ''),
+                datetime.now()
+            ))
+            
+            conn.commit()
+            
+            # Buscar o ID do endereço inserido
+            cursor.execute("SELECT @@IDENTITY")
+            endereco_id = cursor.fetchone()[0]
+            
+            print(f"SUCESSO: Endereço locador inserido com ID: {endereco_id}")
+            return int(endereco_id)
+            
+    except Exception as e:
+        print(f"ERRO: Erro ao inserir endereço locador: {e}")
+        return None
+
+def buscar_endereco_locador(endereco_id):
+    """Busca um endereço estruturado de locador pelo ID"""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT rua, numero, complemento, bairro, cidade, uf, cep
+                FROM EnderecoLocador 
+                WHERE id = ?
+            """, (endereco_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                return {
+                    'rua': row[0] or '',
+                    'numero': row[1] or '',
+                    'complemento': row[2] or '',
+                    'bairro': row[3] or '',
+                    'cidade': row[4] or '',
+                    'estado': row[5] or 'PR',
+                    'cep': row[6] or ''
+                }
+            return None
+            
+    except Exception as e:
+        print(f"ERRO: Erro ao buscar endereço locador: {e}")
+        return None
+
+def inserir_representante_legal_locador(locador_id, dados_representante):
+    """Insere um representante legal para um locador PJ"""
+    try:
+        print(f"Inserindo representante legal para locador {locador_id}: {dados_representante}")
+        
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            from datetime import datetime
+            
+            cursor.execute("""
+                INSERT INTO RepresentanteLegalLocador (
+                    id_locador, nome, cpf, rg, endereco, telefone, email, cargo, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                locador_id,
+                dados_representante.get('nome', ''),
+                dados_representante.get('cpf', ''),
+                dados_representante.get('rg', ''),
+                dados_representante.get('endereco', ''),
+                dados_representante.get('telefone', ''),
+                dados_representante.get('email', ''),
+                dados_representante.get('cargo', 'Administrador'),
+                datetime.now()
+            ))
+            
+            conn.commit()
+            
+            # Buscar o ID do representante inserido
+            cursor.execute("SELECT @@IDENTITY")
+            representante_id = cursor.fetchone()[0]
+            
+            print(f"SUCESSO: Representante legal inserido com ID: {representante_id}")
+            return int(representante_id)
+            
+    except Exception as e:
+        print(f"ERRO: Erro ao inserir representante legal: {e}")
+        return None
 
 def validar_porcentagens_contrato(locadores):
     """Valida se as porcentagens dos locadores somam 100% e outras regras"""

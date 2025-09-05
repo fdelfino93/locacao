@@ -1,0 +1,74 @@
+{
+  "nome": "Construtora ABC Ltda",
+  "cpf_cnpj": "12345678000199",
+  "telefone": "11987654321",
+  "email": "contato@construtorabc.com",
+  "tipo_pessoa": "PJ",
+  "tipo_cliente": "Locador Corporativo",
+  "razao_social": "Construtora ABC Limitada",
+  "nome_fantasia": "Construtora ABC",
+  "inscricao_estadual": "123456789",
+  "inscricao_municipal": "987654321",
+  "atividade_principal": "Construção de edifícios residenciais",
+  "data_constituicao": "2010-03-15",
+  "capital_social": 500000.00,
+  "porte_empresa": "Pequena",
+  "regime_tributario": "Lucro Real",
+  "usa_multiplos_metodos": 1,
+  "usa_multiplas_contas": 1,
+  "email_recebimento": "financeiro@construtorabc.com",
+  "observacoes_especiais": "Empresa de grande porte - relatórios trimestrais",
+  "observacoes": "Locador pessoa jurídica COMPLETO - todos os campos preenchidos",
+  "endereco_estruturado": {
+    "rua": "Avenida Paulista",
+    "numero": "1000",
+    "complemento": "Sala 1001",
+    "bairro": "Bela Vista",
+    "cidade": "São Paulo",
+    "estado": "SP",
+    "cep": "01310-100"
+  },
+  "representante_legal": {
+    "nome": "Roberto Silva Santos",
+    "cpf": "11122233344",
+    "rg": "SP-11.222.333",
+    "data_nascimento": "1975-08-10",
+    "nacionalidade": "Brasileira",
+    "estado_civil": "Casado",
+    "profissao": "Engenheiro Civil",
+    "telefone": "11987654320",
+    "email": "roberto@construtorabc.com",
+    "endereco": "Mesma empresa"
+  },
+  "contas_bancarias": [
+    {
+      "tipo_recebimento": "PIX",
+      "principal": true,
+      "chave_pix": "contato@construtorabc.com",
+      "tipo_conta": "Conta Corrente"
+    },
+    {
+      "tipo_recebimento": "TED",
+      "principal": false,
+      "banco": "237",
+      "agencia": "1234",
+      "conta": "98765-4",
+      "tipo_conta": "Conta Corrente",
+      "titular": "Construtora ABC Ltda",
+      "cpf_titular": "12345678000199"
+    },
+    {
+      "tipo_recebimento": "TED",
+      "principal": false,
+      "banco": "341",
+      "agencia": "5678",
+      "conta": "11111-1",
+      "tipo_conta": "Conta Poupança",
+      "titular": "Construtora ABC Ltda",
+      "cpf_titular": "12345678000199"
+    }
+  ],
+  "telefones_extras": ["11987654322", "1133334444"],
+  "emails_extras": ["administrativo@construtorabc.com", "vendas@construtorabc.com"],
+  "formas_recebimento": ["PIX", "TED", "DOC", "Boleto"]
+}

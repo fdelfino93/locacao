@@ -1,0 +1,7 @@
+{
+  "nome": "Teste Completo UPDATE",
+  "regime_bens": "Separação Total de Bens", 
+  "email_recebimento": "teste@update.com",
+  "telefones": ["11999888777", "11888777666"],
+  "emails": ["teste1@update.com", "teste2@update.com"]
+}

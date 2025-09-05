@@ -1,0 +1,47 @@
+{
+  "nome": "Carlos Eduardo Silva Santos",
+  "cpf_cnpj": "45678912301",
+  "telefone": "11987654321",
+  "email": "carlos.eduardo@gmail.com",
+  "tipo_pessoa": "PF",
+  "tipo_cliente": "Proprietário",
+  "rg": "SP-45.678.912",
+  "nacionalidade": "Brasileira",
+  "estado_civil": "Casado",
+  "profissao": "Advogado",
+  "data_nascimento": "1980-05-15",
+  "existe_conjuge": 1,
+  "nome_conjuge": "Ana Paula Santos Silva",
+  "cpf_conjuge": "98765432109",
+  "rg_conjuge": "SP-98.765.432",
+  "telefone_conjuge": "11976543210",
+  "endereco_conjuge": "Mesmo endereço",
+  "observacoes": "Locador pessoa física com cônjuge - teste completo",
+  "endereco_estruturado": {
+    "rua": "Rua dos Advogados",
+    "numero": "456",
+    "complemento": "Apartamento 101",
+    "bairro": "Vila Madalena",
+    "cidade": "São Paulo",
+    "estado": "SP",
+    "cep": "05433-100"
+  },
+  "contas_bancarias": [
+    {
+      "tipo_recebimento": "PIX",
+      "principal": true,
+      "chave_pix": "carlos.eduardo@gmail.com",
+      "tipo_conta": "Conta Corrente"
+    },
+    {
+      "tipo_recebimento": "TED",
+      "principal": false,
+      "banco": "341",
+      "agencia": "5678",
+      "conta": "12345-6",
+      "tipo_conta": "Conta Corrente",
+      "titular": "Carlos Eduardo Silva Santos",
+      "cpf_titular": "45678912301"
+    }
+  ]
+}

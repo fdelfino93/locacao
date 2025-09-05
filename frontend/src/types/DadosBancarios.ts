@@ -4,7 +4,7 @@ export interface DadosBancarios {
   banco?: string;
   agencia?: string;
   conta?: string;
-  tipo_conta?: 'Conta Corrente' | 'Conta Poupança';
+  tipo_conta?: 'Conta Corrente' | 'Conta Poupança' | 'Corrente' | 'Poupança';
   titular?: string;
   cpf_titular?: string;
   principal?: boolean; // Para identificar conta principal

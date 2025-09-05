@@ -1,0 +1,8 @@
+{
+  "nome": "Teste Básico Silva",
+  "cpf_cnpj": "11111111111",
+  "telefone": "11999999999",
+  "email": "teste.basico@email.com",
+  "tipo_pessoa": "PF",
+  "observacoes": "Teste básico para verificar rollback"
+}

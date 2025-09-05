@@ -1,0 +1,16 @@
+{
+  "nome": "Teste Endereco Estruturado",
+  "cpf_cnpj": "44444444444",
+  "telefone": "11777666555", 
+  "email": "endereco@test.com",
+  "tipo_pessoa": "PF",
+  "endereco_estruturado": {
+    "rua": "Rua dos Testes",
+    "numero": "100",
+    "complemento": "Sala 1",
+    "bairro": "Centro",
+    "cidade": "São Paulo",
+    "estado": "SP",
+    "cep": "01234-567"
+  }
+}

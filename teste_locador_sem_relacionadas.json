@@ -1,0 +1,8 @@
+{
+  "nome": "Teste Sem Relacionadas",
+  "cpf_cnpj": "22222222222",
+  "telefone": "11888888888",
+  "email": "sem.relacionadas@test.com",
+  "tipo_pessoa": "PF",
+  "observacoes": "Teste sem tabelas relacionadas"
+}

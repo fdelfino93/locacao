@@ -1,0 +1,13 @@
+{
+  "nome": "Teste Final Campos Extras",
+  "cpf_cnpj": "66666666666",
+  "telefone": "11888999777",
+  "email": "final.campos@test.com",
+  "tipo_pessoa": "PF",
+  "estado_civil": "Casado",
+  "regime_bens": "Comunhão parcial de bens",
+  "email_recebimento": "prestacao@final.com",
+  "usa_multiplos_metodos": true,
+  "observacoes": "Teste final com todos os campos extras preenchidos",
+  "tipo_cliente": "Proprietário"
+}

@@ -1,0 +1,23 @@
+{
+  "nome": "Teste Frontend Completo",
+  "cpf_cnpj": "12345678901",
+  "tipo_pessoa": "PF",
+  "estado_civil": "Casado",
+  "regime_bens": "Comunhão Parcial de Bens",
+  "email_recebimento": "recebimento@teste.com",
+  "telefones": ["11987654321", "11876543210", "11765432109"],
+  "emails": ["principal@teste.com", "secundario@teste.com", "comercial@teste.com"],
+  "observacoes": "Teste completo com múltiplos contatos",
+  "usa_multiplos_metodos": true,
+  "endereco": {
+    "rua": "Rua de Teste",
+    "numero": "123",
+    "bairro": "Centro",
+    "cidade": "Curitiba",
+    "estado": "PR",
+    "cep": "80000-000"
+  },
+  "existe_conjuge": 1,
+  "nome_conjuge": "Maria Silva",
+  "cpf_conjuge": "98765432100"
+}

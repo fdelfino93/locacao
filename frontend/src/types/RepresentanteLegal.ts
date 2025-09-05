@@ -4,8 +4,8 @@ export interface RepresentanteLegal {
   nome: string;
   cpf: string;
   rg: string;
-  telefones: string[];
-  emails: string[];
+  telefones?: string[];
+  emails?: string[];
   endereco?: Endereco;
   data_nascimento?: string;
   nacionalidade?: string;

@@ -4,8 +4,8 @@ export interface Locador {
   id?: number;
   nome: string;
   cpf_cnpj: string;
-  telefones: string[];
-  emails: string[];
+  telefones?: string[];
+  emails?: string[];
   endereco?: Endereco;
   dados_bancarios?: DadosBancarios;
   tipo_pessoa: 'PF' | 'PJ';
@@ -26,7 +26,7 @@ export interface Locador {
   rg_conjuge?: string;
   endereco_conjuge?: string;
   telefone_conjuge?: string;
-  tipo_locador: string;
+  tipo_locador?: string;
   data_nascimento: string;
   regime_bens?: string;
   tipo_conta?: string;
@@ -40,5 +40,34 @@ export interface Locador {
   tipo_recebimento?: string;
   tipo_cliente?: string;
   conta_bancaria?: DadosBancarios;
+  
+  // Campos de pessoa jurídica
+  razao_social?: string;
+  nome_fantasia?: string;
+  inscricao_estadual?: string;
+  inscricao_municipal?: string;
+  atividade_principal?: string;
+  data_constituicao?: string;
+  capital_social?: string;
+  porte_empresa?: string;
+  regime_tributario?: string;
+  
+  // Campos de representante legal
+  nome_representante?: string;
+  cpf_representante?: string;
+  rg_representante?: string;
+  cargo_representante?: string;
+  telefone_representante?: string;
+  email_representante?: string;
+  endereco_representante?: string | any;
+  
+  // Outros campos
+  email_recebimento?: string;
+  forma_recebimento?: string[];
+  tipo_garantia?: string;
+  documento_pessoal?: string;
+  comprovante_endereco?: string;
+  observacoes_especiais?: string;
+  endereco_estruturado?: any;
 }
 

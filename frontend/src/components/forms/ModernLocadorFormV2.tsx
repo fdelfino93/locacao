@@ -75,39 +75,25 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
   const carregarDadosLocador = async (locadorId: number) => {
     setLoadingData(true);
     try {
-      console.log('🔍 Carregando locador ID:', locadorId);
+      console.log('🔍 Carregando locador completo ID:', locadorId);
       
-      // Primeiro tentar API específica por ID
-      let response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`);
+      // Usar API específica com repository v2
+      const response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`);
       
       if (!response.ok) {
-        // Se não funcionar, usar busca geral e filtrar pelo ID exato
-        console.log('⚠️ API específica falhou, usando busca geral');
-        response = await fetch(`http://localhost:8000/api/busca?query=*&tipo=locadores`);
+        throw new Error(`API retornou status ${response.status}`);
       }
       
       const data = await response.json();
-      console.log('📦 Dados recebidos:', data);
+      console.log('📦 Dados completos recebidos:', data);
       
-      let locador = null;
-      
-      if (data.success) {
-        if (data.data && !data.data.locadores) {
-          // Resposta da API específica
-          locador = data.data;
-        } else if (data.data && data.data.locadores) {
-          // Resposta da busca geral - filtrar pelo ID exato
-          locador = data.data.locadores.find((loc: any) => loc.id === locadorId);
-          console.log('🎯 Locador encontrado por ID:', locador);
-        }
-      }
-      
-      if (locador) {
+      if (data.success && data.data) {
+        const locador = data.data;
         console.log('📋 Preenchendo dados do locador:', locador);
         
-        // Preencher os dados do formulário com os dados do locador
-        setFormData({
-          ...formData,
+        // Preencher dados principais
+        setFormData(prev => ({
+          ...prev,
           nome: locador.nome || '',
           cpf_cnpj: locador.cpf_cnpj || '',
           telefone: locador.telefone || '',
@@ -116,46 +102,110 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
           nacionalidade: locador.nacionalidade || 'Brasileira',
           estado_civil: locador.estado_civil || 'Solteiro',
           profissao: locador.profissao || '',
-          tipo_recebimento: locador.tipo_recebimento || 'PIX'
-        });
+          tipo_recebimento: locador.tipo_recebimento || 'PIX',
+          tipo_pessoa: locador.tipo_pessoa || 'PF',
+          tipo_cliente: locador.tipo_cliente || 'Proprietário',
+          data_nascimento: locador.data_nascimento || '',
+          existe_conjuge: locador.existe_conjuge || 0,
+          nome_conjuge: locador.nome_conjuge || '',
+          cpf_conjuge: locador.cpf_conjuge || '',
+          rg_conjuge: locador.rg_conjuge || '',
+          endereco_conjuge: locador.endereco_conjuge || '',
+          telefone_conjuge: locador.telefone_conjuge || '',
+          observacoes: locador.observacoes || '',
+          regime_bens: locador.regime_bens || '',
+          email_recebimento: locador.email_recebimento || '',
+          usa_multiplos_metodos: locador.usa_multiplos_metodos || false,
+          // Campos PJ
+          razao_social: locador.razao_social || '',
+          nome_fantasia: locador.nome_fantasia || '',
+          inscricao_estadual: locador.inscricao_estadual || '',
+          inscricao_municipal: locador.inscricao_municipal || '',
+          atividade_principal: locador.atividade_principal || ''
+        }));
         
-        // Sincronizar arrays de contato
-        if (locador.telefone) {
-          console.log('📞 Carregando telefone:', locador.telefone);
-          setTelefones([locador.telefone]);
-        }
-        
-        if (locador.email) {
-          console.log('📧 Carregando email:', locador.email);
-          setEmails([locador.email]);
-        }
-        
-        if (locador.endereco) {
+        // Carregar endereço estruturado se existe
+        if (locador.endereco_estruturado) {
+          const endereco_data = locador.endereco_estruturado;
           setEndereco({
-            rua: locador.endereco || '',
-            numero: '',
-            complemento: '',
-            bairro: '',
-            cidade: '',
-            estado: 'PR',
-            cep: ''
+            rua: endereco_data.rua || '',
+            numero: endereco_data.numero || '',
+            complemento: endereco_data.complemento || '',
+            bairro: endereco_data.bairro || '',
+            cidade: endereco_data.cidade || '',
+            estado: endereco_data.estado || 'PR',
+            cep: endereco_data.cep || ''
           });
+          console.log('📍 Endereço estruturado carregado:', endereco_data);
+        } else if (locador.endereco) {
+          // Fallback para endereço simples
+          setEndereco(prev => ({
+            ...prev,
+            rua: locador.endereco || ''
+          }));
         }
+        
+        // Carregar contas bancárias se existem
+        if (locador.contas_bancarias && Array.isArray(locador.contas_bancarias)) {
+          setContasBancarias(locador.contas_bancarias);
+          console.log('💳 Contas bancárias carregadas:', locador.contas_bancarias.length);
+        }
+        
+        // Carregar representante legal se existe
+        if (locador.representante_legal) {
+          setRepresentanteLegal({
+            nome: locador.representante_legal.nome || '',
+            cpf: locador.representante_legal.cpf || '',
+            rg: locador.representante_legal.rg || '',
+            telefone: locador.representante_legal.telefone || '',
+            email: locador.representante_legal.email || '',
+            data_nascimento: '',
+            nacionalidade: 'Brasileira',
+            estado_civil: 'Solteiro',
+            profissao: ''
+          });
+          console.log('🏢 Representante legal carregado');
+        }
+        
+        // Configurar arrays de contatos - usar múltiplos contatos se existirem
+        if (locador.telefones && Array.isArray(locador.telefones) && locador.telefones.length > 0) {
+          setTelefones(locador.telefones);
+          console.log('📞 Múltiplos telefones carregados:', locador.telefones);
+        } else if (locador.telefone) {
+          setTelefones([locador.telefone]);
+        } else {
+          setTelefones(['']);
+        }
+        
+        if (locador.emails && Array.isArray(locador.emails) && locador.emails.length > 0) {
+          setEmails(locador.emails);
+          console.log('📧 Múltiplos emails carregados:', locador.emails);
+        } else if (locador.email) {
+          setEmails([locador.email]);
+        } else {
+          setEmails(['']);
+        }
+        
+        // Configurar flags
+        setShowConjuge(locador.existe_conjuge === 1);
+        setShowRepresentante(locador.tipo_pessoa === 'PJ');
+        
+        console.log('✅ Dados do locador carregados completamente');
+        
       } else {
-        console.error('❌ Locador não encontrado');
-        setApiError(`Locador com ID ${locadorId} não encontrado`);
+        throw new Error(data.message || 'Locador não encontrado');
       }
     } catch (error) {
       console.error('❌ Erro ao carregar dados do locador:', error);
-      setApiError('Erro ao carregar dados do locador');
+      setApiError(`Erro ao carregar dados do locador: ${error.message}`);
     } finally {
       setLoadingData(false);
     }
   };
   
   // Estados para múltiplos contatos
-  const [telefones, setTelefones] = useState<string[]>(['']);
-  const [emails, setEmails] = useState<string[]>(['']);
+  const [telefones, setTelefones] = useState<string[]>([]);
+  const [emails, setEmails] = useState<string[]>([]);
   
   // Estados para os dados estruturados
   const [endereco, setEndereco] = useState<Endereco>({
@@ -239,6 +289,16 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
     observacoes_especiais: ''
   });
 
+  // Hook para sincronizar email_recebimento com o email principal
+  React.useEffect(() => {
+    if (formData.email && formData.email.trim() !== '') {
+      setFormData(prev => ({
+        ...prev,
+        email_recebimento: prev.email_recebimento || formData.email
+      }));
+    }
+  }, [formData.email]);
+
   const handleFormaRecebimentoChange = (forma: string, checked: boolean) => {
     const novasFormas = checked
       ? [...(formData.forma_recebimento || []), forma]
@@ -263,14 +323,19 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
     }
   };
 
-  // Funções para gerenciar telefones múltiplos
+  // Funções para gerenciar múltiplos contatos
   const addTelefone = () => {
     setTelefones([...telefones, '']);
   };
 
   const removeTelefone = (index: number) => {
     if (telefones.length > 1) {
-      setTelefones(telefones.filter((_, i) => i !== index));
+      const newTelefones = telefones.filter((_, i) => i !== index);
+      setTelefones(newTelefones);
+      // Atualizar o campo principal com o primeiro telefone
+      if (newTelefones.length > 0) {
+        handleInputChange('telefone', newTelefones[0]);
+      }
     }
   };
 
@@ -278,17 +343,24 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
     const newTelefones = [...telefones];
     newTelefones[index] = value;
     setTelefones(newTelefones);
-    handleInputChange('telefones', newTelefones);
+    // Sempre manter o primeiro telefone como principal
+    if (index === 0) {
+      handleInputChange('telefone', value);
+    }
   };
 
-  // Funções para gerenciar emails múltiplos
   const addEmail = () => {
     setEmails([...emails, '']);
   };
 
   const removeEmail = (index: number) => {
     if (emails.length > 1) {
-      setEmails(emails.filter((_, i) => i !== index));
+      const newEmails = emails.filter((_, i) => i !== index);
+      setEmails(newEmails);
+      // Atualizar o campo principal com o primeiro email
+      if (newEmails.length > 0) {
+        handleInputChange('email', newEmails[0]);
+      }
     }
   };
 
@@ -296,21 +368,41 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
     const newEmails = [...emails];
     newEmails[index] = value;
     setEmails(newEmails);
-    handleInputChange('emails', newEmails);
+    // Sempre manter o primeiro email como principal
+    if (index === 0) {
+      handleInputChange('email', value);
+    }
   };
+
+  // Inicializar arrays vazios para novo cadastro
+  React.useEffect(() => {
+    if (!isEditing && !isViewing && telefones.length === 0) {
+      setTelefones(['']);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!isEditing && !isViewing && emails.length === 0) {
+      setEmails(['']);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 INICIANDO handleSubmit');
     setLoading(true);
     setMessage(null);
 
     try {
+      console.log('✅ Entrou no try block');
       // Preparar dados para envio
       const dadosParaEnvio = {
         ...formData,
-        endereco: endereco,
+        endereco_estruturado: endereco, // CORRIGIDO: usar endereco_estruturado como estava funcionando
         dados_bancarios: dadosBancarios,
         contas_bancarias: contasBancarias, // Múltiplas contas bancárias
+        telefones: telefones.filter(tel => tel.trim() !== ''), // Múltiplos telefones
+        emails: emails.filter(email => email.trim() !== ''), // Múltiplos emails
         representante_legal: showRepresentante ? representanteLegal : undefined,
         documentos_empresa: showRepresentante ? documentosEmpresa : undefined,
         existe_conjuge: showConjuge ? 1 : 0
@@ -323,9 +415,15 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
         const pathParts = window.location.pathname.split('/');
         const locadorId = pathParts[pathParts.length - 1];
         console.log('💾 Salvando alterações do locador ID:', locadorId);
+        console.log('📦 Dados que serão enviados:', dadosParaEnvio);
         
-        // Chamar API de atualização
-        response = await apiService.atualizarLocador(parseInt(locadorId), dadosParaEnvio);
+        // Chamar API de atualização - usando URL completa temporariamente
+        console.log('🔧 Usando URL direta para contornar problema de proxy');
+        response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dadosParaEnvio)
+        }).then(res => res.json());
       } else {
         // Modo cadastro
         response = await apiService.criarLocador(dadosParaEnvio);
@@ -814,36 +912,6 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
                       </>
                     )}
 
-                    {/* Telefone e Email apenas para PJ - PF usa seção Contatos */}
-                    {isPJ && (
-                      <>
-                        <div>
-                          <Label htmlFor="telefone" className="text-sm font-medium text-foreground">Telefone *</Label>
-                          <InputWithIcon
-                            id="telefone"
-                            type="tel"
-                            value={formData.telefone}
-                            onChange={(e) => handleInputChange('telefone', e.target.value)}
-                            placeholder="(41) 99999-9999"
-                            icon={Phone}
-                            required
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="email" className="text-sm font-medium text-foreground">Email *</Label>
-                          <InputWithIcon
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => handleInputChange('email', e.target.value)}
-                            placeholder="empresa@email.com"
-                            icon={Mail}
-                            required
-                          />
-                        </div>
-                      </>
-                    )}
                   </div>
                 </motion.div>
 
