@@ -47,3 +47,14 @@ export interface Locatario {
   whatsapp_boleto?: string;
   observacoes?: string;
 }
+
+export interface Inquilino extends Locatario {
+  // Alias para compatibilidade
+  id?: number;
+  data_nascimento?: string;
+  renda?: number;
+  ativo?: boolean;
+  data_criacao?: string;
+  data_atualizacao?: string;
+  tipo_garantia?: string;
+}

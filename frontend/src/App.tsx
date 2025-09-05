@@ -28,6 +28,7 @@ type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' |
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('hero');
+  const [contratoInitialTab, setContratoInitialTab] = useState('todos');
 
   // Função para determinar a página baseada na URL
   const getPageFromURL = (): PageType => {
@@ -410,6 +411,7 @@ function App() {
               onNavigateToCadastro={handleNavigateToContratoCadastro}
               onNavigateToDetalhes={handleNavigateToContratoDetalhes}
               onNavigateToEdicao={handleNavigateToContratoEdicao}
+              initialTab={contratoInitialTab}
             />
           </motion.div>
         );
@@ -470,7 +472,10 @@ function App() {
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
           >
-            <DashboardPro />
+            <DashboardPro onNavigateToContratosVencendo={() => {
+              setContratoInitialTab('vencendo');
+              setCurrentPage('contrato');
+            }} />
           </motion.div>
         );
       case 'busca':

@@ -12,7 +12,9 @@ from repositories_adapter import (
     inserir_locatario, buscar_locatarios, atualizar_locatario,
     inserir_imovel, buscar_imoveis, atualizar_imovel,
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
-    buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura
+    buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura,
+    buscar_historico_contrato, registrar_mudanca_contrato, listar_planos_locacao,
+    salvar_dados_bancarios_corretor, buscar_dados_bancarios_corretor
 )
 
 # Importar funções específicas para dashboard
@@ -648,6 +650,29 @@ async def obter_contrato_por_id(contrato_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contrato: {str(e)}")
 
+@app.get("/api/contratos/{contrato_id}/historico")
+async def obter_historico_contrato(contrato_id: int):
+    """Endpoint para buscar histórico completo de mudanças de um contrato"""
+    try:
+        resultado = buscar_historico_contrato(contrato_id)
+        if resultado.get('success'):
+            return {
+                "success": True,
+                "data": resultado.get('data', []),
+                "total": resultado.get('total', 0),
+                "message": f"Histórico do contrato {contrato_id} encontrado"
+            }
+        else:
+            return {
+                "success": False,
+                "message": resultado.get('message', 'Erro ao buscar histórico')
+            }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro interno ao buscar histórico do contrato: {str(e)}"
+        )
+
 @app.put("/api/contratos/{contrato_id}")
 async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
     try:
@@ -666,6 +691,11 @@ async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
             print(f"  - {campo}: {valor}")
         
         resultado = atualizar_contrato_db(contrato_id, **dados_filtrados)
+        
+        # Se há dados bancários do corretor, salvá-los na tabela CorretorContaBancaria
+        if 'dados_bancarios_corretor' in dados_recebidos and dados_recebidos['dados_bancarios_corretor']:
+            print("Salvando dados bancários do corretor...")
+            salvar_dados_bancarios_corretor(contrato_id, dados_recebidos['dados_bancarios_corretor'])
         
         if resultado:
             print(f"\u2713 Contrato {contrato_id} atualizado com sucesso!")
@@ -931,6 +961,148 @@ async def salvar_locatarios_contrato(contrato_id: int, request: LocatariosContra
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao salvar locatários: {str(e)}")
+
+# ==========================================
+# ENDPOINTS PARA DADOS RELACIONADOS
+# ==========================================
+
+class GarantiasRequest(BaseModel):
+    fiador_nome: Optional[str] = None
+    fiador_cpf: Optional[str] = None 
+    fiador_telefone: Optional[str] = None
+    fiador_endereco: Optional[str] = None
+    caucao_tipo: Optional[str] = None
+    caucao_descricao: Optional[str] = None
+    titulo_numero: Optional[str] = None
+    titulo_valor: Optional[float] = None
+    apolice_numero: Optional[str] = None
+    apolice_valor_cobertura: Optional[float] = None
+
+@app.post("/api/contratos/{contrato_id}/garantias")
+async def salvar_garantias_contrato(contrato_id: int, request: GarantiasRequest):
+    """Salva garantias (fiador, caução, título, apólice) para um contrato"""
+    try:
+        from repositories_adapter import salvar_garantias_individuais
+        
+        dados = request.dict(exclude_none=True)
+        resultado = salvar_garantias_individuais(contrato_id, dados)
+        
+        if resultado["success"]:
+            return {"message": resultado["message"], "success": True}
+        else:
+            raise HTTPException(status_code=500, detail=resultado["message"])
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar garantias: {str(e)}")
+
+class PetsRequest(BaseModel):
+    quantidade_pets: Optional[int] = 0
+    pets_racas: Optional[str] = None
+    pets_tamanhos: Optional[str] = None
+
+@app.post("/api/contratos/{contrato_id}/pets")
+async def salvar_pets_contrato(contrato_id: int, request: PetsRequest):
+    """Salva informações de pets para um contrato"""
+    try:
+        from repositories_adapter import salvar_pets_contrato
+        
+        dados = request.dict(exclude_none=True)
+        resultado = salvar_pets_contrato(contrato_id, dados)
+        
+        if resultado["success"]:
+            return {"message": resultado["message"], "success": True}
+        else:
+            raise HTTPException(status_code=500, detail=resultado["message"])
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar pets: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}/pets")
+async def buscar_pets_contrato(contrato_id: int):
+    """Busca pets de um contrato"""
+    try:
+        from repositories_adapter import buscar_pets_por_contrato
+        
+        resultado = buscar_pets_por_contrato(contrato_id)
+        return {"success": True, "data": resultado}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar pets: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}/garantias")
+async def buscar_garantias_contrato(contrato_id: int):
+    """Busca garantias de um contrato"""
+    try:
+        from repositories_adapter import buscar_garantias_por_contrato
+        
+        resultado = buscar_garantias_por_contrato(contrato_id)
+        return {"success": True, "data": resultado}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar garantias: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}/plano")
+async def buscar_plano_contrato(contrato_id: int):
+    """Busca o plano de locação de um contrato"""
+    try:
+        from repositories_adapter import buscar_plano_por_contrato
+        
+        resultado = buscar_plano_por_contrato(contrato_id)
+        return {"success": True, "data": resultado}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar plano: {str(e)}")
+
+@app.get("/api/planos")
+async def listar_planos():
+    """Lista todos os planos de locação disponíveis"""
+    try:
+        resultado = listar_planos_locacao()
+        return {"success": True, "data": resultado}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao listar planos: {str(e)}")
+
+@app.get("/api/contratos/{contrato_id}/corretor/dados-bancarios")
+async def buscar_dados_bancarios_corretor_contrato(contrato_id: int):
+    """Busca os dados bancários do corretor de um contrato"""
+    try:
+        resultado = buscar_dados_bancarios_corretor(contrato_id)
+        return {"success": True, "data": resultado}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao buscar dados bancários do corretor: {str(e)}")
+
+@app.patch("/api/contratos/{contrato_id}/status")
+async def alterar_status_contrato(contrato_id: int, request: dict):
+    """Altera o status de um contrato"""
+    try:
+        from repositories_adapter import alterar_status_contrato_db
+        
+        novo_status = request.get("status")
+        if not novo_status:
+            raise HTTPException(status_code=400, detail="Status não fornecido")
+            
+        # Validar status
+        status_validos = ['ativo', 'encerrado', 'pendente', 'vencido']
+        if novo_status not in status_validos:
+            raise HTTPException(status_code=400, detail=f"Status inválido. Use: {', '.join(status_validos)}")
+        
+        sucesso = alterar_status_contrato_db(contrato_id, novo_status)
+        
+        if sucesso:
+            return {"message": f"Status alterado para {novo_status}", "success": True}
+        else:
+            raise HTTPException(status_code=500, detail="Erro ao alterar status")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

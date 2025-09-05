@@ -323,7 +323,7 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                       <h3 className="text-lg font-semibold text-foreground">
                         Locatário {index + 1}
                         {locatario.responsabilidade_principal && (
-                          <Star className="w-4 h-4 text-yellow-500 inline ml-2" title="Responsável Principal" />
+                          <Star className="w-4 h-4 text-yellow-500 inline ml-2" />
                         )}
                       </h3>
                       {locatario.locatario_nome && (
@@ -367,7 +367,7 @@ export const ContractTenantsForm: React.FC<ContractTenantsFormProps> = ({
                         {locatariosOptions
                           .filter(l => !locatarios.some((loc, i) => i !== index && loc.locatario_id === l.id))
                           .map(l => (
-                            <SelectItem key={l.id} value={l.id.toString()} className="text-foreground hover:bg-accent">
+                            <SelectItem key={l.id} value={l.id ? l.id.toString() : ""} className="text-foreground hover:bg-accent">
                               {l.nome} - {l.cpf_cnpj}
                             </SelectItem>
                           ))}

@@ -456,9 +456,7 @@ def inserir_contrato_locadores(contrato_id, locadores):
     """Define os locadores associados a um contrato com suas contas e porcentagens"""
     return False
 
-def buscar_locadores_contrato(contrato_id):
-    """Busca todos os locadores associados a um contrato"""
-    return []
+# REMOVIDA: Função duplicada - implementação real está mais abaixo no arquivo
 
 def buscar_contas_bancarias_locador(locador_id):
     """Lista todas as contas bancárias de um locador específico"""
@@ -468,9 +466,7 @@ def validar_porcentagens_contrato(locadores):
     """Valida se as porcentagens dos locadores somam 100% e outras regras"""
     return {"success": True, "message": "Validacao OK", "details": {}}
 
-def buscar_todos_locadores_ativos():
-    """Lista todos os locadores ativos para selecao em contratos"""
-    return []
+# REMOVIDA: Função duplicada - implementação real está mais abaixo no arquivo
 
 def buscar_contratos():
     """Busca todos os contratos com informaçoes relacionadas"""
@@ -489,6 +485,9 @@ def buscar_contratos():
                 c.vencimento_dia,
                 c.tipo_garantia,
                 c.data_assinatura,
+                c.status,
+                c.proximo_reajuste,
+                c.tempo_reajuste,
                 i.endereco as imovel_endereco,
                 i.tipo as imovel_tipo,
                 i.id_locador,
@@ -1504,7 +1503,26 @@ def atualizar_contrato(contrato_id, **kwargs):
             
             # Campos de MULTAS ESPECÍFICAS
             'multa_locador',
-            'multa_locatario'
+            'multa_locatario',
+            
+            # Campos de FIADOR
+            'fiador_nome',
+            'fiador_cpf',
+            'fiador_telefone', 
+            'fiador_email',
+            'fiador_endereco',
+            
+            # Campos ADICIONAIS que EXISTEM no banco
+            'clausulas_adicionais',
+            'tipo_plano_locacao'
+            
+            # REMOVIDOS: Campos que NÃO existem no banco (causam erro SQL):
+            # 'caucao_descricao', 'caucao_tipo', 'caucao_valor',
+            # 'seguro_apolice', 'seguro_seguradora', 'seguro_valor_cobertura', 'seguro_vigencia',
+            # 'titulo_empresa', 'titulo_numero', 'titulo_valor', 'titulo_vencimento',
+            # 'data_inicio_seguro_fianca', 'data_inicio_seguro_incendio',
+            # 'multa_atraso', 'numero_contrato', 'pets_racas', 'pets_tamanhos',
+            # 'quantidade_pets', 'utilizacao_imovel'
         ]
         
         # Filtrar campos para atualizar
@@ -1530,11 +1548,68 @@ def atualizar_contrato(contrato_id, **kwargs):
         query = f"UPDATE Contratos SET {set_clause} WHERE id = ?"
         valores = list(campos_para_atualizar.values()) + [contrato_id]
         
+        # ===== NOVO: CAPTURAR DADOS ANTIGOS ANTES DA ATUALIZAÇÃO =====
+        print("Capturando dados antigos para histórico...")
+        cursor.execute("SELECT * FROM Contratos WHERE id = ?", (contrato_id,))
+        contrato_antigo = cursor.fetchone()
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        contrato_antigo_dict = {columns[i]: contrato_antigo[i] for i in range(len(columns))}
+        
         print(f"Executando UPDATE...")
         print(f"Query: {query}")
         print(f"Parametros: {len(valores) - 1} campos + 1 ID")
         
         cursor.execute(query, valores)
+        
+        # ===== HISTÓRICO AUTOMÁTICO (VERSÃO SEGURA COM TIMEOUT) =====
+        if cursor.rowcount > 0:
+            print("Registrando mudanças no histórico (versão com timeout)...")
+            try:
+                import threading
+                import time
+                
+                # Criar dict dos dados novos
+                contrato_novo_dict = dict(contrato_antigo_dict)  # Copiar dados antigos
+                contrato_novo_dict.update(campos_para_atualizar)  # Aplicar mudanças
+                
+                # Função para executar histórico com timeout
+                resultado_historico = None
+                exception_historico = None
+                
+                def executar_historico():
+                    nonlocal resultado_historico, exception_historico
+                    try:
+                        resultado_historico = comparar_contratos_para_historico(
+                            contrato_antigo=contrato_antigo_dict,
+                            contrato_novo=contrato_novo_dict,
+                            id_contrato=contrato_id,
+                            usuario="Admin"  # TODO: Pegar usuário real da sessão
+                        )
+                    except Exception as e:
+                        exception_historico = e
+                
+                # Executar com timeout de 5 segundos
+                thread_historico = threading.Thread(target=executar_historico)
+                thread_historico.daemon = True
+                thread_historico.start()
+                thread_historico.join(timeout=5.0)
+                
+                if thread_historico.is_alive():
+                    print("AVISO: Histórico demorou muito (>5s) - saltando para não travar salvamento")
+                elif exception_historico:
+                    print(f"AVISO: Erro no histórico: {exception_historico}")
+                elif resultado_historico and resultado_historico.get('success'):
+                    mudancas = resultado_historico.get('mudancas', [])
+                    print(f"HISTÓRICO: {len(mudancas)} mudanças registradas: {mudancas}")
+                else:
+                    print(f"AVISO: Erro ao registrar histórico: {resultado_historico.get('message') if resultado_historico else 'Timeout'}")
+                    
+            except Exception as hist_error:
+                print(f"AVISO: Erro ao processar histórico (não crítico): {hist_error}")
+                # Não falhar a atualização por causa do histórico
+        
         conn.commit()
         
         if cursor.rowcount > 0:
@@ -1553,6 +1628,138 @@ def atualizar_contrato(contrato_id, **kwargs):
             conn.rollback()
             conn.close()
         return False
+
+# ==========================================
+# FUNÇÕES PARA DADOS RELACIONADOS AO CONTRATO
+# ==========================================
+
+def salvar_garantias_individuais(contrato_id, dados_garantias):
+    """Salva garantias (fiador, caução, título, apólice) na tabela GarantiasIndividuais"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Salvando garantias individuais para contrato {contrato_id}")
+        
+        # Verificar se já existe registro para este contrato
+        cursor.execute("SELECT id FROM GarantiasIndividuais WHERE contrato_id = ?", (contrato_id,))
+        registro_existente = cursor.fetchone()
+        
+        if registro_existente:
+            # Atualizar registro existente
+            campos_update = []
+            valores = []
+            
+            if 'fiador_nome' in dados_garantias:
+                campos_update.append("fiador_nome = ?")
+                valores.append(dados_garantias['fiador_nome'])
+            if 'fiador_cpf' in dados_garantias:
+                campos_update.append("fiador_cpf = ?") 
+                valores.append(dados_garantias['fiador_cpf'])
+            if 'fiador_telefone' in dados_garantias:
+                campos_update.append("fiador_telefone = ?")
+                valores.append(dados_garantias['fiador_telefone'])
+            if 'fiador_endereco' in dados_garantias:
+                campos_update.append("fiador_endereco = ?")
+                valores.append(dados_garantias['fiador_endereco'])
+            if 'caucao_tipo' in dados_garantias:
+                campos_update.append("caucao_tipo = ?")
+                valores.append(dados_garantias['caucao_tipo'])
+            if 'caucao_descricao' in dados_garantias:
+                campos_update.append("caucao_descricao = ?")
+                valores.append(dados_garantias['caucao_descricao'])
+            if 'titulo_numero' in dados_garantias:
+                campos_update.append("titulo_numero = ?")
+                valores.append(dados_garantias['titulo_numero'])
+            if 'titulo_valor' in dados_garantias:
+                campos_update.append("titulo_valor = ?")
+                valores.append(dados_garantias['titulo_valor'])
+            if 'apolice_numero' in dados_garantias:
+                campos_update.append("apolice_numero = ?")
+                valores.append(dados_garantias['apolice_numero'])
+            if 'apolice_valor_cobertura' in dados_garantias:
+                campos_update.append("apolice_valor_cobertura = ?")
+                valores.append(dados_garantias['apolice_valor_cobertura'])
+                
+            if campos_update:
+                query = f"UPDATE GarantiasIndividuais SET {', '.join(campos_update)}, data_atualizacao = GETDATE() WHERE contrato_id = ?"
+                valores.append(contrato_id)
+                cursor.execute(query, valores)
+                print(f"Garantias atualizadas para contrato {contrato_id}")
+        else:
+            # Inserir novo registro com campos obrigatórios
+            cursor.execute("""
+                INSERT INTO GarantiasIndividuais (
+                    contrato_id, pessoa_id, pessoa_tipo, tipo_garantia,
+                    fiador_nome, fiador_cpf, fiador_telefone, fiador_endereco,
+                    caucao_tipo, caucao_descricao, titulo_numero, titulo_valor,
+                    apolice_numero, apolice_valor_cobertura, ativo, data_criacao
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, GETDATE())
+            """, (
+                contrato_id,
+                1,  # pessoa_id temporário
+                'LOCADOR',  # pessoa_tipo (deve ser LOCADOR ou LOCATARIO)
+                'MULTIPLA',  # tipo_garantia
+                dados_garantias.get('fiador_nome'),
+                dados_garantias.get('fiador_cpf'), 
+                dados_garantias.get('fiador_telefone'),
+                dados_garantias.get('fiador_endereco'),
+                dados_garantias.get('caucao_tipo'),
+                dados_garantias.get('caucao_descricao'),
+                dados_garantias.get('titulo_numero'),
+                dados_garantias.get('titulo_valor'),
+                dados_garantias.get('apolice_numero'),
+                dados_garantias.get('apolice_valor_cobertura')
+            ))
+            print(f"Novas garantias inseridas para contrato {contrato_id}")
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "Garantias salvas com sucesso"}
+        
+    except Exception as e:
+        print(f"Erro ao salvar garantias: {e}")
+        return {"success": False, "message": str(e)}
+
+def salvar_pets_contrato(contrato_id, pets_dados):
+    """Salva informações de pets na tabela ContratoPets"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Salvando pets para contrato {contrato_id}")
+        
+        # Remover pets existentes para este contrato
+        cursor.execute("DELETE FROM ContratoPets WHERE contrato_id = ?", (contrato_id,))
+        
+        # Se tiver dados de pets para salvar
+        if pets_dados.get('quantidade_pets', 0) > 0:
+            racas = pets_dados.get('pets_racas', '').split(',') if pets_dados.get('pets_racas') else ['']
+            tamanhos = pets_dados.get('pets_tamanhos', '').split(',') if pets_dados.get('pets_tamanhos') else ['']
+            
+            quantidade = int(pets_dados.get('quantidade_pets', 0))
+            
+            for i in range(quantidade):
+                raca = racas[i].strip() if i < len(racas) else ''
+                tamanho = tamanhos[i].strip() if i < len(tamanhos) else ''
+                
+                # Padronizar tamanho para valores válidos
+                tamanho_valido = tamanho.title() if tamanho.lower() in ['pequeno', 'médio', 'medio', 'grande', 'gigante'] else 'Médio'
+                
+                cursor.execute("""
+                    INSERT INTO ContratoPets (contrato_id, nome, raca, tamanho, ativo, data_cadastro)
+                    VALUES (?, ?, ?, ?, 1, GETDATE())
+                """, (contrato_id, f"Pet {i+1}", raca, tamanho_valido))
+            
+            print(f"{quantidade} pets inseridos para contrato {contrato_id}")
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "Pets salvos com sucesso"}
+        
+    except Exception as e:
+        print(f"Erro ao salvar pets: {e}")
+        return {"success": False, "message": str(e)}
 
 # ==========================================
 # FUNÇÕES PARA MÚLTIPLOS LOCADORES/LOCATÁRIOS
@@ -1593,6 +1800,44 @@ def buscar_locadores_contrato(contrato_id):
             result.append(row_dict)
         
         conn.close()
+        
+        # Se não encontrou locadores na tabela relacional, fazer fallback para dados do contrato
+        if not result:
+            print(f"Nenhum locador encontrado na tabela relacional para contrato {contrato_id}, buscando dados do contrato principal...")
+            contrato = buscar_contrato_por_id(contrato_id)
+            if contrato and contrato.get('id_locador'):
+                # Buscar dados do locador principal
+                conn = get_conexao()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, nome, cpf_cnpj, telefone, email
+                    FROM Locadores
+                    WHERE id = ?
+                """, (contrato['id_locador'],))
+                
+                locador_data = cursor.fetchone()
+                if locador_data:
+                    columns = [column[0] for column in cursor.description]
+                    locador_dict = {}
+                    for i, value in enumerate(locador_data):
+                        locador_dict[columns[i]] = value
+                    
+                    # Criar formato compatível com tabela relacional
+                    result = [{
+                        'id': None,
+                        'contrato_id': contrato_id,
+                        'locador_id': locador_dict['id'],
+                        'conta_bancaria_id': None,
+                        'porcentagem': 100.00,
+                        'responsabilidade_principal': True,
+                        'locador_nome': locador_dict['nome'],
+                        'locador_documento': locador_dict['cpf_cnpj'],
+                        'locador_telefone': locador_dict['telefone'],
+                        'locador_email': locador_dict['email'],
+                        'ativo': True
+                    }]
+                conn.close()
+        
         return result
         
     except Exception as e:
@@ -1633,6 +1878,43 @@ def buscar_locatarios_contrato(contrato_id):
             result.append(row_dict)
         
         conn.close()
+        
+        # Se não encontrou locatários na tabela relacional, fazer fallback para dados do contrato
+        if not result:
+            print(f"Nenhum locatário encontrado na tabela relacional para contrato {contrato_id}, buscando dados do contrato principal...")
+            contrato = buscar_contrato_por_id(contrato_id)
+            if contrato and contrato.get('id_locatario'):
+                # Buscar dados do locatário principal
+                conn = get_conexao()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, nome, cpf_cnpj, telefone, email
+                    FROM Locatarios
+                    WHERE id = ?
+                """, (contrato['id_locatario'],))
+                
+                locatario_data = cursor.fetchone()
+                if locatario_data:
+                    columns = [column[0] for column in cursor.description]
+                    locatario_dict = {}
+                    for i, value in enumerate(locatario_data):
+                        locatario_dict[columns[i]] = value
+                    
+                    # Criar formato compatível com tabela relacional
+                    result = [{
+                        'id': None,
+                        'contrato_id': contrato_id,
+                        'locatario_id': locatario_dict['id'],
+                        'responsabilidade_principal': True,
+                        'percentual_responsabilidade': 100.00,
+                        'locatario_nome': locatario_dict['nome'],
+                        'locatario_cpf': locatario_dict['cpf_cnpj'],
+                        'locatario_telefone': locatario_dict['telefone'],
+                        'locatario_email': locatario_dict['email'],
+                        'ativo': True
+                    }]
+                conn.close()
+        
         return result
         
     except Exception as e:
@@ -1719,6 +2001,44 @@ def salvar_locatarios_contrato(contrato_id, locatarios):
             conn.close()
         return False
 
+def alterar_status_contrato_db(contrato_id, novo_status):
+    """Altera o status de um contrato no banco de dados"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Alterando status do contrato {contrato_id} para: {novo_status}")
+        
+        # Verificar se o contrato existe
+        cursor.execute("SELECT id FROM Contratos WHERE id = ?", (contrato_id,))
+        if not cursor.fetchone():
+            print(f"Contrato {contrato_id} não encontrado")
+            return False
+        
+        # Atualizar o status do contrato
+        cursor.execute("""
+            UPDATE Contratos 
+            SET status = ?
+            WHERE id = ?
+        """, (novo_status, contrato_id))
+        
+        if cursor.rowcount > 0:
+            conn.commit()
+            print(f"OK Status do contrato {contrato_id} alterado para {novo_status}")
+            conn.close()
+            return True
+        else:
+            print(f"Nenhuma linha foi alterada para contrato {contrato_id}")
+            conn.close()
+            return False
+        
+    except Exception as e:
+        print(f"ERRO ao alterar status do contrato {contrato_id}: {e}")
+        if 'conn' in locals():
+            conn.rollback()
+            conn.close()
+        return False
+
 def buscar_todos_locadores_ativos():
     """Lista todos os locadores ativos para seleção em contratos"""
     try:
@@ -1768,3 +2088,526 @@ def validar_porcentagens_contrato(locadores):
         
     except Exception as e:
         return {"success": False, "message": f"Erro na validação: {e}"}
+
+# =====================================================================
+# FUNÇÕES DE HISTÓRICO DE CONTRATOS
+# =====================================================================
+
+def registrar_mudanca_contrato(id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario=None):
+    """Registra uma mudança no histórico de contratos - VERSÃO SEGURA"""
+    try:
+        # REATIVANDO histórico para identificar campos problemáticos
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Adicionar validação de campos
+        if len(str(valor_anterior)) > 4000:
+            valor_anterior = str(valor_anterior)[:4000] + "..."
+        if len(str(valor_novo)) > 4000:
+            valor_novo = str(valor_novo)[:4000] + "..."
+            
+        cursor.execute("""
+            INSERT INTO HistoricoContratos 
+            (id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (id_contrato, campo_alterado, str(valor_anterior), str(valor_novo), tipo_operacao, descricao_mudanca, usuario))
+        
+        conn.commit()
+        conn.close()
+        
+        return {"success": True, "message": "Mudança registrada no histórico"}
+        
+        # CÓDIGO ORIGINAL COMENTADO:
+        # conn = get_conexao()
+        # cursor = conn.cursor()
+        # 
+        # cursor.execute("""
+        #     INSERT INTO HistoricoContratos 
+        #     (id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario)
+        #     VALUES (?, ?, ?, ?, ?, ?, ?)
+        # """, (id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario))
+        # 
+        # conn.commit()
+        # conn.close()
+        # 
+        # return {"success": True, "message": "Mudança registrada no histórico"}
+        
+    except Exception as e:
+        print(f"Erro ao registrar mudança no histórico: {e}")
+        return {"success": False, "message": f"Erro ao registrar histórico: {e}"}
+
+def buscar_historico_contrato(id_contrato):
+    """Busca todo o histórico de mudanças de um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                campo_alterado,
+                valor_anterior,
+                valor_novo,
+                tipo_operacao,
+                descricao_mudanca,
+                data_alteracao,
+                usuario,
+                observacoes
+            FROM HistoricoContratos
+            WHERE id_contrato = ?
+            ORDER BY data_alteracao DESC
+        """, (id_contrato,))
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultados para lista de dicionários
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "data": result,
+            "total": len(result)
+        }
+        
+    except Exception as e:
+        print(f"Erro ao buscar histórico: {e}")
+        return {"success": False, "message": f"Erro ao buscar histórico: {e}"}
+
+def comparar_contratos_para_historico(contrato_antigo, contrato_novo, id_contrato, usuario=None):
+    """Compara dois contratos e registra automaticamente as diferenças no histórico"""
+    try:
+        mudancas_registradas = []
+        
+        # Campos importantes para monitorar (EXPANDIDO)
+        campos_monitorados = {
+            # Campos financeiros principais
+            'valor_aluguel': 'Valor do Aluguel',
+            'valor_condominio': 'Valor do Condomínio',
+            'valor_iptu': 'Valor do IPTU',
+            'valor_seguro': 'Valor do Seguro',
+            'taxa_administracao': 'Taxa de Administração',
+            'bonificacao': 'Bonificação',
+            'fundo_conservacao': 'Fundo de Conservação',
+            'percentual_multa_atraso': 'Multa por Atraso (%)',
+            
+            # Campos de datas principais
+            'data_inicio': 'Data de Início',
+            'data_fim': 'Data de Término',
+            'data_assinatura': 'Data de Assinatura',
+            'data_entrega_chaves': 'Data de Entrega das Chaves',
+            'proximo_reajuste': 'Próximo Reajuste',
+            'ultimo_reajuste': 'Último Reajuste',
+            
+            # Status e configurações
+            'status': 'Status do Contrato',
+            'tipo_garantia': 'Tipo de Garantia',
+            'tipo_plano_locacao': 'Tipo de Plano de Locação',
+            
+            # Configurações de pagamento
+            'vencimento_dia': 'Dia de Vencimento',
+            'dia_vencimento': 'Dia de Vencimento (Alt)',
+            'forma_pagamento': 'Forma de Pagamento',
+            'prazo_pagamento': 'Prazo de Pagamento',
+            
+            # Configurações de reajuste
+            'tempo_reajuste': 'Período de Reajuste',
+            'percentual_reajuste': 'Percentual de Reajuste',
+            'indice_reajuste': 'Índice de Reajuste',
+            'prazo_reajuste': 'Prazo de Reajuste',
+            
+            # Opções booleanas importantes
+            'renovacao_automatica': 'Renovação Automática',
+            'retido_fci': 'Retido FCI',
+            'retido_iptu': 'Retido IPTU', 
+            'retido_condominio': 'Retido Condomínio',
+            'antecipa_condominio': 'Antecipa Condomínio',
+            
+            # Campos de texto importantes
+            'observacoes': 'Observações',
+            'clausulas_adicionais': 'Cláusulas Adicionais'
+        }
+        
+        for campo_db, campo_nome in campos_monitorados.items():
+            valor_antigo = contrato_antigo.get(campo_db)
+            valor_novo = contrato_novo.get(campo_db)
+            
+            # Converter valores para string para comparação
+            valor_antigo_str = str(valor_antigo) if valor_antigo is not None else ''
+            valor_novo_str = str(valor_novo) if valor_novo is not None else ''
+            
+            # Se houve mudança, registrar
+            if valor_antigo_str != valor_novo_str:
+                # Determinar tipo de operação baseado no campo
+                if campo_db == 'valor_aluguel' and valor_novo and valor_antigo:
+                    tipo_operacao = 'REAJUSTE'
+                    descricao = f'{campo_nome} alterado de R$ {valor_antigo} para R$ {valor_novo}'
+                elif campo_db in ['data_inicio', 'data_fim']:
+                    tipo_operacao = 'RENOVACAO'
+                    descricao = f'{campo_nome} alterado de {valor_antigo} para {valor_novo}'
+                else:
+                    tipo_operacao = 'UPDATE'
+                    descricao = f'{campo_nome} alterado'
+                
+                resultado = registrar_mudanca_contrato(
+                    id_contrato=id_contrato,
+                    campo_alterado=campo_db,
+                    valor_anterior=valor_antigo_str,
+                    valor_novo=valor_novo_str,
+                    tipo_operacao=tipo_operacao,
+                    descricao_mudanca=descricao,
+                    usuario=usuario
+                )
+                
+                if resultado.get('success'):
+                    mudancas_registradas.append(campo_nome)
+        
+        return {
+            "success": True,
+            "message": f"{len(mudancas_registradas)} mudanças registradas no histórico",
+            "mudancas": mudancas_registradas
+        }
+        
+    except Exception as e:
+        print(f"Erro ao comparar contratos: {e}")
+        return {"success": False, "message": f"Erro ao comparar contratos: {e}"}
+
+def buscar_pets_por_contrato(contrato_id):
+    """Busca todos os pets de um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                nome,
+                especie,
+                raca,
+                tamanho,
+                idade,
+                peso_kg,
+                cor,
+                sexo,
+                castrado,
+                vacinado,
+                observacoes,
+                ativo
+            FROM ContratoPets
+            WHERE contrato_id = ?
+            ORDER BY id
+        """, (contrato_id,))
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultados para lista de dicionários
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"Erro ao buscar pets: {e}")
+        return []
+
+def buscar_garantias_por_contrato(contrato_id):
+    """Busca todas as garantias de um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                pessoa_id,
+                pessoa_tipo,
+                tipo_garantia,
+                valor_garantia,
+                fiador_nome,
+                fiador_cpf,
+                fiador_telefone,
+                fiador_endereco,
+                caucao_tipo,
+                caucao_descricao,
+                caucao_data_devolucao,
+                titulo_seguradora,
+                titulo_numero,
+                titulo_valor,
+                titulo_vencimento,
+                apolice_seguradora,
+                apolice_numero,
+                apolice_valor_cobertura,
+                apolice_vigencia_inicio,
+                apolice_vigencia_fim,
+                observacoes,
+                documentos_path,
+                ativo
+            FROM GarantiasIndividuais
+            WHERE contrato_id = ?
+            ORDER BY id
+        """, (contrato_id,))
+        
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+        
+        # Converter resultados para lista de dicionários
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                else:
+                    row_dict[columns[i]] = value
+            result.append(row_dict)
+        
+        conn.close()
+        return result
+        
+    except Exception as e:
+        print(f"Erro ao buscar garantias: {e}")
+        return []
+
+def buscar_plano_por_contrato(contrato_id):
+    """Busca o plano de locação de um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Buscar plano associado ao contrato
+        cursor.execute("""
+            SELECT 
+                c.id_plano_locacao,
+                c.tipo_plano_locacao,
+                p.id,
+                p.codigo,
+                p.nome,
+                p.descricao,
+                p.categoria,
+                p.opcao,
+                p.taxa_primeiro_aluguel,
+                p.taxa_demais_alugueis,
+                p.taxa_administracao,
+                p.aplica_taxa_unica
+            FROM Contratos c
+            LEFT JOIN PlanosLocacao p ON c.id_plano_locacao = p.id
+            WHERE c.id = ?
+        """, (contrato_id,))
+        
+        resultado = cursor.fetchone()
+        
+        if resultado:
+            plano_data = {
+                'contrato_id_plano_locacao': resultado[0],
+                'contrato_tipo_plano_locacao': resultado[1],
+                'plano_id': resultado[2],
+                'plano_codigo': resultado[3],
+                'plano_nome': resultado[4],
+                'plano_descricao': resultado[5],
+                'plano_categoria': resultado[6],
+                'plano_opcao': resultado[7],
+                'plano_taxa_primeiro_aluguel': float(resultado[8]) if resultado[8] else 0,
+                'plano_taxa_demais_alugueis': float(resultado[9]) if resultado[9] else 0,
+                'plano_taxa_administracao': float(resultado[10]) if resultado[10] else 0,
+                'plano_aplica_taxa_unica': resultado[11] if resultado[11] is not None else False
+            }
+            
+            conn.close()
+            return plano_data
+        else:
+            conn.close()
+            return None
+        
+    except Exception as e:
+        print(f"Erro ao buscar plano: {e}")
+        return None
+
+def buscar_pets_por_contrato(contrato_id):
+    """Busca todos os pets de um contrato da tabela ContratoPets"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                contrato_id,
+                nome,
+                especie,
+                raca,
+                tamanho,
+                idade,
+                peso_kg,
+                cor,
+                sexo,
+                castrado,
+                vacinado,
+                observacoes,
+                ativo
+            FROM ContratoPets
+            WHERE contrato_id = ? AND ativo = 1
+            ORDER BY id
+        """, (contrato_id,))
+        
+        pets = []
+        for row in cursor.fetchall():
+            pets.append({
+                'id': row[0],
+                'contrato_id': row[1],
+                'nome': row[2] or '',
+                'especie': row[3] or '',
+                'raca': row[4] or '',
+                'tamanho': row[5] or '',
+                'idade': row[6] or 0,
+                'peso_kg': float(row[7]) if row[7] else 0,
+                'cor': row[8] or '',
+                'sexo': row[9] or '',
+                'castrado': bool(row[10]) if row[10] is not None else False,
+                'vacinado': bool(row[11]) if row[11] is not None else False,
+                'observacoes': row[12] or '',
+                'ativo': bool(row[13]) if row[13] is not None else True
+            })
+        
+        conn.close()
+        print(f"Encontrados {len(pets)} pets para contrato {contrato_id}")
+        return pets
+        
+    except Exception as e:
+        print(f"Erro ao buscar pets: {e}")
+        return []
+
+def listar_planos_locacao():
+    """Lista todos os planos de locação disponíveis"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                id,
+                codigo,
+                nome,
+                descricao,
+                categoria,
+                opcao,
+                taxa_primeiro_aluguel,
+                taxa_demais_alugueis,
+                taxa_administracao,
+                aplica_taxa_unica,
+                ativo
+            FROM PlanosLocacao
+            WHERE ativo = 1
+            ORDER BY categoria, nome
+        """)
+        
+        planos = []
+        for row in cursor.fetchall():
+            planos.append({
+                'id': row[0],
+                'codigo': row[1] or '',
+                'nome': row[2] or '',
+                'descricao': row[3] or '',
+                'categoria': row[4] or '',
+                'opcao': row[5] or '',
+                'taxa_primeiro_aluguel': float(row[6]) if row[6] else 0,
+                'taxa_demais_alugueis': float(row[7]) if row[7] else 0,
+                'taxa_administracao': float(row[8]) if row[8] else 0,
+                'aplica_taxa_unica': bool(row[9]) if row[9] is not None else False,
+                'ativo': bool(row[10]) if row[10] is not None else True
+            })
+        
+        conn.close()
+        print(f"Encontrados {len(planos)} planos de locação")
+        return planos
+        
+    except Exception as e:
+        print(f"Erro ao listar planos: {e}")
+        return []
+
+def salvar_dados_bancarios_corretor(contrato_id, dados_bancarios):
+    """Salva os dados bancários do corretor na tabela CorretorContaBancaria"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Primeiro, remover dados bancários existentes do corretor para este contrato
+        cursor.execute("DELETE FROM CorretorContaBancaria WHERE contrato_id = ?", (contrato_id,))
+        
+        # Se há dados bancários para salvar
+        if dados_bancarios and any(dados_bancarios.values()):
+            cursor.execute("""
+                INSERT INTO CorretorContaBancaria (
+                    contrato_id, banco, agencia, conta, tipo_conta, chave_pix, 
+                    titular, principal, ativo, data_criacao
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+            """, (
+                contrato_id,
+                dados_bancarios.get('banco', ''),
+                dados_bancarios.get('agencia', ''),
+                dados_bancarios.get('conta', ''),
+                dados_bancarios.get('tipo_conta', ''),
+                dados_bancarios.get('chave_pix', ''),
+                dados_bancarios.get('titular', ''),  # Pode usar o nome do corretor
+                True,  # principal
+                True,  # ativo
+            ))
+            print(f"Dados bancários do corretor salvos para contrato {contrato_id}")
+        
+        conn.commit()
+        conn.close()
+        
+    except Exception as e:
+        print(f"Erro ao salvar dados bancários do corretor: {e}")
+        raise
+
+def buscar_dados_bancarios_corretor(contrato_id):
+    """Busca os dados bancários do corretor de um contrato"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT banco, agencia, conta, tipo_conta, chave_pix, titular
+            FROM CorretorContaBancaria 
+            WHERE contrato_id = ? AND ativo = 1
+        """, (contrato_id,))
+        
+        resultado = cursor.fetchone()
+        conn.close()
+        
+        if resultado:
+            return {
+                'banco': resultado[0] or '',
+                'agencia': resultado[1] or '',
+                'conta': resultado[2] or '',
+                'tipo_conta': resultado[3] or '',
+                'chave_pix': resultado[4] or '',
+                'titular': resultado[5] or ''
+            }
+        else:
+            return {}
+            
+    except Exception as e:
+        print(f"Erro ao buscar dados bancários do corretor: {e}")
+        return {}

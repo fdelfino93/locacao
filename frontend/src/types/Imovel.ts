@@ -23,6 +23,7 @@ export interface DadosGeraisImovel {
 }
 
 export interface Imovel {
+  id?: number;
   id_cliente: number;
   id_inquilino: number;
   tipo: string;
@@ -36,6 +37,7 @@ export interface Imovel {
   status: string;
   matricula_imovel: string;
   area_imovel: string;
+  area_total?: number;
   dados_imovel: string;
   info_iptu: string;
   observacoes_condominio: string;

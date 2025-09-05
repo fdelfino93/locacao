@@ -6,7 +6,24 @@ export interface Fatura {
   
   // Valores financeiros
   valor_aluguel: number;
+  valor_iptu?: number;
+  valor_condominio?: number;
+  valor_fci?: number;
+  valor_gas?: number;
+  valor_acrescimos?: number;
   valor_total: number;
+  
+  // Descontos e fundos
+  desconto_pontualidade?: number;
+  desconto_benfeitoria_1?: number;
+  desconto_benfeitoria_2?: number;
+  desconto_benfeitoria_3?: number;
+  reembolso_fundo_obras?: number;
+  fundo_reserva?: number;
+  fundo_iptu?: number;
+  fundo_outros?: number;
+  honorario_advogados?: number;
+  boleto_advogados?: number;
   
   // Datas
   data_vencimento: string;
@@ -25,7 +42,13 @@ export interface Fatura {
   imovel_tipo: string;
   locatario_nome: string;
   locatario_cpf: string;
+  locatario_telefone?: string;
+  locatario_email?: string;
   locador_nome: string;
+  proprietario_nome?: string;
+  proprietario_cpf?: string;
+  proprietario_telefone?: string;
+  proprietario_email?: string;
   
   // Observações e detalhes
   observacoes?: string;

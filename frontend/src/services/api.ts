@@ -31,6 +31,7 @@ export interface DashboardVencimento {
   valor: number;
   dias_para_vencer: number;
   status: string;
+  tipo?: 'vencimento' | 'reajuste';
 }
 
 export interface DashboardAlerta {
@@ -191,6 +192,11 @@ class ApiService {
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     const result = await this.request<T>(normalizedEndpoint, options);
     return { data: result.data || result as any };
+  }
+
+  // Métodos para Planos
+  async listarPlanos(): Promise<ApiResponse<any[]>> {
+    return this.request('/planos');
   }
 
   // Verifica se a API está viva

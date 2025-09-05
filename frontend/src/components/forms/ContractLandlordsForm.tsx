@@ -48,34 +48,16 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   const carregarLocadoresAtivos = async () => {
     try {
       setLoading(true);
-      // Usar novo endpoint que retorna todos os locadores ativos
-      const response = await fetch('http://localhost:8000/api/locadores/ativos');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setLocadoresOptions(data.data);
-          console.log('Locadores ativos carregados:', data.data.length);
-        } else {
-          console.error('Erro na resposta da API:', data);
-        }
+      // Usar apiService que funciona corretamente
+      const response = await apiService.listarLocadores();
+      if (response.success && response.data) {
+        setLocadoresOptions(response.data);
+        console.log('Locadores carregados:', response.data.length);
       } else {
-        // Fallback para endpoint antigo
-        const fallbackResponse = await apiService.listarLocadores();
-        if (fallbackResponse.success && fallbackResponse.data) {
-          setLocadoresOptions(fallbackResponse.data);
-        }
+        console.error('Erro na resposta da API:', response);
       }
     } catch (error) {
       console.error('Erro ao carregar locadores:', error);
-      // Tentar endpoint antigo como fallback
-      try {
-        const fallbackResponse = await apiService.listarLocadores();
-        if (fallbackResponse.success && fallbackResponse.data) {
-          setLocadoresOptions(fallbackResponse.data);
-        }
-      } catch (fallbackError) {
-        console.error('Erro no fallback:', fallbackError);
-      }
     } finally {
       setLoading(false);
     }
@@ -90,15 +72,15 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
           ...prev,
           [locadorId]: data
         }));
-      } else if (response.status === 404) {
-        // Locador sem contas bancárias cadastradas
+      } else {
+        // Locador sem contas bancárias cadastradas ou endpoint não existe
         setContasBancarias(prev => ({
           ...prev,
           [locadorId]: []
         }));
       }
     } catch (error) {
-      console.error('Erro ao carregar contas bancárias:', error);
+      console.error('Fetch falha ao carregar:', error);
       // Em caso de erro, definir array vazio para não quebrar a interface
       setContasBancarias(prev => ({
         ...prev,
@@ -401,7 +383,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                             <SelectItem value="0" disabled>Nenhum locador encontrado</SelectItem>
                           ) : (
                             locadoresOptions.map((locadorOpt) => (
-                              <SelectItem key={locadorOpt.id} value={locadorOpt.id.toString()} className="text-foreground hover:bg-accent">
+                              <SelectItem key={locadorOpt.id} value={locadorOpt.id ? locadorOpt.id.toString() : ""} className="text-foreground hover:bg-accent">
                                 {locadorOpt.nome} {locadorOpt.cpf_cnpj ? `- ${locadorOpt.cpf_cnpj}` : ''}
                               </SelectItem>
                             ))
@@ -414,7 +396,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                     <div>
                       <Label>Conta Bancária *</Label>
                       <Select 
-                        value={locador.conta_bancaria_id.toString()}
+                        value={locador.conta_bancaria_id ? locador.conta_bancaria_id.toString() : ""}
                         onValueChange={(value) => atualizarLocador(index, 'conta_bancaria_id', parseInt(value))}
                         disabled={!locador.locador_id || contasDoLocador.length === 0}
                       >
@@ -429,7 +411,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         </SelectTrigger>
                         <SelectContent>
                           {contasDoLocador.map((conta) => (
-                            <SelectItem key={conta.id} value={conta.id.toString()}>
+                            <SelectItem key={conta.id} value={conta.id ? conta.id.toString() : ""}>
                               <div className="flex items-center gap-2">
                                 <CreditCard className="w-4 h-4" />
                                 <span>{conta.descricao}</span>

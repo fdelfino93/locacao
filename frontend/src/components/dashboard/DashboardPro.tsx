@@ -15,7 +15,11 @@ import { apiService } from '@/services/api';
 import type { DashboardCompleto, DashboardMetricas, DashboardOcupacao, DashboardVencimento, DashboardAlerta } from '@/services/api';
 import toast from 'react-hot-toast';
 
-const DashboardPro: React.FC = () => {
+interface DashboardProProps {
+  onNavigateToContratosVencendo?: () => void;
+}
+
+const DashboardPro: React.FC<DashboardProProps> = ({ onNavigateToContratosVencendo }) => {
   // Estados principais
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,37 +70,101 @@ const DashboardPro: React.FC = () => {
     try {
       setLoading(true);
       
-      // Buscar dados do dashboard completo
-      const dashboardCompleto = await apiService.obterDashboardCompleto(selectedMonth, selectedYear);
+      // Buscar dados dos contratos diretamente
+      const response = await fetch('http://localhost:8000/api/contratos');
+      const data = await response.json();
       
-      if (dashboardCompleto) {
-        setDashboardData(dashboardCompleto);
-        setMetricas(dashboardCompleto.metricas);
-        setOcupacao(dashboardCompleto.ocupacao);
-        setVencimentos(dashboardCompleto.vencimentos);
-        setAlertas(dashboardCompleto.alertas);
+      if (data.success && data.data) {
+        const contratos = data.data;
+        const hoje = new Date();
+        
+        // Processar contratos para dashboard
+        const contratosProcessados = contratos.map((contrato: any) => {
+          const dataFim = new Date(contrato.data_fim);
+          const diasParaVencer = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+          
+          let diasParaReajuste = null;
+          if (contrato.proximo_reajuste) {
+            const dataReajuste = new Date(contrato.proximo_reajuste);
+            diasParaReajuste = Math.ceil((dataReajuste.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+          }
+          
+          return {
+            ...contrato,
+            diasParaVencer,
+            diasParaReajuste
+          };
+        });
+        
+        // Criar vencimentos para o dashboard
+        const vencimentosLista: DashboardVencimento[] = [];
+        
+        // Contratos vencendo
+        contratosProcessados.forEach((contrato: any) => {
+          if (contrato.diasParaVencer <= 45 && contrato.diasParaVencer > 0) {
+            vencimentosLista.push({
+              id: contrato.id,
+              cliente_nome: contrato.locador_nome || 'Locador não informado',
+              contrato_numero: `C${String(contrato.id).padStart(4, '0')}`,
+              data_vencimento: contrato.data_fim,
+              valor: contrato.valor_aluguel,
+              dias_para_vencer: contrato.diasParaVencer,
+              status: contrato.diasParaVencer <= 7 ? 'urgente' : 'proximo',
+              tipo: 'vencimento' // Adicionar tipo
+            });
+          }
+          
+          // Reajustes próximos
+          if (contrato.diasParaReajuste && contrato.diasParaReajuste <= 45 && contrato.diasParaReajuste > 0) {
+            vencimentosLista.push({
+              id: contrato.id + 1000, // ID único para reajuste
+              cliente_nome: contrato.locador_nome || 'Locador não informado',
+              contrato_numero: `C${String(contrato.id).padStart(4, '0')}`, // Manter C para contrato
+              data_vencimento: contrato.proximo_reajuste,
+              valor: contrato.valor_aluguel,
+              dias_para_vencer: contrato.diasParaReajuste,
+              status: contrato.diasParaReajuste <= 7 ? 'urgente' : 'proximo',
+              tipo: 'reajuste' // Adicionar tipo
+            });
+          }
+        });
+        
+        setVencimentos(vencimentosLista);
+        
+        // Atualizar métricas básicas
+        setMetricas({
+          total_contratos: contratos.length,
+          contratos_ativos: contratos.filter((c: any) => c.status === 'ativo').length,
+          receita_mensal: contratos.filter((c: any) => c.status === 'ativo').reduce((acc: number, c: any) => acc + c.valor_aluguel, 0),
+          crescimento_percentual: 0,
+          total_clientes: contratos.length,
+          novos_clientes_mes: 0
+        });
+      }
+      
+      // Fallback para outras APIs se necessário
+      try {
+        const dashboardCompleto = await apiService.obterDashboardCompleto(selectedMonth, selectedYear);
+        
+        if (dashboardCompleto && dashboardCompleto.ocupacao) {
+          setOcupacao(dashboardCompleto.ocupacao);
+          setAlertas(dashboardCompleto.alertas);
+        }
+      } catch (error) {
+        console.log('APIs do dashboard não disponíveis, usando dados dos contratos');
+        // Usar dados mockados para ocupação se necessário
+        setOcupacao({
+          taxa_ocupacao: 75,
+          unidades_ocupadas: 3,
+          unidades_totais: 4,
+          unidades_disponiveis: 1,
+          ocupacao_por_tipo: []
+        });
+        setAlertas([]);
       }
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
-      
-      // Fallback: tentar buscar dados individuais
-      try {
-        const [metricasData, ocupacaoData, vencimentosData, alertasData] = await Promise.all([
-          apiService.obterMetricasDashboard(),
-          apiService.obterOcupacaoDashboard(),
-          apiService.obterVencimentosDashboard(60),
-          apiService.obterAlertasDashboard()
-        ]);
-        
-        setMetricas(metricasData);
-        setOcupacao(ocupacaoData);
-        setVencimentos(vencimentosData);
-        setAlertas(alertasData);
-      } catch (fallbackError) {
-        console.error('Erro no fallback:', fallbackError);
-        // Usar dados mockados se tudo falhar
-        useMockData();
-      }
+      useMockData();
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -549,7 +617,11 @@ const DashboardPro: React.FC = () => {
                       <p className="text-sm text-muted-foreground">{vencimentos.length} contratos</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => onNavigateToContratosVencendo?.()}
+                  >
                     Ver todos
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
@@ -572,6 +644,12 @@ const DashboardPro: React.FC = () => {
                               <Badge variant="outline" className="text-xs">
                                 {vencimento.contrato_numero}
                               </Badge>
+                              <Badge 
+                                variant={vencimento.tipo === 'reajuste' ? 'default' : 'secondary'} 
+                                className="text-xs"
+                              >
+                                {vencimento.tipo === 'reajuste' ? '📈 Reajuste' : '📋 Encerramento'}
+                              </Badge>
                             </div>
                             <div className="flex items-center gap-3 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
@@ -580,7 +658,7 @@ const DashboardPro: React.FC = () => {
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {vencimento.dias_para_vencer} dias
+                                {vencimento.dias_para_vencer} dias para {vencimento.tipo === 'reajuste' ? 'reajuste' : 'encerramento'}
                               </span>
                             </div>
                           </div>
@@ -714,7 +792,7 @@ const DashboardPro: React.FC = () => {
                 <Button
                   variant="outline"
                   className="h-auto flex flex-col items-center gap-3 p-4 hover:bg-primary hover:text-primary-foreground transition-all group"
-                  onClick={() => window.location.pathname = '/locatario'}
+                  onClick={() => window.location.pathname = '/locador'}
                 >
                   <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:bg-primary-foreground/20">
                     <Users className="w-5 h-5 text-purple-600 dark:text-purple-400 group-hover:text-primary-foreground" />

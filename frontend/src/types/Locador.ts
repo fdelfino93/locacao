@@ -35,5 +35,10 @@ export interface Locador {
   // Campos legados para compatibilidade
   telefone?: string;
   email?: string;
+  
+  // Campos adicionais para formulários
+  tipo_recebimento?: string;
+  tipo_cliente?: string;
+  conta_bancaria?: DadosBancarios;
 }
 

@@ -82,8 +82,11 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
 
   // Filtrar imóveis baseado nos locadores selecionados
   useEffect(() => {
-    console.log('🔧 Filtrando imóveis - locadores selecionados:', locadoresSelecionados);
+    console.log('🔧 === INICIANDO FILTRO DE IMÓVEIS ===');
+    console.log('🔧 Locadores selecionados:', locadoresSelecionados);
     console.log('🏠 Imóvel atual do contrato (imovelId):', imovelId);
+    console.log('📦 Total de imóveis disponíveis:', imoveis.length);
+    console.log('📦 Imóveis detalhados:', imoveis.map(i => `ID:${i.id} - ${i.endereco} - Locador:${i.id_cliente}`));
     
     if (locadoresSelecionados.length === 0) {
       // Se nenhum locador selecionado, mostrar todos os imóveis
@@ -91,9 +94,14 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
       setImoveisFiltrados(imoveis);
     } else {
       // Filtrar imóveis dos locadores selecionados
-      let imoveisFiltradosPorLocador = imoveis.filter(imovel => 
-        imovel.id_cliente && locadoresSelecionados.includes(imovel.id_cliente)
-      );
+      console.log('🔍 Filtrando por locadores:', locadoresSelecionados);
+      let imoveisFiltradosPorLocador = imoveis.filter(imovel => {
+        const isMatch = imovel.id_cliente && locadoresSelecionados.includes(imovel.id_cliente);
+        console.log(`🔍 Imóvel ${imovel.id} (${imovel.endereco}) - Locador: ${imovel.id_cliente} - Match: ${isMatch}`);
+        return isMatch;
+      });
+      
+      console.log('🔍 Imóveis após filtro por locador:', imoveisFiltradosPorLocador.length);
       
       // IMPORTANTE: Sempre incluir o imóvel atual do contrato, mesmo que não seja do locador
       if (imovelId > 0) {
@@ -104,16 +112,17 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
         }
       }
       
-      console.log('📋 Imóveis filtrados final:', imoveisFiltradosPorLocador.length);
+      console.log('📋 RESULTADO FINAL - Imóveis filtrados:', imoveisFiltradosPorLocador.length);
+      console.log('📋 Lista final:', imoveisFiltradosPorLocador.map(i => `${i.id}: ${i.endereco}`));
       setImoveisFiltrados(imoveisFiltradosPorLocador);
     }
+    console.log('🔧 === FIM DO FILTRO DE IMÓVEIS ===');
   }, [imoveis, locadoresSelecionados, imovelId]);
 
   // Recarregar imóveis quando locadores selecionados mudarem
   useEffect(() => {
-    if (locadoresSelecionados.length > 0) {
-      carregarImoveisPorLocadores();
-    } else {
+    // Sempre usar carregarImoveis() - a filtragem é feita pelo useEffect de filtros
+    if (imoveis.length === 0) {
       carregarImoveis();
     }
   }, [locadoresSelecionados]);
@@ -178,42 +187,6 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
     }
   };
 
-  const carregarImoveisPorLocadores = async () => {
-    try {
-      setLoading(true);
-      // Carregar imóveis para cada locador selecionado
-      const promisesImoveis = locadoresSelecionados.map(locadorId => 
-        fetch(`/api/imoveis?locador_id=${locadorId}`).then(res => res.json())
-      );
-      
-      const respostas = await Promise.all(promisesImoveis);
-      const todosImoveis: any[] = [];
-      
-      respostas.forEach(response => {
-        if (response.success && response.data) {
-          todosImoveis.push(...response.data);
-        }
-      });
-
-      // Transformar os dados para o formato esperado
-      const imoveisFormatados = todosImoveis.map((imovel: any) => ({
-        id: imovel.id,
-        endereco: imovel.endereco,
-        tipo: imovel.tipo,
-        valor_aluguel: imovel.valor_aluguel,
-        status: imovel.status,
-        id_cliente: imovel.id_locador,
-        locador_nome: '',
-        locador_telefone: ''
-      }));
-      
-      setImoveis(imoveisFormatados);
-    } catch (error) {
-      console.error('Erro ao carregar imóveis por locadores:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleImovelChange = (value: string) => {
     const novoImovelId = parseInt(value);

@@ -66,6 +66,7 @@ export interface Contrato {
   taxa_administracao: number;
   fundo_conservacao: number;
   multa_atraso?: number;
+  percentual_multa_atraso?: number;
   tipo_reajuste: string;
   percentual_reajuste: number;
   vencimento_dia: number;
@@ -218,6 +219,26 @@ export interface Contrato {
     };
   };
   
+  // Campos adicionais do formulário
+  dia_vencimento?: number;
+  prazo_reajuste?: number;
+  prazo_pagamento?: number;
+  observacoes?: string;
+  forma_pagamento?: string;
+  banco_pagamento?: string;
+  agencia_pagamento?: string;
+  conta_pagamento?: string;
+  status?: string;
+  valor_multa_rescisao?: number;
+  valor_deposito_caucao?: number;
+  fiador_nome?: string;
+  fiador_cpf?: string;
+  fiador_telefone?: string;
+  fiador_email?: string;
+  fiador_endereco?: string;
+  pets_racas?: string;
+  pets_tamanhos?: string;
+  
   // Renovação/Reajuste melhorada
   tempo_renovacao?: number; // em meses
   tempo_reajuste?: number; // em meses
@@ -243,8 +264,12 @@ export interface Contrato {
   // Animais de estimação
   quantidade_pets?: number;
   pets?: Array<{
-    raca: string;
-    tamanho: string;
+    nome?: string;
+    tipo?: string;
+    raca?: string;
+    tamanho?: string;
+    idade?: number;
+    vacinacao_em_dia: boolean;
   }>;
 
   // Obrigações Adicionais

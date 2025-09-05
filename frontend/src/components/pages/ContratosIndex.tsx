@@ -26,7 +26,12 @@ import {
   MoreHorizontal,
   Download,
   Printer,
-  Copy
+  Copy,
+  Play,
+  Square,
+  Pause,
+  XCircle,
+  TrendingUp
 } from 'lucide-react';
 import { apiService } from '../../services/api';
 
@@ -49,18 +54,23 @@ interface Contrato {
   tipo_garantia?: string;
   data_assinatura?: string;
   id_locador?: number;
+  diasParaVencer?: number;
+  diasParaReajuste?: number;
+  proximoReajuste?: string;
 }
 
 interface ContratosIndexProps {
   onNavigateToCadastro: () => void;
   onNavigateToDetalhes: (contratoId: number) => void;
   onNavigateToEdicao: (contratoId: number) => void;
+  initialTab?: string;
 }
 
 export const ContratosIndex: React.FC<ContratosIndexProps> = ({
   onNavigateToCadastro,
   onNavigateToDetalhes,
-  onNavigateToEdicao
+  onNavigateToEdicao,
+  initialTab = 'todos'
 }) => {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +79,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
   const [sortField, setSortField] = useState<'data_inicio' | 'valor_aluguel'>('data_inicio');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState('todos');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [filterStatus, setFilterStatus] = useState('');
 
   useEffect(() => {
@@ -98,31 +108,62 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
       const data = await response.json();
       
       if (data.success && data.data) {
+        console.log('🔍 DADOS DA API CONTRATOS:', data.data);
+        console.log('🔍 Primeiro contrato:', data.data[0]);
+        
         // Processar contratos para adicionar status baseado em datas
         const contratosProcessados = data.data.map((contrato: any) => {
           const hoje = new Date();
           const dataFim = new Date(contrato.data_fim);
           const dataInicio = new Date(contrato.data_inicio);
           
-          let status: 'ativo' | 'encerrado' | 'pendente' | 'vencido' = 'pendente';
+          let status: 'ativo' | 'encerrado' | 'pendente' | 'vencido' = contrato.status || 'pendente';
           
+          // Calcular dias para vencimento do contrato
+          const diasParaVencer = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Calcular dias para próximo reajuste se existir
+          let diasParaReajuste = null;
+          console.log(`🔍 Contrato ${contrato.id}: proximo_reajuste = ${contrato.proximo_reajuste}`);
+          
+          if (contrato.proximo_reajuste) {
+            const proximoReajuste = new Date(contrato.proximo_reajuste);
+            diasParaReajuste = Math.ceil((proximoReajuste.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+            console.log(`🔍 Contrato ${contrato.id}: ${diasParaReajuste} dias para reajuste`);
+          } else {
+            console.log(`🔍 Contrato ${contrato.id}: sem próximo reajuste`);
+          }
+          
+          // Lógica de status automático baseado em datas
           if (hoje < dataInicio) {
+            // Contrato ainda não começou
             status = 'pendente';
           } else if (hoje > dataFim) {
+            // Contrato já terminou
             status = 'encerrado';
-          } else {
+          } else if (diasParaVencer <= 45 && diasParaVencer > 0) {
+            // Contrato vencendo em até 45 dias
+            status = 'vencido';
+          } else if (diasParaReajuste && diasParaReajuste <= 45 && diasParaReajuste > 0) {
+            // Reajuste próximo em até 45 dias (também vai para "vencendo")
+            console.log(`🔍 Contrato ${contrato.id}: DEFININDO STATUS VENCIDO POR REAJUSTE (${diasParaReajuste} dias)`);
+            status = 'vencido';
+          } else if (hoje >= dataInicio && hoje <= dataFim) {
+            // Contrato em vigência normal
             status = 'ativo';
           }
           
-          // Adicionar dias para considerar contrato vencido
-          const diasParaVencer = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-          if (diasParaVencer <= 30 && diasParaVencer > 0) {
-            status = 'vencido';
+          // Atualizar status no backend se mudou automaticamente
+          if (status !== contrato.status) {
+            updateContractStatusInBackground(contrato.id, status);
           }
           
           return {
             ...contrato,
             status,
+            diasParaVencer,
+            diasParaReajuste,
+            proximoReajuste: contrato.proximo_reajuste,
             valor_total: (contrato.valor_aluguel || 0) + (contrato.taxa_administracao || 0)
           };
         });
@@ -154,7 +195,9 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
-  const getStatusBadge = (status: string | undefined) => {
+  const getStatusBadge = (contrato: Contrato) => {
+    const status = contrato.status;
+    
     switch (status) {
       case 'ativo':
         return (
@@ -178,12 +221,34 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
           </Badge>
         );
       case 'vencido':
-        return (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
-            <AlertCircle className="w-3 h-3 mr-1" />
-            Vencendo
-          </Badge>
-        );
+        // Verificar se é vencimento de contrato ou reajuste próximo
+        const temReajusteProximo = contrato.diasParaReajuste && contrato.diasParaReajuste <= 45 && contrato.diasParaReajuste > 0;
+        const temContratoVencendo = contrato.diasParaVencer && contrato.diasParaVencer <= 45 && contrato.diasParaVencer > 0;
+        
+        console.log(`🔍 Badge Contrato ${contrato.id}: reajuste=${temReajusteProximo} (${contrato.diasParaReajuste}d), vencendo=${temContratoVencendo} (${contrato.diasParaVencer}d)`);
+        
+        if (temReajusteProximo && !temContratoVencendo) {
+          return (
+            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+              <TrendingUp className="w-3 h-3 mr-1" />
+              Reajuste em {contrato.diasParaReajuste}d
+            </Badge>
+          );
+        } else if (temContratoVencendo) {
+          return (
+            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Vence em {contrato.diasParaVencer}d
+            </Badge>
+          );
+        } else {
+          return (
+            <Badge className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+              <AlertCircle className="w-3 h-3 mr-1" />
+              Vencendo
+            </Badge>
+          );
+        }
       default:
         return null;
     }
@@ -204,6 +269,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     const matchesTab = activeTab === 'todos' || 
       (activeTab === 'ativos' && contrato.status === 'ativo') || 
       (activeTab === 'vencendo' && contrato.status === 'vencido') ||
+      (activeTab === 'pendentes' && contrato.status === 'pendente') ||
       (activeTab === 'encerrados' && contrato.status === 'encerrado');
     
     return matchesSearch && matchesStatus && matchesTab;
@@ -242,6 +308,52 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     return sortDirection === 'asc' ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />;
   };
 
+  const updateContractStatusInBackground = async (contratoId: number, novoStatus: string) => {
+    try {
+      await fetch(`http://localhost:8000/api/contratos/${contratoId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+    } catch (error) {
+      console.log('Erro silencioso ao atualizar status automaticamente:', error);
+    }
+  };
+
+  const handleChangeStatus = async (contratoId: number, novoStatus: string) => {
+    try {
+      console.log('Alterando status do contrato', contratoId, 'para:', novoStatus);
+      
+      const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+
+      if (response.ok) {
+        // Atualizar a lista de contratos
+        setContratos(prev => prev.map(contrato => 
+          contrato.id === contratoId 
+            ? { ...contrato, status: novoStatus as 'ativo' | 'encerrado' | 'pendente' | 'vencido' }
+            : contrato
+        ));
+        console.log(`✅ Status alterado para: ${novoStatus}`);
+      } else {
+        console.error('Erro ao alterar status:', await response.text());
+        alert('Erro ao alterar status do contrato');
+      }
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      alert('Erro de conexão ao alterar status');
+    } finally {
+      setOpenDropdown(null);
+    }
+  };
+
   const handleDuplicateContract = async (contratoId: number) => {
     try {
       // Implementar duplicação de contrato
@@ -273,6 +385,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
   const totalContratos = contratos.length;
   const contratosAtivos = contratos.filter(c => c.status === 'ativo').length;
   const contratosVencendo = contratos.filter(c => c.status === 'vencido').length;
+  const contratosPendentes = contratos.filter(c => c.status === 'pendente').length;
   const valorTotalMensal = contratos
     .filter(c => c.status === 'ativo')
     .reduce((acc, c) => acc + (c.valor_total || c.valor_aluguel || 0), 0);
@@ -310,7 +423,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
           </div>
 
           {/* Cards de Resumo */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <Card className="card-glass">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
@@ -351,6 +464,18 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-muted-foreground truncate">Pendentes</p>
+                    <p className="text-xl font-bold text-foreground truncate">{contratosPendentes}</p>
+                  </div>
+                  <Clock className="w-7 h-7 text-orange-500 flex-shrink-0 ml-2" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="card-glass">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-muted-foreground truncate">Receita Mensal</p>
                     <p className="text-xl font-bold text-foreground truncate">{formatCurrency(valorTotalMensal)}</p>
                   </div>
@@ -364,7 +489,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
           <Card className="card-glass">
             <CardContent className="p-8">
               <div className="w-full">
-                <div className="grid w-full grid-cols-4 gap-2 mb-8 p-1 bg-muted rounded-lg">
+                <div className="grid w-full grid-cols-5 gap-2 mb-8 p-1 bg-muted rounded-lg">
                   <button
                     onClick={() => setActiveTab('todos')}
                     className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-all duration-200 ${
@@ -397,6 +522,17 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   >
                     <span>VENCENDO</span>
                     <Badge variant="secondary" className="ml-2">{contratosVencendo}</Badge>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('pendentes')}
+                    className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-all duration-200 ${
+                      activeTab === 'pendentes' 
+                        ? 'bg-background text-foreground shadow-sm' 
+                        : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                    }`}
+                  >
+                    <span>PENDENTES</span>
+                    <Badge variant="secondary" className="ml-2">{contratosPendentes}</Badge>
                   </button>
                   <button
                     onClick={() => setActiveTab('encerrados')}
@@ -593,7 +729,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                 </div>
                               </td>
                               <td className="px-3 py-2">
-                                {getStatusBadge(contrato.status)}
+                                {getStatusBadge(contrato)}
                               </td>
                               <td className="px-3 py-2">
                                 <div className="flex items-center space-x-2">
@@ -630,30 +766,62 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                     
                                     {openDropdown === contrato.id && (
                                       <div 
-                                        className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+                                        className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50"
                                         onClick={(e) => e.stopPropagation()}
                                       >
                                         <div className="py-1">
-                                          <button
-                                            onClick={() => handleDuplicateContract(contrato.id)}
-                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                          >
-                                            <Copy className="w-4 h-4 mr-2" />
-                                            Duplicar
-                                          </button>
+                                          <div className="px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+                                            Alterar Status
+                                          </div>
+                                          
+                                          {contrato.status !== 'ativo' && (
+                                            <button
+                                              onClick={() => handleChangeStatus(contrato.id, 'ativo')}
+                                              className="flex items-center w-full px-4 py-2 text-sm text-green-700 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                                            >
+                                              <Play className="w-4 h-4 mr-2" />
+                                              Ativar Contrato
+                                            </button>
+                                          )}
+                                          
+                                          {contrato.status !== 'pendente' && (
+                                            <button
+                                              onClick={() => handleChangeStatus(contrato.id, 'pendente')}
+                                              className="flex items-center w-full px-4 py-2 text-sm text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                            >
+                                              <Pause className="w-4 h-4 mr-2" />
+                                              Marcar como Pendente
+                                            </button>
+                                          )}
+                                          
+                                          {contrato.status !== 'vencido' && (
+                                            <button
+                                              onClick={() => handleChangeStatus(contrato.id, 'vencido')}
+                                              className="flex items-center w-full px-4 py-2 text-sm text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                            >
+                                              <AlertCircle className="w-4 h-4 mr-2" />
+                                              Marcar como Vencido
+                                            </button>
+                                          )}
+                                          
+                                          {contrato.status !== 'encerrado' && (
+                                            <button
+                                              onClick={() => handleChangeStatus(contrato.id, 'encerrado')}
+                                              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                            >
+                                              <Square className="w-4 h-4 mr-2" />
+                                              Encerrar Contrato
+                                            </button>
+                                          )}
+                                          
+                                          <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                          
                                           <button
                                             onClick={() => handlePrintContract(contrato.id)}
                                             className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                           >
                                             <Printer className="w-4 h-4 mr-2" />
                                             Imprimir
-                                          </button>
-                                          <button
-                                            onClick={() => handleDownloadContract(contrato.id)}
-                                            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                          >
-                                            <Download className="w-4 h-4 mr-2" />
-                                            Download PDF
                                           </button>
                                         </div>
                                       </div>
