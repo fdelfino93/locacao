@@ -18,7 +18,12 @@ import { DescontosAjustesForm, type DescontoAjuste } from "@/components/forms/De
 import { ProprietariosMultiplosForm } from "@/components/forms/ProprietariosMultiplosForm";
 import { ConfiguracoesRetencaoForm } from "@/components/forms/ConfiguracoesRetencaoForm";
 import type { ProprietarioImovel, ConfiguracaoRetencoes } from "@/types/PrestacaoContas";
+import { calculoPrestacaoApi } from "@/services/calculoPrestacaoApi";
+import type { CalculoPrestacaoRequest, CalculoPrestacaoResponse } from "@/types/CalculoPrestacao";
 
+
+// Configuração da URL base da API
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export const PrestacaoContasLancamento: React.FC = () => {
   // Estados dos dados da transferência
@@ -66,6 +71,13 @@ export const PrestacaoContasLancamento: React.FC = () => {
   const [buscaLocador, setBuscaLocador] = useState('');
   
   const [calculando, setCalculando] = useState(false);
+  
+  // Estado para método de cálculo (proporcional ou dias+completo)
+  const [metodoCalculo, setMetodoCalculo] = useState<'proporcional-dias' | 'dias-completo'>('proporcional-dias');
+  
+  // Estados para cálculo de prestação
+  const [resultadoCalculo, setResultadoCalculo] = useState<CalculoPrestacaoResponse | null>(null);
+  const [calculandoPrestacao, setCalculandoPrestacao] = useState(false);
   
   // Estados para configuração da fatura
   const [diaVencimento, setDiaVencimento] = useState(10);
@@ -177,13 +189,20 @@ export const PrestacaoContasLancamento: React.FC = () => {
     }
   }, [contratoSelecionado]);
 
+  // Recalcular prestação quando dados relevantes mudam
+  useEffect(() => {
+    if (contratoSelecionado && tipoLancamento && isNovaPrestacao) {
+      recalcularPrestacao();
+    }
+  }, [contratoSelecionado, tipoLancamento, metodoCalculo, lancamentos, encargos, deducoes, observacoesLancamento]);
+
   const buscarLocadores = async () => {
     setLoadingLocadores(true);
     
     try {
       console.log('🔍 Buscando locadores ativos da API...');
       
-      const response = await fetch('/api/locadores');
+      const response = await fetch(`${API_BASE_URL}/locadores`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -209,7 +228,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
     try {
       console.log('🔍 Buscando contratos ativos da API...');
       
-      const response = await fetch('/api/prestacao-contas/contratos-ativos');
+      const response = await fetch(`${API_BASE_URL}/prestacao-contas/contratos-ativos`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -266,6 +285,75 @@ export const PrestacaoContasLancamento: React.FC = () => {
         {config.label}
       </Badge>
     );
+  };
+
+  // Função para recalcular prestação
+  const recalcularPrestacao = async () => {
+    if (!contratoSelecionado || !tipoLancamento) return;
+
+    setCalculandoPrestacao(true);
+    try {
+      const hoje = new Date();
+      const dataAtual = hoje.toISOString().split('T')[0];
+      
+      // Mapear tipo de lançamento para tipo de cálculo da API
+      let tipoCalculoMapeado: string;
+      switch (tipoLancamento) {
+        case 'entrada':
+          tipoCalculoMapeado = 'Entrada';
+          break;
+        case 'rescisao':
+          tipoCalculoMapeado = 'Rescisão';
+          break;
+        default:
+          tipoCalculoMapeado = 'Mensal';
+      }
+
+      // Preparar lançamentos adicionais
+      const lancamentosParaAPI = lancamentos.map(lanc => ({
+        id: Date.now() + Math.random(), // ID temporário
+        descricao: lanc.descricao || 'Lançamento',
+        valor: Number(lanc.valor) || 0,
+        tipo: lanc.tipo === 'despesa' ? 'debito' : 'credito'
+      }));
+
+      // Definir método baseado no tipo de lançamento e estado do metodoCalculo
+      let metodoFinal = metodoCalculo;
+      if (tipoLancamento === 'mensal') {
+        metodoFinal = 'dias-completo'; // Mensal sempre é mês completo
+      }
+
+      const dadosCalculo: CalculoPrestacaoRequest = {
+        contrato_id: contratoSelecionado.id,
+        data_entrada: dataAtual,
+        data_saida: dataAtual,
+        tipo_calculo: tipoCalculoMapeado,
+        metodo_calculo: metodoFinal,
+        valores_mensais: {
+          aluguel: contratoSelecionado.valor_aluguel || 0,
+          iptu: contratoSelecionado.valor_iptu || 0,
+          condominio: contratoSelecionado.valor_condominio || 0,
+          fci: contratoSelecionado.valor_fci || 0,
+          seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
+          seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0
+        },
+        lancamentos_adicionais: lancamentosParaAPI,
+        desconto: deducoes || 0,
+        multa: encargos || 0,
+        observacoes: observacoesLancamento
+      };
+
+      const resultado = await calculoPrestacaoApi.calcularPrestacao(dadosCalculo);
+      setResultadoCalculo(resultado);
+      
+      toast.success('Prestação recalculada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao calcular prestação:', error);
+      toast.error('Erro ao calcular prestação: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setCalculandoPrestacao(false);
+    }
   };
 
   const adicionarLancamento = () => {
@@ -572,7 +660,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
         console.log('🔄 Enviando para SQL Server via API:', dadosParaAPI);
         
         setCalculando(true);
-        const response = await fetch('/api/prestacao-contas/salvar', {
+        const response = await fetch(`${API_BASE_URL}/prestacao-contas/salvar`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dadosParaAPI)
@@ -1097,7 +1185,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   <Calendar className="w-4 h-4 text-blue-500" />
                                   <span>Tipo de Cobrança</span>
                                 </Label>
-                                <Select defaultValue="proporcional-dias">
+                                <Select 
+                                  value={metodoCalculo} 
+                                  onValueChange={(value: 'proporcional-dias' | 'dias-completo') => setMetodoCalculo(value)}
+                                >
                                   <SelectTrigger className="h-9">
                                     <SelectValue />
                                   </SelectTrigger>
@@ -1238,7 +1329,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   <Calendar className="w-4 h-4 text-red-500" />
                                   <span>Tipo de Cobrança</span>
                                 </Label>
-                                <Select defaultValue="proporcional-dias">
+                                <Select 
+                                  value={metodoCalculo} 
+                                  onValueChange={(value: 'proporcional-dias' | 'dias-completo') => setMetodoCalculo(value)}
+                                >
                                   <SelectTrigger className="h-9">
                                     <SelectValue />
                                   </SelectTrigger>

@@ -37,9 +37,9 @@ const ConnectionTest: React.FC = () => {
     await Promise.all([
       testEndpoint('Root API', '/'),
       testEndpoint('Health Check', '/health'),
-      testEndpoint('Locadores', '/api/locadores'),
-      testEndpoint('Locatários', '/api/locatarios'),
-      testEndpoint('Imóveis', '/api/imoveis'),
+      testEndpoint('Locadores', '/locadores'),
+      testEndpoint('Locatários', '/locatarios'),
+      testEndpoint('Imóveis', '/imoveis'),
       testEndpoint('Direct Backend', 'http://localhost:8000/api/locadores'),
     ]);
 

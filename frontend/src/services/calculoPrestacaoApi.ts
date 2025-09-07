@@ -51,7 +51,7 @@ class CalculoPrestacaoApiService {
   // Buscar contratos ativos para seleção
   async buscarContratosAtivos(): Promise<ContratoResumo[]> {
     try {
-      const response = await this.request<{data: ContratoResumo[]}>('/api/contratos?status=ativo&fields=resumo');
+      const response = await this.request<{data: ContratoResumo[]}>('/contratos?status=ativo&fields=resumo');
       return response.data || [];
     } catch (error) {
       console.error('Erro ao buscar contratos:', error);
@@ -62,7 +62,7 @@ class CalculoPrestacaoApiService {
   // Buscar detalhes de um contrato específico
   async buscarDetalhesContrato(contratoId: number): Promise<ContratoResumo> {
     try {
-      const response = await this.request<ContratoResumo>(`/api/contratos/${contratoId}`);
+      const response = await this.request<ContratoResumo>(`/contratos/${contratoId}`);
       return response;
     } catch (error) {
       console.error('Erro ao buscar detalhes do contrato:', error);
@@ -76,7 +76,7 @@ class CalculoPrestacaoApiService {
       console.log('📊 Enviando dados para cálculo:', dados);
       
       const response = await this.request<CalculoPrestacaoResponse>(
-        '/api/contratos/calcular-prestacao',
+        '/contratos/calcular-prestacao',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -98,7 +98,7 @@ class CalculoPrestacaoApiService {
       console.log('💾 Salvando prestação de contas:', dados);
       
       const response = await this.request<{id: number; message: string}>(
-        '/api/prestacoes-contas',
+        '/prestacoes-contas',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -120,7 +120,7 @@ class CalculoPrestacaoApiService {
       console.log('📋 Gerando boleto:', dados);
       
       const response = await this.request<BoletoResponse>(
-        '/api/boletos/gerar',
+        '/boletos/gerar',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -140,7 +140,7 @@ class CalculoPrestacaoApiService {
   async buscarHistoricoPrestacoes(contratoId: number): Promise<PrestacaoContasSalvar[]> {
     try {
       const response = await this.request<{data: PrestacaoContasSalvar[]}>(
-        `/api/prestacoes-contas?contrato_id=${contratoId}`
+        `/prestacoes-contas?contrato_id=${contratoId}`
       );
       
       return response.data || [];

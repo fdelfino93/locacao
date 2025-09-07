@@ -1261,6 +1261,127 @@ async def alterar_status_contrato(contrato_id: int, request: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao alterar status: {str(e)}")
 
+@app.post("/api/contratos/calcular-prestacao")
+async def calcular_prestacao_contrato(request: dict):
+    """
+    Calcula prestação de contas de um contrato
+    
+    Espera dados no formato:
+    {
+        "contrato_id": 123,
+        "data_entrada": "2025-01-15", 
+        "data_saida": "2025-01-31",
+        "tipo_calculo": "Entrada", // "Entrada", "Saída", "Mensal", "Rescisão"
+        "valores_mensais": {"aluguel": 2500.00, "iptu": 106.63, ...},
+        "lancamentos_adicionais": [...],
+        "desconto": 0,
+        "multa": 0,
+        "observacoes": ""
+    }
+    """
+    try:
+        from repositories_adapter import calcular_prestacao_mensal
+        from datetime import datetime
+        
+        # Validar dados obrigatórios
+        contrato_id = request.get('contrato_id')
+        if not contrato_id:
+            raise HTTPException(status_code=400, detail="contrato_id é obrigatório")
+            
+        tipo_calculo = request.get('tipo_calculo', 'Mensal')
+        data_entrada = request.get('data_entrada')
+        data_saida = request.get('data_saida')
+        
+        # Extrair mês e ano das datas fornecidas
+        if data_entrada:
+            dt_entrada = datetime.strptime(data_entrada, '%Y-%m-%d')
+            mes, ano = dt_entrada.month, dt_entrada.year
+            data_entrada_dia = str(dt_entrada.day)
+        elif data_saida:
+            dt_saida = datetime.strptime(data_saida, '%Y-%m-%d')
+            mes, ano = dt_saida.month, dt_saida.year
+            data_saida_dia = str(dt_saida.day)
+        else:
+            # Usar mês/ano atual se não fornecido
+            now = datetime.now()
+            mes, ano = now.month, now.year
+            data_entrada_dia = None
+            data_saida_dia = None
+        
+        # Determinar método de cálculo 
+        metodo_calculo = request.get('metodo_calculo', "proporcional-dias")  # Usar valor do frontend
+        
+        # Mapear tipos do frontend para backend
+        tipo_mapeado = tipo_calculo
+        if tipo_calculo == "Entrada + Proporcional":
+            tipo_mapeado = "Entrada"
+            # Manter o método escolhido pelo usuário
+        
+        # Para tipo Mensal, sempre usar dias-completo
+        if tipo_calculo == "Mensal":
+            metodo_calculo = "dias-completo"
+        
+        # Processar lançamentos adicionais se fornecidos
+        lancamentos_adicionais = request.get('lancamentos_adicionais', [])
+        
+        # Chamar função de cálculo
+        resultado = calcular_prestacao_mensal(
+            contrato_id=contrato_id,
+            mes=mes,
+            ano=ano,
+            tipo_calculo=tipo_mapeado,
+            data_entrada=data_entrada_dia if tipo_mapeado == "Entrada" else None,
+            data_saida=data_saida_dia if tipo_mapeado == "Saída" else None,
+            metodo_calculo=metodo_calculo
+        )
+        
+        # Calcular totais com lançamentos adicionais
+        valor_base = resultado.get('valor_boleto', 0)
+        valor_lancamentos_credito = sum(lanc.get('valor', 0) for lanc in lancamentos_adicionais if lanc.get('tipo') == 'credito')
+        valor_lancamentos_debito = sum(lanc.get('valor', 0) for lanc in lancamentos_adicionais if lanc.get('tipo') == 'debito')
+        
+        # Aplicar desconto e multa
+        desconto = request.get('desconto', 0)
+        multa = request.get('multa', 0)
+        
+        valor_com_lancamentos = valor_base + valor_lancamentos_credito - valor_lancamentos_debito
+        valor_com_desconto = valor_com_lancamentos * (1 - desconto / 100)
+        valor_final = valor_com_desconto + multa
+        
+        # Converter para formato esperado pelo frontend
+        resposta = {
+            "proporcional_entrada": resultado.get('valor_calculado', 0) if tipo_mapeado == "Entrada" else 0,
+            "meses_completos": resultado.get('valor_calculado', 0) if tipo_mapeado == "Mensal" else 0,
+            "qtd_meses_completos": 1 if tipo_mapeado == "Mensal" else 0,
+            "proporcional_saida": resultado.get('valor_calculado', 0) if tipo_mapeado == "Saída" else 0,
+            "lancamentos_adicionais": lancamentos_adicionais,
+            "desconto": desconto,
+            "multa": multa,
+            "percentual_desconto": desconto,
+            "total": valor_final,
+            "valor_boleto": valor_final,
+            "valor_repassado_locadores": valor_final - resultado.get('valor_retido', 0),
+            "valor_retido": resultado.get('valor_retido', 0),
+            "breakdown_retencao": resultado.get('breakdown_retencao', {
+                "taxa_admin": 0,
+                "seguro": 0,
+                "outros": 0
+            }),
+            "percentual_admin": resultado.get('percentual_admin', 5),
+            "periodo_dias": resultado.get('dias_utilizados', 31),
+            "data_calculo": datetime.now().strftime('%Y-%m-%d'),
+            "contrato_dados": resultado.get('contrato_dados', {})
+        }
+        
+        return resposta
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro no cálculo: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="localhost", port=8000)

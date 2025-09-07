@@ -3,6 +3,7 @@ export interface CalculoPrestacaoRequest {
   data_entrada: string;
   data_saida: string;
   tipo_calculo: 'Entrada' | 'Saída' | 'Entrada + Proporcional' | 'Total' | 'Rescisão';
+  metodo_calculo?: 'proporcional-dias' | 'dias-completo';
   valores_mensais: {[key: string]: number};
   lancamentos_adicionais: LancamentoAdicional[];
   desconto: number; // Percentual (0-100)
