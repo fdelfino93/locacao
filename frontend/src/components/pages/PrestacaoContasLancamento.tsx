@@ -141,7 +141,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
       const filtered = contratos.filter(contrato =>
         contrato.numero.toLowerCase().includes(buscaContrato.toLowerCase()) ||
         contrato.locatario_nome.toLowerCase().includes(buscaContrato.toLowerCase()) ||
-        contrato.locador_nome.toLowerCase().includes(buscaContrato.toLowerCase()) ||
+        (contrato.locador_nome || contrato.locadores?.[0]?.locador_nome || '').toLowerCase().includes(buscaContrato.toLowerCase()) ||
         contrato.imovel_endereco.toLowerCase().includes(buscaContrato.toLowerCase())
       );
       setContratosFiltrados(filtered);
@@ -786,7 +786,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               <span className="text-sm font-medium text-muted-foreground">Partes</span>
                             </div>
                             <p className="text-sm font-semibold text-foreground">
-                              {contratoSelecionado.locador_nome}
+                              {contratoSelecionado.locador_nome || contratoSelecionado.locadores?.[0]?.locador_nome || 'Locador não definido'}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Locatário: {contratoSelecionado.locatario_nome}
@@ -898,7 +898,11 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <Crown className="w-3 h-3" />
-                                        <span className="truncate">{contrato.locador_nome}</span>
+                                        <span className="truncate">
+                                          {contrato.locador_nome || 
+                                           (contrato.locadores && contrato.locadores[0]?.locador_nome) || 
+                                           'Locador não definido'}
+                                        </span>
                                       </div>
                                       <div className="flex items-center space-x-1">
                                         <Building className="w-3 h-3" />
@@ -2413,7 +2417,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             <Building className="w-4 h-4 text-blue-500" />
                           </div>
                           <div>
-                            <h4 className="text-base font-semibold text-foreground">{contratoSelecionado.locador_nome}</h4>
+                            <h4 className="text-base font-semibold text-foreground">
+                              {contratoSelecionado.locador_nome || contratoSelecionado.locadores?.[0]?.locador_nome || 'Locador não definido'}
+                            </h4>
                             <p className="text-xs text-muted-foreground">Proprietário principal</p>
                           </div>
                         </div>
@@ -2782,12 +2788,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       <span>Repasse por Locador</span>
                     </h4>
                     <div className="space-y-3">
-                      {(() => {
-                        const totais = calcularTotais();
-                        console.log('🔍 Repasse por locador:', totais.repassePorLocador);
-                        console.log('🏠 Contrato selecionado locadores:', contratoSelecionado?.locadores);
-                        return totais.repassePorLocador;
-                      })().map((locador, index) => (
+                      {calcularTotais().repassePorLocador.map((locador, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800/50 rounded-lg border border-blue-200 dark:border-blue-700/50">
                           <div className="flex-1">
                             <div className="flex items-center space-x-2">

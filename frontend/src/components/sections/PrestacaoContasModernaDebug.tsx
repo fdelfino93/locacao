@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion } from 'framer-motion';
 // import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"; // Removido temporariamente para debug
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +82,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const [loadingContratos, setLoadingContratos] = useState(false);
 
   // Função para buscar faturas da API
-  const buscarFaturas = async () => {
+  const buscarFaturas = useCallback(async () => {
     console.log('🚀 buscarFaturas iniciada');
     setLoading(true);
     try {
@@ -132,31 +132,48 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       console.log('✅ Dados recebidos da API:', data);
       console.log('📊 Quantidade de faturas:', data.data?.length || 0);
       
-      // BLOQUEAR COMPLETAMENTE TODOS OS DADOS - NÃO EXIBIR NADA
-      console.warn('🚫 BLOQUEANDO TODOS OS DADOS - Sistema em modo sem dados de teste');
-      console.log('❌ Dados recebidos da API mas NÃO serão exibidos:', data.data);
+      // Processar dados normalmente
+      console.log('✅ Processando dados da API normalmente');
       
-      // NÃO EXIBIR NENHUMA FATURA
-      setFaturas([]);
-      // ZERAR TODAS AS ESTATÍSTICAS
-      setStats({
-        todas: 0, 
-        abertas: 0, 
-        pendentes: 0, 
-        pagas: 0, 
-        em_atraso: 0, 
-        canceladas: 0,
-        valor_total_aberto: 0, 
-        valor_total_recebido: 0, 
-        valor_total_atrasado: 0
-      });
+      // Exibir faturas recebidas
+      if (data.success && data.data) {
+        setFaturas(data.data);
+        
+        // Calcular estatísticas reais
+        const statsCalculadas = {
+          todas: data.data.length,
+          abertas: data.data.filter(f => f.status === 'aberta').length,
+          pendentes: data.data.filter(f => f.status === 'pendente').length,
+          pagas: data.data.filter(f => f.status === 'paga').length,
+          em_atraso: data.data.filter(f => f.status === 'atrasado' || f.dias_atraso > 0).length,
+          canceladas: data.data.filter(f => f.status === 'cancelada').length,
+          valor_total_aberto: data.data.filter(f => f.status !== 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
+          valor_total_recebido: data.data.filter(f => f.status === 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
+          valor_total_atrasado: data.data.filter(f => f.dias_atraso > 0).reduce((sum, f) => sum + (f.valor_total || 0), 0)
+        };
+        setStats(statsCalculadas);
+      } else {
+        setFaturas([]);
+        setStats({
+          todas: 0, 
+          abertas: 0, 
+          pendentes: 0, 
+          pagas: 0, 
+          em_atraso: 0, 
+          canceladas: 0,
+          valor_total_aberto: 0, 
+          valor_total_recebido: 0, 
+          valor_total_atrasado: 0
+        });
+      }
       
       const filtroMsg = [];
       if (mesSelecionado) filtroMsg.push(`Mês: ${mesSelecionado}`);
       if (anoSelecionado) filtroMsg.push(`Ano: ${anoSelecionado}`);
       if (searchTerm) filtroMsg.push(`Busca: "${searchTerm}"`);
       
-      setDebugMessage(`Dados bloqueados - aguardando integração com banco real | Aba: ${activeTab}`);
+      setDebugMessage(`✅ Dados carregados com sucesso! Total: ${data.data?.length || 0} faturas | Aba: ${activeTab}`);
+      setLoading(false);
       
     } catch (error) {
       console.error('❌ Erro ao buscar faturas:', error);
@@ -171,7 +188,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       setLoading(false);
       return; // Parar aqui sem usar mocks
     }
-  };
+  }, [activeTab, mesSelecionado, anoSelecionado, searchTerm, sortField, sortDirection]);
 
   // Carregar dados na montagem do componente
   useEffect(() => {
@@ -186,13 +203,23 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     buscarFaturas();
   }, []);
 
-  // Recarregar IMEDIATAMENTE quando aba ou ordenação mudam (sem debounce)
+  // Recarregar imediatamente quando aba ou ordenação mudam
   useEffect(() => {
     console.log('🔄 Mudança na aba/ordenação - recarregando imediatamente');
-    console.log('📊 Aba ativa:', activeTab);
-    console.log('🔀 Campo ordenação:', sortField, 'Direção:', sortDirection);
     buscarFaturas();
   }, [activeTab, sortField, sortDirection]);
+
+  // Debounce para filtros de texto
+  useEffect(() => {
+    if (!searchTerm && !mesSelecionado && !anoSelecionado) return; // Só aplicar se há filtros
+    
+    console.log('⏱️ Aplicando debounce para filtros de texto');
+    const timer = setTimeout(() => {
+      console.log('✅ Debounce finalizado - recarregando dados');
+      buscarFaturas();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, mesSelecionado, anoSelecionado]);
 
   // Fechar menu ao clicar fora
   useEffect(() => {
@@ -205,16 +232,6 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [menuAbertoId]);
-
-  // Debounce APENAS para search e filtros de formulário (não para aba)
-  useEffect(() => {
-    console.log('⏱️ Debounce iniciado para filtros de texto');
-    const timer = setTimeout(() => {
-      console.log('✅ Debounce finalizado - aplicando filtros');
-      buscarFaturas();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, mesSelecionado, anoSelecionado]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

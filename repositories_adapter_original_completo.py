@@ -1212,78 +1212,233 @@ def buscar_contrato_por_id(contrato_id):
 # === FUNÇÕES PARA FATURAS ===
 
 def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', order_dir='DESC'):
-    """Busca faturas (prestações de contas) - WORKING VERSION"""
-    try:
-        conn = get_conexao()
-        cursor = conn.cursor()
-        
-        query = """
-            SELECT 
-                p.id,
-                'PC-' + RIGHT('000' + CAST(p.id AS VARCHAR(10)), 3) as numero_fatura,
-                p.total_bruto as valor_total,
-                DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)) as data_vencimento,
-                NULL as data_pagamento,
-                p.status,
-                p.referencia as mes_referencia,
-                p.observacoes_manuais as observacoes,
-                p.data_criacao,
-                ISNULL(p.contrato_id, 0) as contrato_id,
-                'CONTRATO' as contrato_numero,
-                'Endereço do Imóvel' as imovel_endereco,
-                'Apartamento' as imovel_tipo,
-                p.total_bruto as valor_aluguel,
-                'Locatário' as locatario_nome,
-                '000.000.000-00' as locatario_cpf,
-                l.nome as locador_nome,
-                CASE 
-                    WHEN p.status = 'pendente' AND DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)) < GETDATE() 
-                    THEN DATEDIFF(DAY, DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)), GETDATE())
-                    ELSE 0 
-                END as dias_atraso,
-                p.total_liquido as valor_liquido,
-                p.valor_pago,
-                p.locador_id
-            FROM PrestacaoContas p
-            LEFT JOIN Locadores l ON p.locador_id = l.id
-            WHERE p.ativo = 1
-            ORDER BY p.id DESC
-        """
-        
-        cursor.execute(query)
-        columns = [column[0] for column in cursor.description]
-        rows = cursor.fetchall()
-        
-        faturas = []
-        for row in rows:
-            fatura_dict = {}
-            for i, value in enumerate(row):
-                if hasattr(value, 'strftime'):
-                    fatura_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                else:
-                    fatura_dict[columns[i]] = value
-            faturas.append(fatura_dict)
-        
-        conn.close()
-        
-        print(f"Retornando {len(faturas)} prestacoes de contas do banco")
-        return {
-            'success': True,
-            'data': faturas,
-            'total': len(faturas),
-            'page': page,
-            'limit': limit
+    """Busca faturas com filtros, paginacao e ordenacao"""
+    
+    # Dados de teste expandidos para demonstrar a interface
+    faturas_teste = [
+        {
+            'id': 1,
+            'numero_fatura': 'FAT-001',
+            'valor_total': 1200.00,
+            'data_vencimento': '2024-12-05',
+            'data_pagamento': None,
+            'status': 'aberta',
+            'mes_referencia': '2024-12',
+            'observacoes': '',
+            'data_criacao': '2024-11-01',
+            'contrato_id': 1,
+            'contrato_numero': '001',
+            'imovel_endereco': 'Rua das Flores, 123 - Centro',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 1200.00,
+            'locatario_nome': 'João Silva',
+            'locatario_cpf': '123.456.789-00',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 15
+        },
+        {
+            'id': 2,
+            'numero_fatura': 'FAT-002',
+            'valor_total': 1500.00,
+            'data_vencimento': '2024-11-05',
+            'data_pagamento': '2024-11-03',
+            'status': 'paga',
+            'mes_referencia': '2024-11',
+            'observacoes': 'Pago em dia',
+            'data_criacao': '2024-10-01',
+            'contrato_id': 2,
+            'contrato_numero': '002',
+            'imovel_endereco': 'Rua Martin Afonso, 1168',
+            'imovel_tipo': 'Casa',
+            'valor_aluguel': 1500.00,
+            'locatario_nome': 'Maria Santos',
+            'locatario_cpf': '987.654.321-00',
+            'locador_nome': 'Fernanda Carol',
+            'dias_atraso': 0
+        },
+        {
+            'id': 3,
+            'numero_fatura': 'FAT-003',
+            'valor_total': 800.00,
+            'data_vencimento': '2024-12-10',
+            'data_pagamento': None,
+            'status': 'pendente',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Aguardando confirmacao',
+            'data_criacao': '2024-11-05',
+            'contrato_id': 3,
+            'contrato_numero': '003',
+            'imovel_endereco': 'Av. Brasil, 456 - Batel',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 800.00,
+            'locatario_nome': 'Carlos Oliveira',
+            'locatario_cpf': '111.222.333-44',
+            'locador_nome': 'Brian Thiago',
+            'dias_atraso': 0
+        },
+        {
+            'id': 4,
+            'numero_fatura': 'FAT-004',
+            'valor_total': 2000.00,
+            'data_vencimento': '2024-10-05',
+            'data_pagamento': None,
+            'status': 'em_atraso',
+            'mes_referencia': '2024-10',
+            'observacoes': 'Vencido há mais de 30 dias',
+            'data_criacao': '2024-09-01',
+            'contrato_id': 4,
+            'contrato_numero': '004',
+            'imovel_endereco': 'Rua XV de Novembro, 789',
+            'imovel_tipo': 'Sala Comercial',
+            'valor_aluguel': 2000.00,
+            'locatario_nome': 'Ana Costa',
+            'locatario_cpf': '555.666.777-88',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 76
+        },
+        {
+            'id': 5,
+            'numero_fatura': 'FAT-005',
+            'valor_total': 950.00,
+            'data_vencimento': '2024-12-15',
+            'data_pagamento': None,
+            'status': 'aberta',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Primeira cobrança',
+            'data_criacao': '2024-11-15',
+            'contrato_id': 5,
+            'contrato_numero': '005',
+            'imovel_endereco': 'Rua dos Pioneiros, 321 - Água Verde',
+            'imovel_tipo': 'Kitnet',
+            'valor_aluguel': 950.00,
+            'locatario_nome': 'Roberto Silva',
+            'locatario_cpf': '444.555.666-77',
+            'locador_nome': 'Brian Thiago',
+            'dias_atraso': 0
+        },
+        {
+            'id': 6,
+            'numero_fatura': 'FAT-006',
+            'valor_total': 3200.00,
+            'data_vencimento': '2024-11-20',
+            'data_pagamento': '2024-11-18',
+            'status': 'paga',
+            'mes_referencia': '2024-11',
+            'observacoes': 'Pagamento antecipado',
+            'data_criacao': '2024-10-20',
+            'contrato_id': 6,
+            'contrato_numero': '006',
+            'imovel_endereco': 'Av. Sete de Setembro, 888 - Centro',
+            'imovel_tipo': 'Loja',
+            'valor_aluguel': 3200.00,
+            'locatario_nome': 'Loja ModaStyle LTDA',
+            'locatario_cpf': '12.345.678/0001-90',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 0
+        },
+        {
+            'id': 7,
+            'numero_fatura': 'FAT-007',
+            'valor_total': 1800.00,
+            'data_vencimento': '2024-12-03',
+            'data_pagamento': None,
+            'status': 'pendente',
+            'mes_referencia': '2024-12',
+            'observacoes': 'Aguardando negociacao',
+            'data_criacao': '2024-11-03',
+            'contrato_id': 7,
+            'contrato_numero': '007',
+            'imovel_endereco': 'Rua Coronel Dulcídio, 555 - Batel',
+            'imovel_tipo': 'Apartamento',
+            'valor_aluguel': 1800.00,
+            'locatario_nome': 'Fernanda Lima',
+            'locatario_cpf': '999.888.777-66',
+            'locador_nome': 'Fernanda Carol',
+            'dias_atraso': 0
+        },
+        {
+            'id': 8,
+            'numero_fatura': 'FAT-008',
+            'valor_total': 2500.00,
+            'data_vencimento': '2024-09-15',
+            'data_pagamento': None,
+            'status': 'em_atraso',
+            'mes_referencia': '2024-09',
+            'observacoes': 'Cliente nao localizado',
+            'data_criacao': '2024-08-15',
+            'contrato_id': 8,
+            'contrato_numero': '008',
+            'imovel_endereco': 'Rua Comendador Macedo, 123 - Alto da Glória',
+            'imovel_tipo': 'Casa',
+            'valor_aluguel': 2500.00,
+            'locatario_nome': 'José Santos',
+            'locatario_cpf': '777.666.555-44',
+            'locador_nome': 'Fernando Delfino',
+            'dias_atraso': 96
         }
+    ]
+    
+    # Aplicar alteraçoes de status às faturas
+    for fatura in faturas_teste:
+        if fatura['id'] in faturas_status:
+            fatura['status'] = faturas_status[fatura['id']]
+    
+    # Aplicar filtros
+    faturas_filtradas = faturas_teste.copy()
+    
+    if filtros:
+        if filtros.get('status'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['status'] in filtros['status']]
         
-    except Exception as e:
-        print(f"Erro ao buscar prestacoes do banco: {e}")
-        return {
-            'success': True,
-            'data': [],
-            'total': 0,
-            'page': page,
-            'limit': limit
-        }
+        if filtros.get('mes'):
+            mes_filtro = filtros['mes']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].endswith(f'-{mes_filtro}')]
+        
+        if filtros.get('ano'):
+            ano_filtro = filtros['ano']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].startswith(ano_filtro)]
+        
+        if filtros.get('search'):
+            search_term = filtros['search'].lower()
+            faturas_filtradas = [f for f in faturas_filtradas if 
+                search_term in f['numero_fatura'].lower() or
+                search_term in f['locatario_nome'].lower() or
+                search_term in f['imovel_endereco'].lower() or
+                search_term in f['contrato_numero'].lower()
+            ]
+        
+        if filtros.get('valor_min'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['valor_total'] >= filtros['valor_min']]
+        
+        if filtros.get('valor_max'):
+            faturas_filtradas = [f for f in faturas_filtradas if f['valor_total'] <= filtros['valor_max']]
+    
+    # Aplicar ordenacao
+    reverse = order_dir == 'DESC'
+    if order_by == 'valor_total':
+        faturas_filtradas.sort(key=lambda x: x['valor_total'], reverse=reverse)
+    elif order_by == 'data_vencimento':
+        faturas_filtradas.sort(key=lambda x: x['data_vencimento'], reverse=reverse)
+    elif order_by == 'numero_fatura':
+        faturas_filtradas.sort(key=lambda x: x['numero_fatura'], reverse=reverse)
+    
+    # Aplicar paginacao
+    total = len(faturas_filtradas)
+    start_index = (page - 1) * limit
+    end_index = start_index + limit
+    faturas_pagina = faturas_filtradas[start_index:end_index]
+    
+    # Adicionar campos calculados
+    for fatura in faturas_pagina:
+        fatura['referencia_display'] = format_mes_referencia(fatura['mes_referencia'])
+        fatura['situacao_pagamento'] = calcular_situacao_pagamento(fatura)
+    
+    return {
+        'data': faturas_pagina,
+        'total': total,
+        'page': page,
+        'pages': (total + limit - 1) // limit if total > 0 else 0
+    }
     
     # Código original comentado para futuro uso com dados reais
     try:
@@ -1412,55 +1567,51 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         return {'data': [], 'total': 0, 'page': 1, 'pages': 0}
 
 def buscar_estatisticas_faturas(filtros=None):
-    """Busca estatísticas resumidas das faturas reais do banco para as abas"""
-    try:
-        # Usar a função buscar_faturas para obter dados reais
-        resultado_faturas = buscar_faturas(filtros)
+    """Busca estatísticas resumidas das faturas para as abas"""
+    
+    # Dados de teste atualizados com todas as 8 faturas
+    faturas_exemplo = [
+        {'status': 'aberta', 'valor_total': 1200.00, 'mes_referencia': '2024-12'},    # FAT-001
+        {'status': 'paga', 'valor_total': 1500.00, 'mes_referencia': '2024-11'},      # FAT-002
+        {'status': 'pendente', 'valor_total': 800.00, 'mes_referencia': '2024-12'},   # FAT-003
+        {'status': 'em_atraso', 'valor_total': 2000.00, 'mes_referencia': '2024-10'}, # FAT-004
+        {'status': 'aberta', 'valor_total': 950.00, 'mes_referencia': '2024-12'},     # FAT-005
+        {'status': 'paga', 'valor_total': 3200.00, 'mes_referencia': '2024-11'},      # FAT-006
+        {'status': 'pendente', 'valor_total': 1800.00, 'mes_referencia': '2024-12'},  # FAT-007
+        {'status': 'em_atraso', 'valor_total': 2500.00, 'mes_referencia': '2024-09'}  # FAT-008
+    ]
+    
+    # Aplicar alteraçoes de status às faturas de exemplo
+    for i, fatura in enumerate(faturas_exemplo):
+        fatura_id = fatura.get('id', i + 1)  # Usar índice + 1 como ID se nao houver
+        if fatura_id in faturas_status:
+            fatura['status'] = faturas_status[fatura_id]
+    
+    # Aplicar filtros se fornecidos
+    faturas_filtradas = faturas_exemplo.copy()
+    
+    if filtros:
+        if filtros.get('mes'):
+            mes_filtro = filtros['mes']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].endswith(f'-{mes_filtro}')]
         
-        if not resultado_faturas.get('success') or not resultado_faturas.get('data'):
-            return {
-                'todas': 0,
-                'abertas': 0, 
-                'pendentes': 0,
-                'pagas': 0,
-                'em_atraso': 0,
-                'canceladas': 0,
-                'valor_total_aberto': 0,
-                'valor_total_recebido': 0,
-                'valor_total_atrasado': 0
-            }
-        
-        faturas = resultado_faturas['data']
-        
-        # Calcular estatísticas baseadas nos dados reais
-        stats = {
-            'todas': len(faturas),
-            'abertas': len([f for f in faturas if f.get('status') == 'aberta']),
-            'pendentes': len([f for f in faturas if f.get('status') == 'pendente']), 
-            'pagas': len([f for f in faturas if f.get('status') == 'paga']),
-            'em_atraso': len([f for f in faturas if f.get('status') == 'em_atraso']),
-            'canceladas': len([f for f in faturas if f.get('status') == 'cancelada']),
-            'valor_total_aberto': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') in ['aberta', 'pendente']]),
-            'valor_total_recebido': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') == 'paga']),
-            'valor_total_atrasado': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') == 'em_atraso'])
-        }
-        
-        print(f"Estatísticas calculadas: {len(faturas)} faturas encontradas")
-        return stats
-        
-    except Exception as e:
-        print(f"Erro ao calcular estatísticas de faturas: {e}")
-        return {
-            'todas': 0,
-            'abertas': 0,
-            'pendentes': 0, 
-            'pagas': 0,
-            'em_atraso': 0,
-            'canceladas': 0,
-            'valor_total_aberto': 0,
-            'valor_total_recebido': 0,
-            'valor_total_atrasado': 0
-        }
+        if filtros.get('ano'):
+            ano_filtro = filtros['ano']
+            faturas_filtradas = [f for f in faturas_filtradas if f['mes_referencia'].startswith(ano_filtro)]
+    
+    stats = {
+        'todas': len(faturas_filtradas),
+        'abertas': len([f for f in faturas_filtradas if f['status'] == 'aberta']),
+        'pendentes': len([f for f in faturas_filtradas if f['status'] == 'pendente']),
+        'pagas': len([f for f in faturas_filtradas if f['status'] == 'paga']),
+        'em_atraso': len([f for f in faturas_filtradas if f['status'] == 'em_atraso']),
+        'canceladas': len([f for f in faturas_filtradas if f['status'] == 'cancelada']),
+        'valor_total_aberto': sum([f['valor_total'] for f in faturas_filtradas if f['status'] in ['aberta', 'pendente']]),
+        'valor_total_recebido': sum([f['valor_total'] for f in faturas_filtradas if f['status'] == 'paga']),
+        'valor_total_atrasado': sum([f['valor_total'] for f in faturas_filtradas if f['status'] == 'em_atraso'])
+    }
+    
+    return stats
 
 def buscar_fatura_por_id(fatura_id):
     """Busca uma fatura específica com detalhes completos"""
@@ -3067,58 +3218,23 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         
         locador_id = resultado_contrato[0]
         
-        # Configurar estrutura da tabela para histórico completo (sempre criar nova prestação)
-        try:
-            cursor.execute("SELECT contrato_id FROM PrestacaoContas WHERE 1=0")
-            tem_contrato_id = True
-            print("✅ Campo contrato_id já existe")
-        except:
-            print("⚠️ Campo contrato_id não existe na tabela PrestacaoContas - adicionando...")
-            try:
-                cursor.execute("ALTER TABLE PrestacaoContas ADD contrato_id INT")
-                print("✅ Campo contrato_id adicionado")
-                conn.commit()
-                tem_contrato_id = True
-            except Exception as alter_error:
-                print(f"❌ Erro ao adicionar campo contrato_id: {alter_error}")
-                tem_contrato_id = False
+        # Verificar se já existe prestação para este período
+        cursor.execute("""
+            SELECT id FROM PrestacaoContas 
+            WHERE locador_id = ? AND mes = ? AND ano = ? AND ativo = 1
+        """, (locador_id, f"{mes:02d}", str(ano)))
+        prestacao_existente = cursor.fetchone()
         
-        # Remover qualquer constraint UNIQUE que impeça histórico completo
-        try:
-            # Remover constraint antiga se existir
-            cursor.execute("ALTER TABLE PrestacaoContas DROP CONSTRAINT UK_PrestacaoContas_Cliente_Periodo")
-            print("✅ Constraint UNIQUE antiga removida - histórico completo habilitado")
-        except:
-            pass  # Constraint já foi removida ou não existia
-            
-        try:
-            # Remover constraint nova também (não queremos UNIQUE para histórico completo)
-            cursor.execute("ALTER TABLE PrestacaoContas DROP CONSTRAINT UK_PrestacaoContas_Contrato_Periodo")
-            print("✅ Constraint UNIQUE por contrato removida - histórico completo habilitado")
-        except:
-            pass  # Constraint não existia
-        
-        conn.commit()
-        
-        # NOVO COMPORTAMENTO: Sempre criar nova prestação (histórico completo)
-        print(f"📝 HISTÓRICO COMPLETO: Sempre criando nova prestação para contrato {contrato_id} em {mes:02d}/{ano}")
-        print(f"💡 Cada lançamento será um registro único - histórico preservado")
-        
-        # Inserir nova prestação com contrato_id
-        if tem_contrato_id:
-            print(f"➕ Criando nova prestação para contrato {contrato_id}")
+        if prestacao_existente:
+            # Atualizar prestação existente ao invés de criar nova
+            print(f"⚠️ Prestação já existe para locador {locador_id} em {mes:02d}/{ano} - Atualizando...")
             cursor.execute("""
-            INSERT INTO PrestacaoContas (
-                locador_id, contrato_id, mes, ano, referencia, valor_pago, valor_vencido, 
-                encargos, deducoes, total_bruto, total_liquido, status, 
-                pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+                UPDATE PrestacaoContas SET
+                    valor_pago = ?, valor_vencido = ?, encargos = ?, deducoes = ?,
+                    total_bruto = ?, total_liquido = ?, status = ?, 
+                    pagamento_atrasado = ?, observacoes_manuais = ?, data_atualizacao = GETDATE()
+                WHERE id = ?
             """, (
-                locador_id,
-                contrato_id,
-                f"{mes:02d}",
-                str(ano),
-                referencia,
                 dados_financeiros.get('valor_pago', 0),
                 dados_financeiros.get('valor_vencido', 0),
                 dados_financeiros.get('encargos', 0),
@@ -3127,36 +3243,41 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                 dados_financeiros.get('total_liquido', 0),
                 status,
                 status == 'atrasado',
-                observacoes
+                observacoes,
+                prestacao_existente[0]
             ))
+            prestacao_id = prestacao_existente[0]
+            
+            # Remover lançamentos antigos desta prestação
+            cursor.execute("DELETE FROM LancamentosPrestacaoContas WHERE prestacao_id = ?", (prestacao_id,))
+            
         else:
-            # Fallback para versão sem contrato_id
-            print(f"➕ Criando nova prestação (fallback - sem contrato_id)")
+            # Inserir nova prestação
             cursor.execute("""
             INSERT INTO PrestacaoContas (
                 locador_id, mes, ano, referencia, valor_pago, valor_vencido, 
                 encargos, deducoes, total_bruto, total_liquido, status, 
                 pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
-            """, (
-                locador_id,
-                f"{mes:02d}",
-                str(ano),
-                referencia,
-                dados_financeiros.get('valor_pago', 0),
-                dados_financeiros.get('valor_vencido', 0),
-                dados_financeiros.get('encargos', 0),
-                dados_financeiros.get('deducoes', 0),
-                dados_financeiros.get('total_bruto', 0),
-                dados_financeiros.get('total_liquido', 0),
-                status,
-                status == 'atrasado',
-                observacoes
+        """, (
+            locador_id,
+            f"{mes:02d}",
+            str(ano),
+            referencia,
+            dados_financeiros.get('valor_pago', 0),
+            dados_financeiros.get('valor_vencido', 0),
+            dados_financeiros.get('encargos', 0),
+            dados_financeiros.get('deducoes', 0),
+            dados_financeiros.get('total_bruto', 0),
+            dados_financeiros.get('total_liquido', 0),
+            status,
+            status == 'atrasado',
+            observacoes
             ))
-        
-        # Obter ID da prestação recém criada
-        cursor.execute("SELECT @@IDENTITY")
-        prestacao_id = cursor.fetchone()[0]
+            
+            # Obter ID da prestação recém criada
+            cursor.execute("SELECT @@IDENTITY")
+            prestacao_id = cursor.fetchone()[0]
         
         # Inserir lançamentos extras se houver
         if lancamentos_extras:
@@ -3251,558 +3372,3 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             conn.rollback()
             conn.close()
         raise e
-
-def calcular_prestacao_proporcional(contrato_id, data_entrada, data_saida, tipo_calculo, metodo_calculo="proporcional-dias"):
-    """
-    Calcula prestação de contas com lógica proporcional para entrada/saída
-    
-    Args:
-        contrato_id: ID do contrato
-        data_entrada: Data de entrada do locatário (YYYY-MM-DD)
-        data_saida: Data de saída do locatário (YYYY-MM-DD)
-        tipo_calculo: 'Entrada', 'Saída', 'Entrada + Proporcional', 'Total', 'Rescisão'
-        metodo_calculo: 'proporcional-dias' ou 'dias-completo'
-    
-    Returns:
-        dict: Resultado do cálculo proporcional
-    """
-    from datetime import datetime, date
-    from calendar import monthrange
-    
-    try:
-        print(f"CALCULANDO: Contrato {contrato_id}, Tipo: {tipo_calculo}, Metodo: {metodo_calculo}")
-        
-        # Buscar dados do contrato
-        conn = get_conexao()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT 
-                c.valor_aluguel, c.taxa_administracao, c.data_inicio, c.data_fim,
-                c.valor_iptu, c.valor_condominio, c.valor_seguro_fianca, c.valor_seguro_incendio,
-                c.valor_fci, c.bonificacao, c.status,
-                i.endereco as imovel_endereco,
-                l.nome as locador_nome,
-                loc.nome as locatario_nome
-            FROM Contratos c
-            LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
-            LEFT JOIN Locadores l ON cl.locador_id = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
-            WHERE c.id = ?
-        """, (contrato_id,))
-        
-        contrato = cursor.fetchone()
-        if not contrato:
-            raise Exception(f"Contrato {contrato_id} não encontrado")
-        
-        # Converter dados
-        valor_aluguel = float(contrato.valor_aluguel or 0)
-        taxa_admin = float(contrato.taxa_administracao or 10)
-        valor_iptu = float(contrato.valor_iptu or 0)
-        valor_condominio = float(contrato.valor_condominio or 0)
-        bonificacao = float(contrato.bonificacao or 0)
-        
-        # Converter datas
-        data_entrada_dt = datetime.strptime(data_entrada, '%Y-%m-%d').date()
-        data_saida_dt = datetime.strptime(data_saida, '%Y-%m-%d').date()
-        
-        print(f"DADOS: Aluguel=R${valor_aluguel}, Taxa Admin={taxa_admin}%")
-        print(f"PERIODO: {data_entrada} ate {data_saida}")
-        
-        resultado = {
-            'contrato_id': contrato_id,
-            'contrato_dados': {
-                'numero': f"CONTRATO-{contrato_id:03d}",
-                'locador_nome': contrato.locador_nome or "Locador",
-                'locatario_nome': contrato.locatario_nome or "Locatário", 
-                'imovel_endereco': contrato.imovel_endereco or "Endereço do Imóvel",
-                'valor_aluguel': valor_aluguel
-            },
-            'configuracao': {
-                'data_entrada': data_entrada,
-                'data_saida': data_saida,
-                'tipo_calculo': tipo_calculo,
-                'metodo_calculo': metodo_calculo
-            },
-            'proporcional_entrada': 0.0,
-            'meses_completos': 0.0,
-            'qtd_meses_completos': 0,
-            'proporcional_saida': 0.0,
-            'total': 0.0,
-            'valor_boleto': 0.0,
-            'valor_repassado_locadores': 0.0,
-            'valor_retido': 0.0,
-            'breakdown_retencao': {
-                'taxa_admin': 0.0,
-                'seguro': 0.0,
-                'outros': 0.0
-            },
-            'percentual_admin': taxa_admin,
-            'periodo_dias': (data_saida_dt - data_entrada_dt).days + 1,
-            'data_calculo': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # LÓGICA DOS CÁLCULOS PROPORCIONAIS
-        
-        if tipo_calculo in ['Entrada', 'Entrada + Proporcional']:
-            # Calcular proporcional de entrada
-            mes_entrada = data_entrada_dt.month
-            ano_entrada = data_entrada_dt.year
-            dias_no_mes = monthrange(ano_entrada, mes_entrada)[1]
-            
-            if metodo_calculo == "proporcional-dias":
-                # Método 1: Proporcional apenas aos dias utilizados
-                dias_utilizados_entrada = dias_no_mes - data_entrada_dt.day + 1
-                resultado['proporcional_entrada'] = (valor_aluguel / dias_no_mes) * dias_utilizados_entrada
-                print(f"ENTRADA - Metodo Proporcional: {dias_utilizados_entrada}/{dias_no_mes} dias = R${resultado['proporcional_entrada']:.2f}")
-                
-            elif metodo_calculo == "dias-completo":
-                # Método 2: Dias utilizados + valor total do mês
-                dias_utilizados_entrada = dias_no_mes - data_entrada_dt.day + 1
-                proporcional = (valor_aluguel / dias_no_mes) * dias_utilizados_entrada
-                resultado['proporcional_entrada'] = proporcional + valor_aluguel
-                print(f"ENTRADA - Metodo Dias + Completo: R${proporcional:.2f} + R${valor_aluguel:.2f} = R${resultado['proporcional_entrada']:.2f}")
-        
-        if tipo_calculo in ['Saída', 'Entrada + Proporcional']:
-            # Calcular proporcional de saída
-            mes_saida = data_saida_dt.month
-            ano_saida = data_saida_dt.year
-            dias_no_mes_saida = monthrange(ano_saida, mes_saida)[1]
-            
-            if metodo_calculo == "proporcional-dias":
-                # Método 1: Proporcional apenas aos dias utilizados
-                dias_utilizados_saida = data_saida_dt.day
-                resultado['proporcional_saida'] = (valor_aluguel / dias_no_mes_saida) * dias_utilizados_saida
-                print(f"SAIDA - Metodo Proporcional: {dias_utilizados_saida}/{dias_no_mes_saida} dias = R${resultado['proporcional_saida']:.2f}")
-                
-            elif metodo_calculo == "dias-completo":
-                # Método 2: Dias utilizados + valor total do mês
-                dias_utilizados_saida = data_saida_dt.day
-                proporcional = (valor_aluguel / dias_no_mes_saida) * dias_utilizados_saida
-                resultado['proporcional_saida'] = proporcional + valor_aluguel
-                print(f"SAIDA - Metodo Dias + Completo: R${proporcional:.2f} + R${valor_aluguel:.2f} = R${resultado['proporcional_saida']:.2f}")
-        
-        # Calcular meses completos (entre entrada e saída)
-        if tipo_calculo in ['Entrada + Proporcional', 'Total']:
-            # Contar meses completos entre as datas
-            mes_atual = data_entrada_dt.replace(day=1)
-            mes_fim = data_saida_dt.replace(day=1)
-            
-            # Ajustar para pular primeiro e último mês (que são proporcionais)
-            if tipo_calculo == 'Entrada + Proporcional':
-                if mes_atual.month == data_entrada_dt.month and mes_atual.year == data_entrada_dt.year:
-                    mes_atual = mes_atual.replace(month=mes_atual.month + 1) if mes_atual.month < 12 else mes_atual.replace(year=mes_atual.year + 1, month=1)
-                if mes_fim.month == data_saida_dt.month and mes_fim.year == data_saida_dt.year:
-                    mes_fim = mes_fim.replace(month=mes_fim.month - 1) if mes_fim.month > 1 else mes_fim.replace(year=mes_fim.year - 1, month=12)
-            
-            meses_count = 0
-            while mes_atual <= mes_fim:
-                meses_count += 1
-                mes_atual = mes_atual.replace(month=mes_atual.month + 1) if mes_atual.month < 12 else mes_atual.replace(year=mes_atual.year + 1, month=1)
-            
-            resultado['qtd_meses_completos'] = meses_count
-            resultado['meses_completos'] = valor_aluguel * meses_count
-            print(f"MESES COMPLETOS: {meses_count} x R${valor_aluguel:.2f} = R${resultado['meses_completos']:.2f}")
-        
-        # Calcular total
-        if tipo_calculo == 'Rescisão':
-            # Rescisão geralmente é o valor total do mês
-            resultado['total'] = valor_aluguel
-            print(f"RESCISAO: R${resultado['total']:.2f}")
-        else:
-            resultado['total'] = resultado['proporcional_entrada'] + resultado['meses_completos'] + resultado['proporcional_saida']
-            print(f"TOTAL: R${resultado['proporcional_entrada']:.2f} + R${resultado['meses_completos']:.2f} + R${resultado['proporcional_saida']:.2f} = R${resultado['total']:.2f}")
-        
-        # Calcular valores para locador e administradora
-        valor_bruto = resultado['total']
-        taxa_admin_valor = valor_bruto * (taxa_admin / 100)
-        
-        resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_valor
-        resultado['valor_retido'] = taxa_admin_valor
-        resultado['valor_repassado_locadores'] = valor_bruto - taxa_admin_valor
-        resultado['valor_boleto'] = valor_bruto
-        
-        print(f"VALOR BRUTO: R${valor_bruto:.2f}")
-        print(f"TAXA ADMIN ({taxa_admin}%): R${taxa_admin_valor:.2f}")
-        print(f"VALOR LIQUIDO LOCADOR: R${resultado['valor_repassado_locadores']:.2f}")
-        
-        conn.close()
-        return resultado
-        
-    except Exception as e:
-        print(f"ERRO no calculo proporcional: {e}")
-        import traceback
-        traceback.print_exc()
-        if conn:
-            conn.close()
-        raise e
-
-def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=None, data_saida=None, metodo_calculo="proporcional-dias"):
-    """
-    Calcula prestação de contas para UM MÊS específico
-    
-    Args:
-        contrato_id: ID do contrato
-        mes: Mês (1-12)
-        ano: Ano (ex: 2025)
-        tipo_calculo: 'Entrada', 'Saída', 'Mensal', 'Rescisão'
-        data_entrada: Data de entrada no mês (se tipo = Entrada) - formato DD
-        data_saida: Data de saída no mês (se tipo = Saída) - formato DD  
-        metodo_calculo: 'proporcional-dias' ou 'dias-completo'
-    """
-    from datetime import datetime, date
-    from calendar import monthrange
-    
-    try:
-        print(f"CALCULANDO MENSAL: Contrato {contrato_id}, Mes {mes}/{ano}, Tipo: {tipo_calculo}")
-        
-        # Buscar dados do contrato
-        conn = get_conexao()
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            SELECT 
-                c.valor_aluguel, c.taxa_administracao, c.data_inicio, c.data_fim,
-                c.valor_iptu, c.valor_condominio, c.valor_seguro_fianca, c.valor_seguro_incendio,
-                c.valor_fci, c.bonificacao, c.status,
-                i.endereco as imovel_endereco,
-                l.nome as locador_nome,
-                loc.nome as locatario_nome
-            FROM Contratos c
-            LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
-            LEFT JOIN Locadores l ON cl.locador_id = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
-            WHERE c.id = ?
-        """, (contrato_id,))
-        
-        contrato = cursor.fetchone()
-        if not contrato:
-            raise Exception(f"Contrato {contrato_id} não encontrado")
-        
-        # Converter todos os dados do contrato
-        valor_aluguel = float(contrato.valor_aluguel or 0)
-        valor_iptu = float(contrato.valor_iptu or 0)
-        valor_condominio = float(contrato.valor_condominio or 0)
-        valor_seguro_fianca = float(contrato.valor_seguro_fianca or 0)
-        valor_seguro_incendio = float(contrato.valor_seguro_incendio or 0)
-        valor_fci = float(contrato.valor_fci or 0)
-        bonificacao = float(contrato.bonificacao or 0)
-        taxa_admin = float(contrato.taxa_administracao or 10)
-        
-        # Separar valores proporcionais e fixos
-        valores_proporcionais = valor_aluguel + valor_iptu + valor_condominio + valor_fci  # Aluguel, IPTU, Condomínio, FCI
-        valores_fixos = valor_seguro_fianca + valor_seguro_incendio  # Seguros sempre fixos
-        
-        # Calcular valor bruto base considerando bonificação
-        valor_bruto_base = valores_proporcionais + valores_fixos - bonificacao
-        
-        print(f"VALORES SEPARADOS: Proporcionais=R${valores_proporcionais:.2f} (aluguel+iptu+condominio+fci)")
-        print(f"                   Fixos=R${valores_fixos:.2f} (seguros)")
-        print(f"                   Bonificação=R${bonificacao:.2f}")
-        
-        # Calcular dias no mês
-        dias_no_mes = monthrange(ano, mes)[1]
-        
-        print(f"DADOS: Aluguel=R${valor_aluguel}, Taxa Admin={taxa_admin}%, Dias no mes={dias_no_mes}")
-        
-        resultado = {
-            'contrato_id': contrato_id,
-            'contrato_dados': {
-                'numero': f"CONTRATO-{contrato_id:03d}",
-                'locador_nome': contrato.locador_nome or "Locador",
-                'locatario_nome': contrato.locatario_nome or "Locatário", 
-                'imovel_endereco': contrato.imovel_endereco or "Endereço do Imóvel",
-                'valor_aluguel': valor_aluguel
-            },
-            'configuracao': {
-                'mes': mes,
-                'ano': ano,
-                'tipo_calculo': tipo_calculo,
-                'metodo_calculo': metodo_calculo,
-                'data_entrada': data_entrada,
-                'data_saida': data_saida
-            },
-            'valor_calculado': 0.0,
-            'dias_utilizados': 0,
-            'total_dias_mes': dias_no_mes,
-            'valor_boleto': 0.0,
-            'valor_repassado_locadores': 0.0,
-            'valor_retido': 0.0,
-            'breakdown_retencao': {
-                'taxa_admin': 0.0,
-                'seguro': 0.0,
-                'outros': 0.0
-            },
-            'percentual_admin': taxa_admin,
-            'data_calculo': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # CÁLCULOS POR TIPO
-        
-        if tipo_calculo == 'Mensal':
-            # Mês completo normal
-            resultado['valor_calculado'] = valor_bruto_base
-            resultado['dias_utilizados'] = dias_no_mes
-            print(f"MENSAL COMPLETO: R${valor_bruto_base:.2f}")
-            
-        elif tipo_calculo == 'Entrada':
-            if not data_entrada:
-                raise Exception("Data de entrada é obrigatória para tipo Entrada")
-            
-            # Calcular dias a partir da entrada até fim do mês
-            dias_utilizados = dias_no_mes - int(data_entrada) + 1
-            resultado['dias_utilizados'] = dias_utilizados
-            
-            if metodo_calculo == "proporcional-dias":
-                # Método 1: Apenas proporcional aos dias
-                # Aplicar proporção apenas aos valores proporcionais
-                valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                resultado['valor_calculado'] = valores_proporcionais_calculados + valores_fixos - bonificacao
-                print(f"ENTRADA PROPORCIONAL: Proporcionais={valores_proporcionais_calculados:.2f} + Fixos={valores_fixos:.2f} - Bonif={bonificacao:.2f} = R${resultado['valor_calculado']:.2f}")
-                
-            elif metodo_calculo == "dias-completo":
-                # Método 2: Proporcional + mês completo
-                # Aplicar proporção apenas aos valores proporcionais
-                valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                proporcional = valores_proporcionais_calculados + valores_fixos - bonificacao
-                resultado['valor_calculado'] = proporcional + valor_bruto_base
-                print(f"ENTRADA DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
-                
-        elif tipo_calculo == 'Saída':
-            if not data_saida:
-                raise Exception("Data de saída é obrigatória para tipo Saída")
-            
-            # Calcular dias do início do mês até a saída
-            dias_utilizados = int(data_saida)
-            resultado['dias_utilizados'] = dias_utilizados
-            
-            if metodo_calculo == "proporcional-dias":
-                # Método 1: Apenas proporcional aos dias
-                # Aplicar proporção apenas aos valores proporcionais
-                valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                resultado['valor_calculado'] = valores_proporcionais_calculados + valores_fixos - bonificacao
-                print(f"SAIDA PROPORCIONAL: Proporcionais={valores_proporcionais_calculados:.2f} + Fixos={valores_fixos:.2f} - Bonif={bonificacao:.2f} = R${resultado['valor_calculado']:.2f}")
-                
-            elif metodo_calculo == "dias-completo":
-                # Método 2: Proporcional + mês completo
-                # Aplicar proporção apenas aos valores proporcionais
-                valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                proporcional = valores_proporcionais_calculados + valores_fixos - bonificacao
-                resultado['valor_calculado'] = proporcional + valor_bruto_base
-                print(f"SAIDA DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
-                
-        elif tipo_calculo == 'Rescisão':
-            # Rescisão = valor completo do mês
-            resultado['valor_calculado'] = valor_bruto_base
-            resultado['dias_utilizados'] = dias_no_mes
-            print(f"RESCISAO: R${valor_bruto_base:.2f}")
-        
-        # Calcular valores finais com retenções
-        valor_bruto = resultado['valor_calculado']
-        
-        # Taxa de administração
-        taxa_admin_valor = valor_bruto * (taxa_admin / 100)
-        
-        # Retenções adicionais (baseadas no valor bruto)
-        # Buscar dados de retenção do contrato
-        cursor.execute("""
-            SELECT retido_fci, retido_condominio, retido_seguro_fianca, retido_seguro_incendio, retido_iptu
-            FROM Contratos WHERE id = ?
-        """, (contrato_id,))
-        retencoes = cursor.fetchone()
-        
-        valor_retencoes_adicionais = 0
-        if retencoes:
-            # Se tem seguro incêndio retido (como vimos no contrato 3)
-            if retencoes[3] and valor_seguro_incendio > 0:  # retido_seguro_incendio
-                valor_retencoes_adicionais += valor_seguro_incendio
-            # Adicionar outras retenções conforme necessário
-            if retencoes[0] and valor_fci > 0:  # retido_fci
-                valor_retencoes_adicionais += valor_fci
-            if retencoes[1] and valor_condominio > 0:  # retido_condominio
-                valor_retencoes_adicionais += valor_condominio
-            if retencoes[2] and valor_seguro_fianca > 0:  # retido_seguro_fianca
-                valor_retencoes_adicionais += valor_seguro_fianca
-            if retencoes[4] and valor_iptu > 0:  # retido_iptu
-                valor_retencoes_adicionais += valor_iptu
-        
-        # RETENÇÕES VARIAM conforme tipo de cálculo
-        # Taxa admin base: sobre (aluguel - bonificação) 
-        base_taxa_admin = valor_aluguel - bonificacao
-        taxa_admin_completa = base_taxa_admin * (taxa_admin / 100)
-        
-        # Taxa de boleto sempre cobrada
-        taxa_boleto = 2.50
-        
-        # Taxa de TED: (número_locadores - 1) × R$ 10,00
-        cursor.execute("SELECT COUNT(*) FROM ContratoLocadores WHERE contrato_id = ?", (contrato_id,))
-        num_locadores = cursor.fetchone()[0]
-        taxa_ted = max(0, (num_locadores - 1)) * 10.00
-        
-        # Retenções completas (R$ 135,00 para contrato 3)
-        retencoes_completas = taxa_admin_completa + valor_retencoes_adicionais + taxa_boleto + taxa_ted
-        
-        # CALCULAR RETENÇÃO CONFORME TIPO DE CÁLCULO
-        if tipo_calculo in ['Mensal', 'Rescisão']:
-            # Mês completo = retenção completa
-            valor_total_retido = retencoes_completas
-            
-        elif tipo_calculo == 'Entrada':
-            if metodo_calculo == "proporcional-dias":
-                # Entrada proporcional = retenção proporcional
-                dias_utilizados = dias_no_mes - int(data_entrada) + 1
-                valor_total_retido = retencoes_completas * (dias_utilizados / dias_no_mes)
-            elif metodo_calculo == "dias-completo":
-                # Entrada dias+completo = retenção proporcional + retenção completa
-                dias_utilizados = dias_no_mes - int(data_entrada) + 1
-                retencao_proporcional = retencoes_completas * (dias_utilizados / dias_no_mes)
-                valor_total_retido = retencao_proporcional + retencoes_completas
-                
-        elif tipo_calculo == 'Saída':
-            if metodo_calculo == "proporcional-dias":
-                # Saída proporcional = retenção proporcional
-                dias_utilizados = int(data_saida)
-                valor_total_retido = retencoes_completas * (dias_utilizados / dias_no_mes)
-            elif metodo_calculo == "dias-completo":
-                # Saída dias+completo = retenção proporcional + retenção completa
-                dias_utilizados = int(data_saida)
-                retencao_proporcional = retencoes_completas * (dias_utilizados / dias_no_mes)
-                valor_total_retido = retencao_proporcional + retencoes_completas
-        
-        # Breakdown proporcional aos valores calculados
-        proporcao = valor_total_retido / retencoes_completas if retencoes_completas > 0 else 0
-        
-        resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_completa * proporcao
-        resultado['breakdown_retencao']['seguro'] = valor_retencoes_adicionais * proporcao  
-        resultado['breakdown_retencao']['outros'] = (taxa_boleto + taxa_ted) * proporcao
-        resultado['valor_retido'] = valor_total_retido
-        resultado['valor_repassado_locadores'] = valor_bruto - valor_total_retido
-        resultado['valor_boleto'] = valor_bruto
-        
-        print(f"FINAL: Bruto=R${valor_bruto:.2f}, Retido=R${valor_total_retido:.2f}, Liquido=R${resultado['valor_repassado_locadores']:.2f}")
-        
-        conn.close()
-        return resultado
-        
-    except Exception as e:
-        print(f"ERRO no calculo mensal: {e}")
-        import traceback
-        traceback.print_exc()
-        if conn:
-            conn.close()
-        raise e
-
-def criar_exemplo_contrato3():
-    """
-    Cria exemplos de cálculo usando o contrato 3 como base
-    Demonstra os dois métodos: 'proporcional-dias' vs 'dias-completo'
-    """
-    print("=" * 80)
-    print("🏠 EXEMPLOS DE CÁLCULO PROPORCIONAL - CONTRATO 3")
-    print("=" * 80)
-    
-    # Dados de exemplo do contrato 3
-    contrato_id = 3
-    
-    # Cenário 1: Entrada no meio do mês (dia 15) - método proporcional
-    print("\n📍 CENÁRIO 1: ENTRADA (15/01/2025) - MÉTODO PROPORCIONAL")
-    print("-" * 60)
-    
-    try:
-        resultado1 = calcular_prestacao_proporcional(
-            contrato_id=contrato_id,
-            data_entrada="2025-01-15",
-            data_saida="2025-01-31",
-            tipo_calculo="Entrada",
-            metodo_calculo="proporcional-dias"
-        )
-        
-        print(f"• Período: {resultado1['configuracao']['data_entrada']} até {resultado1['configuracao']['data_saida']}")
-        print(f"• Dias utilizados: {resultado1['periodo_dias']} dias")
-        print(f"• Valor proporcional entrada: R${resultado1['proporcional_entrada']:.2f}")
-        print(f"• Total a pagar: R${resultado1['valor_boleto']:.2f}")
-        print(f"• Valor para locador: R${resultado1['valor_repassado_locadores']:.2f}")
-        print(f"• Taxa administração: R${resultado1['breakdown_retencao']['taxa_admin']:.2f}")
-        
-    except Exception as e:
-        print(f"❌ Erro no cenário 1: {e}")
-        # Usar valores exemplo se não conseguir conectar com banco
-        print("• Exemplo com valores simulados:")
-        print("• Valor aluguel: R$ 1.500,00")
-        print("• Dias utilizados: 17 dias (15 a 31 de janeiro)")
-        print("• Proporcional: (1.500 ÷ 31) × 17 = R$ 822,58")
-        print("• Taxa admin (10%): R$ 82,26")
-        print("• Líquido locador: R$ 740,32")
-    
-    # Cenário 2: Entrada no meio do mês (dia 15) - método dias + completo
-    print("\n📍 CENÁRIO 2: ENTRADA (15/01/2025) - MÉTODO DIAS + COMPLETO")
-    print("-" * 60)
-    
-    try:
-        resultado2 = calcular_prestacao_proporcional(
-            contrato_id=contrato_id,
-            data_entrada="2025-01-15",
-            data_saida="2025-01-31",
-            tipo_calculo="Entrada",
-            metodo_calculo="dias-completo"
-        )
-        
-        print(f"• Período: {resultado2['configuracao']['data_entrada']} até {resultado2['configuracao']['data_saida']}")
-        print(f"• Dias utilizados: {resultado2['periodo_dias']} dias")
-        print(f"• Valor proporcional entrada: R${resultado2['proporcional_entrada']:.2f}")
-        print(f"• Total a pagar: R${resultado2['valor_boleto']:.2f}")
-        print(f"• Valor para locador: R${resultado2['valor_repassado_locadores']:.2f}")
-        print(f"• Taxa administração: R${resultado2['breakdown_retencao']['taxa_admin']:.2f}")
-        
-    except Exception as e:
-        print(f"❌ Erro no cenário 2: {e}")
-        # Usar valores exemplo se não conseguir conectar com banco
-        print("• Exemplo com valores simulados:")
-        print("• Valor aluguel: R$ 1.500,00")
-        print("• Proporcional: (1.500 ÷ 31) × 17 + 1.500 = R$ 2.322,58")
-        print("• Taxa admin (10%): R$ 232,26")
-        print("• Líquido locador: R$ 2.090,32")
-    
-    # Cenário 3: Período completo (entrada + meses + saída) - método proporcional
-    print("\n📍 CENÁRIO 3: PERÍODO COMPLETO (15/01 a 20/03/2025) - MÉTODO PROPORCIONAL")
-    print("-" * 60)
-    
-    try:
-        resultado3 = calcular_prestacao_proporcional(
-            contrato_id=contrato_id,
-            data_entrada="2025-01-15",
-            data_saida="2025-03-20",
-            tipo_calculo="Entrada + Proporcional",
-            metodo_calculo="proporcional-dias"
-        )
-        
-        print(f"• Período: {resultado3['configuracao']['data_entrada']} até {resultado3['configuracao']['data_saida']}")
-        print(f"• Dias totais: {resultado3['periodo_dias']} dias")
-        print(f"• Proporcional entrada: R${resultado3['proporcional_entrada']:.2f}")
-        print(f"• Meses completos: {resultado3['qtd_meses_completos']} × R${resultado3['contrato_dados']['valor_aluguel']:.2f} = R${resultado3['meses_completos']:.2f}")
-        print(f"• Proporcional saída: R${resultado3['proporcional_saida']:.2f}")
-        print(f"• Total a pagar: R${resultado3['valor_boleto']:.2f}")
-        print(f"• Valor para locador: R${resultado3['valor_repassado_locadores']:.2f}")
-        print(f"• Taxa administração: R${resultado3['breakdown_retencao']['taxa_admin']:.2f}")
-        
-    except Exception as e:
-        print(f"❌ Erro no cenário 3: {e}")
-        # Usar valores exemplo se não conseguir conectar com banco
-        print("• Exemplo com valores simulados:")
-        print("• Valor aluguel: R$ 1.500,00")
-        print("• Entrada (17 dias): (1.500 ÷ 31) × 17 = R$ 822,58")
-        print("• Fevereiro completo: R$ 1.500,00")
-        print("• Saída (20 dias): (1.500 ÷ 31) × 20 = R$ 967,74")
-        print("• Total: R$ 3.290,32")
-        print("• Taxa admin (10%): R$ 329,03")
-        print("• Líquido locador: R$ 2.961,29")
-    
-    print("\n" + "=" * 80)
-    print("📊 RESUMO DOS MÉTODOS DE CÁLCULO")
-    print("=" * 80)
-    print("• PROPORCIONAL-DIAS: Calcula apenas pelos dias efetivamente utilizados")
-    print("• DIAS-COMPLETO: Dias utilizados + valor total do mês (mais favorável ao locador)")
-    print("• A diferença pode ser significativa, especialmente em contratos curtos")
-    print("=" * 80)
