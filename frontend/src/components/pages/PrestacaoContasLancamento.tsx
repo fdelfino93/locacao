@@ -75,6 +75,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
   // Estado para método de cálculo (proporcional ou dias+completo)
   const [metodoCalculo, setMetodoCalculo] = useState<'proporcional-dias' | 'dias-completo'>('proporcional-dias');
   
+  // Estados para datas de entrada/saída/rescisão
+  const [dataEntrada, setDataEntrada] = useState<string>('');
+  const [dataRescisao, setDataRescisao] = useState<string>('');
+  
   // Estados para cálculo de prestação
   const [resultadoCalculo, setResultadoCalculo] = useState<CalculoPrestacaoResponse | null>(null);
   const [calculandoPrestacao, setCalculandoPrestacao] = useState(false);
@@ -177,9 +181,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
       if (contratoSelecionado.dia_vencimento) {
         setDiaVencimento(contratoSelecionado.dia_vencimento);
       }
-      if (contratoSelecionado.multa_rescisoria) {
-        setMultaPercentual(contratoSelecionado.multa_rescisoria);
-      }
+      // Multa rescisória agora é calculada automaticamente pela Lei 8.245/91
+      // Removido: campo multa_rescisoria não é mais usado
       
       // Define mês de referência atual se não estiver definido
       if (!mesReferencia) {
@@ -194,7 +197,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
     if (contratoSelecionado && tipoLancamento && isNovaPrestacao) {
       recalcularPrestacao();
     }
-  }, [contratoSelecionado, tipoLancamento, metodoCalculo, lancamentos, encargos, deducoes, observacoesLancamento]);
+  }, [contratoSelecionado, tipoLancamento, metodoCalculo, dataEntrada, dataRescisao, lancamentos, encargos, deducoes, observacoesLancamento]);
 
   const buscarLocadores = async () => {
     setLoadingLocadores(true);
@@ -296,6 +299,18 @@ export const PrestacaoContasLancamento: React.FC = () => {
       const hoje = new Date();
       const dataAtual = hoje.toISOString().split('T')[0];
       
+      // Determinar datas baseado no tipo de lançamento
+      let dataEntradaFinal = dataAtual;
+      let dataSaidaFinal = dataAtual;
+      
+      if (tipoLancamento === 'entrada' && dataEntrada) {
+        dataEntradaFinal = dataEntrada;
+        dataSaidaFinal = dataEntrada; // Para entrada, usar a mesma data
+      } else if (tipoLancamento === 'rescisao' && dataRescisao) {
+        dataEntradaFinal = dataRescisao;
+        dataSaidaFinal = dataRescisao; // Para rescisão, usar a data de rescisão
+      }
+      
       // Mapear tipo de lançamento para tipo de cálculo da API
       let tipoCalculoMapeado: string;
       switch (tipoLancamento) {
@@ -317,16 +332,18 @@ export const PrestacaoContasLancamento: React.FC = () => {
         tipo: lanc.tipo === 'despesa' ? 'debito' : 'credito'
       }));
 
-      // Definir método baseado no tipo de lançamento e estado do metodoCalculo
+      // Definir método baseado no tipo de lançamento
       let metodoFinal = metodoCalculo;
       if (tipoLancamento === 'mensal') {
         metodoFinal = 'dias-completo'; // Mensal sempre é mês completo
+      } else if (tipoLancamento === 'rescisao') {
+        metodoFinal = 'proporcional-dias'; // Rescisão sempre é proporcional
       }
 
       const dadosCalculo: CalculoPrestacaoRequest = {
         contrato_id: contratoSelecionado.id,
-        data_entrada: dataAtual,
-        data_saida: dataAtual,
+        data_entrada: dataEntradaFinal,
+        data_saida: dataSaidaFinal,
         tipo_calculo: tipoCalculoMapeado,
         metodo_calculo: metodoFinal,
         valores_mensais: {
@@ -397,44 +414,48 @@ export const PrestacaoContasLancamento: React.FC = () => {
     
     if (!contratoSelecionado) return {};
     
-    switch (tipoLancamento) {
-      case 'entrada':
-        // Para entrada, valores podem ser proporcionais
-        return {
-          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
-          valor_condominio: contratoSelecionado.valor_condominio || 0,
-          valor_fci: contratoSelecionado.valor_fci || 0,
-          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
-          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
-          valor_iptu: contratoSelecionado.valor_iptu || 0,
-        };
+    // Se temos resultado do cálculo da API e é proporcional, calcular valores proporcionais
+    if (resultadoCalculo && isNovaPrestacao) {
+      const isProporcional = (tipoLancamento === 'entrada' && metodoCalculo === 'proporcional-dias') || 
+                            tipoLancamento === 'rescisao';
       
-      case 'mensal':
-        // Para mensal, valores completos
+      if (isProporcional && resultadoCalculo.periodo_dias) {
+        // Calcular proporção baseada nos dias
+        const proporcao = resultadoCalculo.periodo_dias / 30;
+        
         return {
-          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
-          valor_condominio: contratoSelecionado.valor_condominio || 0,
-          valor_fci: contratoSelecionado.valor_fci || 0,
-          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
-          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
-          valor_iptu: contratoSelecionado.valor_iptu || 0,
+          valor_aluguel: (contratoSelecionado.valor_aluguel || 0) * proporcao,
+          valor_condominio: (contratoSelecionado.valor_condominio || 0) * proporcao,
+          valor_fci: (contratoSelecionado.valor_fci || 0) * proporcao,
+          valor_seguro_fianca: (contratoSelecionado.valor_seguro_fianca || 0) * proporcao,
+          valor_seguro_incendio: (contratoSelecionado.valor_seguro_incendio || 0) * proporcao,
+          valor_iptu: (contratoSelecionado.valor_iptu || 0) * proporcao,
         };
-      
-      case 'rescisao':
-        // Para rescisão, valores podem incluir multa
-        return {
-          valor_aluguel: contratoSelecionado.valor_aluguel || 0,
-          valor_condominio: contratoSelecionado.valor_condominio || 0,
-          valor_fci: contratoSelecionado.valor_fci || 0,
-          valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
-          valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
-          valor_iptu: contratoSelecionado.valor_iptu || 0,
-          multa_rescisoria: contratoSelecionado.valor_aluguel * (contratoSelecionado.multa_rescisoria || 2) / 100,
-        };
-      
-      default:
-        return {};
+      }
     }
+    
+    // Valores completos do contrato (para mensal ou entrada dias-completo)
+    return {
+      valor_aluguel: contratoSelecionado.valor_aluguel || 0,
+      valor_condominio: contratoSelecionado.valor_condominio || 0,
+      valor_fci: contratoSelecionado.valor_fci || 0,
+      valor_seguro_fianca: contratoSelecionado.valor_seguro_fianca || 0,
+      valor_seguro_incendio: contratoSelecionado.valor_seguro_incendio || 0,
+      valor_iptu: contratoSelecionado.valor_iptu || 0,
+    };
+  };
+
+  // Função para obter valores retidos baseados no cálculo
+  const obterValoresRetidos = () => {
+    const valoresPorTipo = obterValoresPorTipo();
+    
+    return {
+      valor_condominio: valoresPorTipo.valor_condominio || 0,
+      valor_fci: valoresPorTipo.valor_fci || 0,
+      valor_seguro_fianca: valoresPorTipo.valor_seguro_fianca || 0,
+      valor_seguro_incendio: valoresPorTipo.valor_seguro_incendio || 0,
+      valor_iptu: valoresPorTipo.valor_iptu || 0
+    };
   };
 
   // Função auxiliar para calcular valor do boleto (sem dependência circular)
@@ -455,7 +476,37 @@ export const PrestacaoContasLancamento: React.FC = () => {
   };
 
   const calcularTotais = () => {
-    // Separar lançamentos por tipo para cálculo
+    // Se temos um resultado calculado pela API, usar esses valores
+    if (resultadoCalculo && isNovaPrestacao) {
+      console.log('📊 Usando valores totais calculados pela API:', resultadoCalculo);
+      
+      // Calcular repasse por locador baseado no valor total
+      const valorRepasse = resultadoCalculo.valor_repassado_locadores;
+      const numProprietarios = contratoSelecionado?.locadores?.length || 1;
+      
+      return {
+        subtotalLancamentos: resultadoCalculo.total - (resultadoCalculo.desconto || 0) - (resultadoCalculo.multa || 0),
+        totalBruto: resultadoCalculo.total,
+        totalLiquido: valorRepasse,
+        totalDescontos: resultadoCalculo.desconto || 0,
+        valorBoleto: resultadoCalculo.valor_boleto,
+        totalRetido: resultadoCalculo.valor_retido,
+        taxaAdmin: resultadoCalculo.breakdown_retencao?.taxa_admin || 0,
+        taxaBoleto: 2.50, // Valor fixo da taxa de boleto
+        taxaTransferencia: Math.max(0, (resultadoCalculo.breakdown_retencao?.outros || 0) - 2.50), // outros inclui boleto + transferência, subtrair boleto
+        valorRepasse,
+        numProprietarios,
+        repassePorLocador: contratoSelecionado?.locadores?.map(locador => ({
+          locador_id: locador.locador_id,
+          locador_nome: locador.locador_nome,
+          porcentagem: locador.porcentagem || 100,
+          responsabilidade_principal: locador.responsabilidade_principal || false,
+          valor_repasse: valorRepasse * ((locador.porcentagem || 100) / 100)
+        })) || []
+      };
+    }
+    
+    // Fallback para cálculo manual quando não temos resultado da API
     const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
     const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
     
@@ -477,7 +528,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const valorBoleto = totalBruto - totalDescontosComBonificacao;
     
     // Cálculos de retenção baseados na configuração
-    const numProprietarios = proprietarios.length || 1;
+    // Para lançamento de fatura, usar locadores do contrato, não proprietarios do estado
+    const numProprietarios = contratoSelecionado?.locadores?.length || 1;
     // Taxa de administração: (aluguel - desconto) × percentual do contrato
     const valorAluguel = contratoSelecionado?.valor_aluguel || 0;
     const baseCalculo = valorAluguel - descontoPontualidade;
@@ -488,24 +540,25 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const taxaTransferencia = numProprietarios > 1 ? configuracaoRetencoes.taxa_transferencia * (numProprietarios - 1) : 0;
     
     
-    // Calcular TODOS os valores retidos (igual à seção Retidos)
+    // Calcular TODOS os valores retidos (igual à seção Retidos) usando valores proporcionais
     let totalRetido = 0;
+    const valoresRetidos = obterValoresRetidos();
     
-    // Valores de retenção do contrato
+    // Valores de retenção do contrato (proporcionais)
     if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0) {
-      totalRetido += contratoSelecionado.valor_condominio;
+      totalRetido += valoresRetidos.valor_condominio;
     }
     if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0) {
-      totalRetido += contratoSelecionado.valor_fci;
+      totalRetido += valoresRetidos.valor_fci;
     }
     if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
-      totalRetido += contratoSelecionado.valor_seguro_fianca;
+      totalRetido += valoresRetidos.valor_seguro_fianca;
     }
     if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
-      totalRetido += contratoSelecionado.valor_seguro_incendio;
+      totalRetido += valoresRetidos.valor_seguro_incendio;
     }
     if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0) {
-      totalRetido += contratoSelecionado.valor_iptu;
+      totalRetido += valoresRetidos.valor_iptu;
     }
     
     // Taxas administrativas
@@ -513,17 +566,17 @@ export const PrestacaoContasLancamento: React.FC = () => {
     totalRetido += taxaBoleto;
     totalRetido += taxaTransferencia;
     
-    // Taxa de 5% sobre valores antecipados do contrato
+    // Taxa de 5% sobre valores antecipados do contrato (proporcionais)
     if (contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0) {
-      const taxa = contratoSelecionado.valor_condominio * 0.05; // 5% de taxa
+      const taxa = valoresRetidos.valor_condominio * 0.05; // 5% de taxa
       totalRetido += taxa;
     }
     if (contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
-      const taxa = contratoSelecionado.valor_seguro_fianca * 0.05; // 5% de taxa
+      const taxa = valoresRetidos.valor_seguro_fianca * 0.05; // 5% de taxa
       totalRetido += taxa;
     }
     if (contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
-      const taxa = contratoSelecionado.valor_seguro_incendio * 0.05; // 5% de taxa
+      const taxa = valoresRetidos.valor_seguro_incendio * 0.05; // 5% de taxa
       totalRetido += taxa;
     }
     
@@ -1174,9 +1227,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 <InputWithIcon
                                   type="date"
                                   icon={Calendar}
-                                  value={contratoSelecionado?.data_inicio ? new Date(contratoSelecionado.data_inicio).toISOString().split('T')[0] : ''}
-                                  disabled
-                                  className="h-9 bg-muted/50"
+                                  value={dataEntrada || (contratoSelecionado?.data_inicio ? new Date(contratoSelecionado.data_inicio).toISOString().split('T')[0] : '')}
+                                  onChange={(e: any) => setDataEntrada(e.target.value)}
+                                  className="h-9"
                                 />
                               </div>
 
@@ -1320,6 +1373,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 <InputWithIcon
                                   type="date"
                                   icon={Calendar}
+                                  value={dataRescisao}
+                                  onChange={(e: any) => setDataRescisao(e.target.value)}
                                   className="h-9"
                                 />
                               </div>
@@ -1329,18 +1384,13 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   <Calendar className="w-4 h-4 text-red-500" />
                                   <span>Tipo de Cobrança</span>
                                 </Label>
-                                <Select 
-                                  value={metodoCalculo} 
-                                  onValueChange={(value: 'proporcional-dias' | 'dias-completo') => setMetodoCalculo(value)}
-                                >
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="proporcional-dias">Proporcional aos dias utilizados</SelectItem>
-                                    <SelectItem value="dias-completo">Dias utilizados + mês completo</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                <InputWithIcon
+                                  type="text"
+                                  icon={Calendar}
+                                  value="Proporcional aos dias utilizados"
+                                  disabled
+                                  className="h-9 bg-muted/50"
+                                />
                               </div>
                             </div>
 
@@ -1382,8 +1432,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 </Label>
                                 <InputWithIcon
                                   type="text"
-                                  icon={Percent}
-                                  value={`${contratoSelecionado?.multa_rescisoria || '2'}%`}
+                                  icon={AlertCircle}
+                                  value="Calculada conforme Lei 8.245/91"
                                   disabled
                                   className="h-9 bg-muted/50"
                                 />
@@ -1456,7 +1506,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             </div>
                             <div>
                               <span className="text-muted-foreground">Multa:</span>
-                              <span className="ml-2 font-medium">{contratoSelecionado?.multa_rescisoria || 2}%</span>
+                              <span className="ml-2 font-medium">Lei 8.245/91</span>
                             </div>
                             <div>
                               <span className="text-muted-foreground">Mês Ref.:</span>
@@ -1758,31 +1808,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Multa Rescisória - apenas para rescisão */}
-                              {tipoLancamento === 'rescisao' && valoresPorTipo.multa_rescisoria > 0 && (
-                                <div className="p-3 bg-background border border-border rounded-lg">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-3 flex-1">
-                                      <div className="p-1.5 rounded-lg">
-                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-200 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300">
-                                          multa
-                                        </span>
-                                      </div>
-                                      <div className="flex-1">
-                                        <p className="font-medium text-foreground">Multa Rescisória</p>
-                                        <p className="text-xs text-muted-foreground">
-                                          {contratoSelecionado?.multa_rescisoria || 2}% do aluguel
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <span className="text-sm font-bold text-yellow-600">
-                                        +{formatCurrency(valoresPorTipo.multa_rescisoria)}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
+                              {/* Multa Rescisória agora é calculada automaticamente pela Lei 8.245/91 no backend */}
 
                               {/* Desconto por Pontualidade - quando houver bonificação configurada */}
                               {contratoSelecionado?.bonificacao > 0 && (
@@ -2065,7 +2091,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(contratoSelecionado.valor_condominio)}
+                                  +{formatCurrency(obterValoresRetidos().valor_condominio)}
                                 </span>
                               </div>
                             </div>
@@ -2087,7 +2113,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(contratoSelecionado.valor_fci)}
+                                  +{formatCurrency(obterValoresRetidos().valor_fci)}
                                 </span>
                               </div>
                             </div>
@@ -2109,7 +2135,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(contratoSelecionado.valor_seguro_fianca)}
+                                  +{formatCurrency(obterValoresRetidos().valor_seguro_fianca)}
                                 </span>
                               </div>
                             </div>
@@ -2131,7 +2157,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(contratoSelecionado.valor_seguro_incendio)}
+                                  +{formatCurrency(obterValoresRetidos().valor_seguro_incendio)}
                                 </span>
                               </div>
                             </div>
@@ -2153,7 +2179,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(contratoSelecionado.valor_iptu)}
+                                  +{formatCurrency(obterValoresRetidos().valor_iptu)}
                                 </span>
                               </div>
                             </div>
@@ -2215,31 +2241,37 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Taxa de Transferência - só mostra se houver mais de 1 proprietário */}
-                        {(proprietarios.length > 1) && (
-                          <div className="p-3 bg-background border border-border rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3 flex-1">
-                                <div className="p-1.5 rounded-lg ">
-                                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-cyan-200 text-cyan-800 dark:bg-cyan-800/30 dark:text-cyan-300">
-                                    taxa
+                        {/* Taxa de Transferência - só mostra se houver mais de 1 locador (CORRIGIDO) */}
+                        {(() => {
+                          const numLocadores = contratoSelecionado?.locadores?.length || 1;
+                          const taxaTransferenciaTotal = calcularTotais().taxaTransferencia;
+                          const locadoresAdicionais = Math.max(0, numLocadores - 1);
+                          
+                          return locadoresAdicionais > 0 && (
+                            <div className="p-3 bg-background border border-border rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3 flex-1">
+                                  <div className="p-1.5 rounded-lg ">
+                                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-cyan-200 text-cyan-800 dark:bg-cyan-800/30 dark:text-cyan-300">
+                                      taxa
+                                    </span>
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium text-foreground">Taxa de TED/PIX Adicional</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {locadoresAdicionais} transferência(s) adicional(is) × R$ {configuracaoRetencoes.taxa_transferencia}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-sm font-bold text-green-600">
+                                    +{formatCurrency(taxaTransferenciaTotal)}
                                   </span>
                                 </div>
-                                <div className="flex-1">
-                                  <p className="font-medium text-foreground">Taxa de TED/PIX Adicional</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {proprietarios.length - 1} transferência(s) adicional(is) x R$ {configuracaoRetencoes.taxa_transferencia}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-sm font-bold text-green-600">
-                                  +{formatCurrency(configuracaoRetencoes.taxa_transferencia * (proprietarios.length - 1))}
-                                </span>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
 
                       {/* Valores Extras */}
@@ -2414,39 +2446,44 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                           <span className="text-xl font-bold text-foreground">
                             {formatCurrency((() => {
-                              let total = 0;
+                              // Se temos resultado da API para nova prestação, usar o valor total retido dela
+                              if (resultadoCalculo && isNovaPrestacao) {
+                                return resultadoCalculo.valor_retido;
+                              }
                               
-                              // Valores de retenção do contrato
+                              // Caso contrário, calcular manualmente
+                              let total = 0;
+                              const valoresRetidos = obterValoresRetidos();
+                              
+                              // Valores de retenção do contrato usando valores proporcionais
                               if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0) {
-                                total += contratoSelecionado.valor_condominio;
+                                total += valoresRetidos.valor_condominio;
                               }
                               if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0) {
-                                total += contratoSelecionado.valor_fci;
+                                total += valoresRetidos.valor_fci;
                               }
                               if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
-                                total += contratoSelecionado.valor_seguro_fianca;
+                                total += valoresRetidos.valor_seguro_fianca;
                               }
                               if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
-                                total += contratoSelecionado.valor_seguro_incendio;
+                                total += valoresRetidos.valor_seguro_incendio;
                               }
                               if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0) {
-                                total += contratoSelecionado.valor_iptu;
+                                total += valoresRetidos.valor_iptu;
                               }
                               
-                              // Taxas administrativas - usar o mesmo cálculo da função calcularTotais()
-                              total += calcularTotais().taxaAdmin;
-                              total += calcularTotais().taxaBoleto;
-                              total += calcularTotais().taxaTransferencia;
+                              // Usar totalRetido já calculado pela função calcularTotais
+                              return calcularTotais().totalRetido;
                               
-                              // Taxas de antecipação (5% do valor)
+                              // Taxas de antecipação (5% do valor) também proporcionais
                               if (contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0) {
-                                total += contratoSelecionado.valor_condominio * 0.05;
+                                total += valoresRetidos.valor_condominio * 0.05;
                               }
                               if (contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0) {
-                                total += contratoSelecionado.valor_seguro_fianca * 0.05;
+                                total += valoresRetidos.valor_seguro_fianca * 0.05;
                               }
                               if (contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0) {
-                                total += contratoSelecionado.valor_seguro_incendio * 0.05;
+                                total += valoresRetidos.valor_seguro_incendio * 0.05;
                               }
                               
                               // Valores extras (lançados manualmente)
@@ -2946,31 +2983,31 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       {contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Condomínio (Retido):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_condominio)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_condominio)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">FCI (Retido):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_fci)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_fci)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Seguro Fiança (Retido):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_fianca)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_seguro_fianca)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Seguro Incêndio (Retido):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_incendio)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_seguro_incendio)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">IPTU (Retido):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_iptu)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_iptu)}</span>
                         </div>
                       )}
                       
@@ -2978,19 +3015,19 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       {contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Taxa Condomínio Antecipado (5%):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_condominio * 0.05)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_condominio * 0.05)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Taxa Seguro Fiança Antecipado (5%):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_fianca * 0.05)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_seguro_fianca * 0.05)}</span>
                         </div>
                       )}
                       {contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && (
                         <div className="flex justify-between">
                           <span className="text-xs text-muted-foreground">Taxa Seguro Incêndio Antecipado (5%):</span>
-                          <span className="text-xs font-medium text-red-600">-{formatCurrency(contratoSelecionado.valor_seguro_incendio * 0.05)}</span>
+                          <span className="text-xs font-medium text-red-600">-{formatCurrency(obterValoresRetidos().valor_seguro_incendio * 0.05)}</span>
                         </div>
                       )}
                       

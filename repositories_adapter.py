@@ -4,6 +4,114 @@ import pyodbc
 import os
 from dotenv import load_dotenv
 
+# ==================== FUNÇÕES UNIFICADAS PARA ESTRUTURA HÍBRIDA ====================
+
+def obter_locadores_contrato_unificado(contrato_id):
+    """
+    Busca locadores de um contrato priorizando tabela N:N
+    Fallback para estrutura antiga se N:N estiver vazia
+    Resolve problema de contagem duplicada
+    """
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # 1. TENTAR buscar da tabela N:N primeiro
+            cursor.execute("""
+                SELECT 
+                    cl.locador_id,
+                    l.nome as locador_nome,
+                    cl.porcentagem,
+                    cl.responsabilidade_principal,
+                    cl.ativo
+                FROM ContratoLocadores cl
+                INNER JOIN Locadores l ON cl.locador_id = l.id
+                WHERE cl.contrato_id = ? AND cl.ativo = 1
+                ORDER BY cl.responsabilidade_principal DESC, cl.porcentagem DESC
+            """, (contrato_id,))
+            
+            locadores_nn = cursor.fetchall()
+            
+            if locadores_nn:
+                print(f"✅ Contrato {contrato_id}: {len(locadores_nn)} locadores via tabela N:N")
+                return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_nn]
+            
+            # 2. FALLBACK para estrutura antiga (via Imoveis)
+            print(f"⚠️ Contrato {contrato_id}: usando fallback via Imoveis.id_locador")
+            cursor.execute("""
+                SELECT 
+                    l.id as locador_id,
+                    l.nome as locador_nome,
+                    100.00 as porcentagem,
+                    1 as responsabilidade_principal
+                FROM Contratos c
+                INNER JOIN Imoveis i ON c.id_imovel = i.id
+                INNER JOIN Locadores l ON i.id_locador = l.id
+                WHERE c.id = ? AND l.id IS NOT NULL
+            """, (contrato_id,))
+            
+            locadores_antigas = cursor.fetchall()
+            resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_antigas] if locadores_antigas else []
+            
+            print(f"📊 Contrato {contrato_id}: {len(resultado)} locadores via fallback")
+            return resultado
+            
+    except Exception as e:
+        print(f"ERRO ao buscar locadores do contrato {contrato_id}: {e}")
+        return []
+
+def obter_locatarios_contrato_unificado(contrato_id):
+    """
+    Busca locatários de um contrato priorizando tabela N:N
+    Fallback para FK antiga se N:N estiver vazia
+    """
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # 1. TENTAR buscar da tabela N:N primeiro
+            cursor.execute("""
+                SELECT 
+                    cl.locatario_id,
+                    l.nome as locatario_nome,
+                    cl.percentual_responsabilidade,
+                    cl.responsabilidade_principal,
+                    cl.ativo
+                FROM ContratoLocatarios cl
+                INNER JOIN Locatarios l ON cl.locatario_id = l.id
+                WHERE cl.contrato_id = ? AND cl.ativo = 1
+                ORDER BY cl.responsabilidade_principal DESC, cl.percentual_responsabilidade DESC
+            """, (contrato_id,))
+            
+            locatarios_nn = cursor.fetchall()
+            
+            if locatarios_nn:
+                print(f"✅ Contrato {contrato_id}: {len(locatarios_nn)} locatários via tabela N:N")
+                return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_nn]
+            
+            # 2. FALLBACK para FK antiga
+            print(f"⚠️ Contrato {contrato_id}: usando fallback via Contratos.id_locatario")
+            cursor.execute("""
+                SELECT 
+                    l.id as locatario_id,
+                    l.nome as locatario_nome,
+                    100.00 as percentual_responsabilidade,
+                    1 as responsabilidade_principal
+                FROM Contratos c
+                INNER JOIN Locatarios l ON c.id_locatario = l.id
+                WHERE c.id = ? AND l.id IS NOT NULL
+            """, (contrato_id,))
+            
+            locatarios_antigos = cursor.fetchall()
+            resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_antigos] if locatarios_antigos else []
+            
+            print(f"📊 Contrato {contrato_id}: {len(resultado)} locatários via fallback")
+            return resultado
+            
+    except Exception as e:
+        print(f"ERRO ao buscar locatários do contrato {contrato_id}: {e}")
+        return []
+
 load_dotenv()
 
 def get_conexao():
@@ -653,15 +761,14 @@ def gerar_relatorio_pdf(dados):
     return None
 
 def buscar_contratos_ativos():
-    """Busca todos os contratos para seleção na prestação de contas"""
+    """Busca todos os contratos para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
     try:
-        print("🔍 PRESTACAO: Iniciando busca SIMPLES de contratos...")
+        print("🔄 PRESTACAO: Iniciando busca HÍBRIDA de contratos...")
         
         with get_conexao() as conn:
             cursor = conn.cursor()
             
-            # Query com JOIN para buscar dados do locador da tabela ContratoLocadores -> Locadores
-            # Inclui campos de retenção e antecipação para calcular valores retidos
+            # Query básica dos contratos SEM JOINs duplicados
             cursor.execute("""
                 SELECT 
                     c.id,
@@ -701,17 +808,11 @@ def buscar_contratos_ativos():
                      CASE WHEN c.antecipa_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
                      CASE WHEN c.antecipa_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
                      CASE WHEN c.antecipa_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_antecipado,
-                    cl.locador_id,
-                    loc.nome as locador_nome,
-                    loc.cpf_cnpj as locador_cpf,
-                    loc.telefone as locador_telefone,
-                    loc.email as locador_email,
                     i.endereco as imovel_endereco,
                     i.tipo as imovel_tipo
                 FROM Contratos c
-                LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
-                LEFT JOIN Locadores loc ON cl.locador_id = loc.id
                 LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                WHERE c.status = 'ativo' OR c.status IS NULL
                 ORDER BY c.data_inicio DESC
             """)
             
@@ -729,16 +830,52 @@ def buscar_contratos_ativos():
                     else:
                         contrato_dict[columns[i]] = value
                 
-                # Buscar locadores associados ao contrato
-                contrato_dict['locadores'] = buscar_locadores_contrato(contrato_dict['id'])
+                # 🔧 USAR LÓGICA HÍBRIDA UNIFICADA para buscar locadores e locatários
+                contrato_id = contrato_dict['id']
+                
+                # Buscar locadores usando nova função unificada
+                locadores_data = obter_locadores_contrato_unificado(contrato_id)
+                contrato_dict['locadores'] = []
+                for loc_data in locadores_data:
+                    contrato_dict['locadores'].append({
+                        'locador_id': loc_data[0],
+                        'locador_nome': loc_data[1],
+                        'porcentagem': loc_data[2],
+                        'responsabilidade_principal': loc_data[3]
+                    })
+                
+                # Buscar locatários usando nova função unificada
+                locatarios_data = obter_locatarios_contrato_unificado(contrato_id)
+                contrato_dict['locatarios'] = []
+                for locat_data in locatarios_data:
+                    contrato_dict['locatarios'].append({
+                        'locatario_id': locat_data[0],
+                        'locatario_nome': locat_data[1],
+                        'percentual_responsabilidade': locat_data[2],
+                        'responsabilidade_principal': locat_data[3]
+                    })
+                
+                # 📈 Adicionar informações de contagem para debug
+                contrato_dict['num_locadores'] = len(contrato_dict['locadores'])
+                contrato_dict['num_locatarios'] = len(contrato_dict['locatarios'])
+                
+                # Definir locador e locatário principal para compatibilidade
+                if contrato_dict['locadores']:
+                    locador_principal = next((loc for loc in contrato_dict['locadores'] if loc['responsabilidade_principal']), contrato_dict['locadores'][0])
+                    contrato_dict['locador_id'] = locador_principal['locador_id']
+                    contrato_dict['locador_nome'] = locador_principal['locador_nome']
+                
+                if contrato_dict['locatarios']:
+                    locatario_principal = next((loc for loc in contrato_dict['locatarios'] if loc['responsabilidade_principal']), contrato_dict['locatarios'][0])
+                    contrato_dict['locatario_nome'] = locatario_principal['locatario_nome']
                 
                 contratos.append(contrato_dict)
             
-            print(f"✅ PRESTACAO: Retornando {len(contratos)} contratos com valores retidos calculados")
+            print(f"✅ PRESTACAO: Retornando {len(contratos)} contratos com locadores/locatários unificados")
             return contratos
             
     except Exception as e:
-        print(f"❌ PRESTACAO: Erro ao buscar contratos: {e}")
+        print(f"ERRO PRESTACAO: Erro ao buscar contratos: {e}")
         import traceback
         print(traceback.format_exc())
         return []
@@ -3594,10 +3731,29 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
                 print(f"SAIDA DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
                 
         elif tipo_calculo == 'Rescisão':
-            # Rescisão = valor completo do mês
-            resultado['valor_calculado'] = valor_bruto_base
-            resultado['dias_utilizados'] = dias_no_mes
-            print(f"RESCISAO: R${valor_bruto_base:.2f}")
+            # Rescisão pode ser proporcional ou completa
+            if not data_saida:
+                # Se não tem data de saída, usar mês completo
+                resultado['valor_calculado'] = valor_bruto_base
+                resultado['dias_utilizados'] = dias_no_mes
+                print(f"RESCISAO COMPLETA: R${valor_bruto_base:.2f}")
+            else:
+                # Calcular dias do início do mês até a rescisão
+                dias_utilizados = int(data_saida)
+                resultado['dias_utilizados'] = dias_utilizados
+                
+                if metodo_calculo == "proporcional-dias":
+                    # Método 1: Apenas proporcional aos dias até rescisão
+                    valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
+                    resultado['valor_calculado'] = valores_proporcionais_calculados + valores_fixos - bonificacao
+                    print(f"RESCISAO PROPORCIONAL: Proporcionais={valores_proporcionais_calculados:.2f} + Fixos={valores_fixos:.2f} - Bonif={bonificacao:.2f} = R${resultado['valor_calculado']:.2f}")
+                    
+                elif metodo_calculo == "dias-completo":
+                    # Método 2: Proporcional + mês completo
+                    valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
+                    proporcional = valores_proporcionais_calculados + valores_fixos - bonificacao
+                    resultado['valor_calculado'] = proporcional + valor_bruto_base
+                    print(f"RESCISAO DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
         
         # Calcular valores finais com retenções
         valor_bruto = resultado['valor_calculado']
@@ -3645,38 +3801,76 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
         retencoes_completas = taxa_admin_completa + valor_retencoes_adicionais + taxa_boleto + taxa_ted
         
         # CALCULAR RETENÇÃO CONFORME TIPO DE CÁLCULO
-        if tipo_calculo in ['Mensal', 'Rescisão']:
+        # Taxas fixas (sempre cobradas uma vez): boleto + TED
+        taxas_fixas = taxa_boleto + taxa_ted
+        
+        # Retenções variáveis (podem ser proporcionais): taxa admin + encargos
+        retencoes_variaveis = taxa_admin_completa + valor_retencoes_adicionais
+        
+        if tipo_calculo == 'Mensal':
             # Mês completo = retenção completa
-            valor_total_retido = retencoes_completas
+            valor_total_retido = retencoes_variaveis + taxas_fixas
+            
+        elif tipo_calculo == 'Rescisão':
+            # Rescisão pode ter retenção proporcional se tem data
+            if data_saida and metodo_calculo == "proporcional-dias":
+                # Rescisão proporcional = retenção proporcional + taxas fixas
+                dias_utilizados = int(data_saida)
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + taxas_fixas
+            elif data_saida and metodo_calculo == "dias-completo":
+                # Rescisão dias+completo = retenção proporcional + retenção completa + taxas fixas (UMA VEZ)
+                dias_utilizados = int(data_saida)
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
+            else:
+                # Sem data, usar retenção completa
+                valor_total_retido = retencoes_variaveis + taxas_fixas
             
         elif tipo_calculo == 'Entrada':
             if metodo_calculo == "proporcional-dias":
-                # Entrada proporcional = retenção proporcional
+                # Entrada proporcional = retenção proporcional + taxas fixas
                 dias_utilizados = dias_no_mes - int(data_entrada) + 1
-                valor_total_retido = retencoes_completas * (dias_utilizados / dias_no_mes)
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + taxas_fixas
             elif metodo_calculo == "dias-completo":
-                # Entrada dias+completo = retenção proporcional + retenção completa
+                # Entrada dias+completo = retenção proporcional + retenção completa + taxas fixas (UMA VEZ)
                 dias_utilizados = dias_no_mes - int(data_entrada) + 1
-                retencao_proporcional = retencoes_completas * (dias_utilizados / dias_no_mes)
-                valor_total_retido = retencao_proporcional + retencoes_completas
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
                 
         elif tipo_calculo == 'Saída':
             if metodo_calculo == "proporcional-dias":
-                # Saída proporcional = retenção proporcional
+                # Saída proporcional = retenção proporcional + taxas fixas
                 dias_utilizados = int(data_saida)
-                valor_total_retido = retencoes_completas * (dias_utilizados / dias_no_mes)
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + taxas_fixas
             elif metodo_calculo == "dias-completo":
-                # Saída dias+completo = retenção proporcional + retenção completa
+                # Saída dias+completo = retenção proporcional + retenção completa + taxas fixas (UMA VEZ)
                 dias_utilizados = int(data_saida)
-                retencao_proporcional = retencoes_completas * (dias_utilizados / dias_no_mes)
-                valor_total_retido = retencao_proporcional + retencoes_completas
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
         
-        # Breakdown proporcional aos valores calculados
-        proporcao = valor_total_retido / retencoes_completas if retencoes_completas > 0 else 0
-        
-        resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_completa * proporcao
-        resultado['breakdown_retencao']['seguro'] = valor_retencoes_adicionais * proporcao  
-        resultado['breakdown_retencao']['outros'] = (taxa_boleto + taxa_ted) * proporcao
+        # Breakdown correto com taxas fixas
+        if metodo_calculo == "dias-completo" and tipo_calculo in ['Entrada', 'Saída', 'Rescisão']:
+            # Para dias-completo: proporcional + completa (mas taxas fixas apenas uma vez)
+            proporcao_variaveis = (retencoes_variaveis * 2) / retencoes_completas if retencoes_completas > 0 else 0
+            resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_completa * proporcao_variaveis
+            resultado['breakdown_retencao']['seguro'] = valor_retencoes_adicionais * proporcao_variaveis
+            resultado['breakdown_retencao']['outros'] = taxa_boleto + taxa_ted  # Taxa fixa apenas uma vez
+        else:
+            # Para outros casos: proporcional normal
+            if tipo_calculo in ['Entrada', 'Saída', 'Rescisão'] and metodo_calculo == "proporcional-dias":
+                # Taxas variáveis proporcionais + taxas fixas integrais
+                proporcao_variaveis = (valor_total_retido - taxas_fixas) / retencoes_variaveis if retencoes_variaveis > 0 else 0
+                resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_completa * proporcao_variaveis
+                resultado['breakdown_retencao']['seguro'] = valor_retencoes_adicionais * proporcao_variaveis
+                resultado['breakdown_retencao']['outros'] = taxa_boleto + taxa_ted  # Taxa fixa
+            else:
+                # Mensal: tudo completo
+                resultado['breakdown_retencao']['taxa_admin'] = taxa_admin_completa
+                resultado['breakdown_retencao']['seguro'] = valor_retencoes_adicionais
+                resultado['breakdown_retencao']['outros'] = taxa_boleto + taxa_ted
         resultado['valor_retido'] = valor_total_retido
         resultado['valor_repassado_locadores'] = valor_bruto - valor_total_retido
         resultado['valor_boleto'] = valor_bruto
@@ -3806,3 +4000,180 @@ def criar_exemplo_contrato3():
     print("• DIAS-COMPLETO: Dias utilizados + valor total do mês (mais favorável ao locador)")
     print("• A diferença pode ser significativa, especialmente em contratos curtos")
     print("=" * 80)
+
+
+def calcular_multa_proporcional(contrato_id, data_rescisao):
+    """
+    Calcula multa proporcional conforme Lei 8.245/91
+    Multa = multa_contratual × (meses_restantes ÷ prazo_total)
+    
+    Args:
+        contrato_id: ID do contrato
+        data_rescisao: Data da rescisão antecipada
+    
+    Returns:
+        dict com valor da multa proporcional e detalhes do cálculo
+    """
+    from datetime import datetime, timedelta
+    from dateutil.relativedelta import relativedelta
+    
+    print(f"\nCALCULANDO MULTA PROPORCIONAL - Lei 8.245/91")
+    print(f"Contrato ID: {contrato_id}")
+    print(f"Data Rescisão: {data_rescisao}")
+    
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # Buscar dados do contrato
+            cursor.execute("""
+                SELECT 
+                    c.id,
+                    CAST(c.id as VARCHAR) as numero,
+                    c.data_inicio,
+                    c.data_fim,
+                    c.valor_aluguel,
+                    c.multa_locatario,
+                    CASE 
+                        WHEN c.multa_locatario IS NOT NULL THEN c.multa_locatario
+                        ELSE 3 
+                    END as multa_meses,
+                    COALESCE(loc.nome, 'N/A') as locatario_nome
+                FROM Contratos c
+                LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+                WHERE c.id = ?
+            """, (contrato_id,))
+            
+            contrato = cursor.fetchone()
+            if not contrato:
+                raise ValueError(f"Contrato {contrato_id} não encontrado")
+            
+            # Converter para dict
+            contrato_data = {
+                'id': contrato[0],
+                'numero': contrato[1],
+                'data_inicio': contrato[2],
+                'data_fim': contrato[3],
+                'valor_aluguel': float(contrato[4]) if contrato[4] else 0,
+                'multa_meses': float(contrato[6]) if contrato[6] else 3,
+                'locatario_nome': contrato[7] or 'N/A',
+                'locador_nome': 'N/A'
+            }
+            
+            print(f"Dados do Contrato:")
+            print(f"   Número: {contrato_data['numero']}")
+            print(f"   Período: {contrato_data['data_inicio']} até {contrato_data['data_fim']}")
+            print(f"   Valor Aluguel: R$ {contrato_data['valor_aluguel']:,.2f}")
+            print(f"   Multa Rescisória: {contrato_data['multa_meses']} meses")
+            print(f"   Locatário: {contrato_data['locatario_nome']}")
+            print(f"   Locador: {contrato_data['locador_nome']}")
+            
+            # Converter datas
+            if isinstance(contrato_data['data_inicio'], str):
+                data_inicio = datetime.strptime(contrato_data['data_inicio'], '%Y-%m-%d').date()
+            else:
+                data_inicio = contrato_data['data_inicio']
+                
+            if isinstance(contrato_data['data_fim'], str):
+                data_fim = datetime.strptime(contrato_data['data_fim'], '%Y-%m-%d').date()
+            else:
+                data_fim = contrato_data['data_fim']
+                
+            if isinstance(data_rescisao, str):
+                data_rescisao_dt = datetime.strptime(data_rescisao, '%Y-%m-%d').date()
+            else:
+                data_rescisao_dt = data_rescisao
+            
+            print(f"\nAnálise Temporal:")
+            print(f"   Data Início: {data_inicio}")
+            print(f"   Data Fim: {data_fim}")
+            print(f"   Data Rescisão: {data_rescisao_dt}")
+            
+            # Validações
+            if data_rescisao_dt <= data_inicio:
+                raise ValueError("Data de rescisão deve ser posterior ao início do contrato")
+                
+            if data_rescisao_dt >= data_fim:
+                print("ATENÇÃO: Rescisão após o fim do contrato - sem multa")
+                return {
+                    'multa_proporcional': 0,
+                    'multa_integral': contrato_data['multa_meses'] * contrato_data['valor_aluguel'],
+                    'meses_restantes': 0,
+                    'prazo_total_meses': 0,
+                    'percentual_cumprido': 100.0,
+                    'percentual_restante': 0.0,
+                    'justificativa': 'Rescisão após término natural do contrato',
+                    'contrato_dados': contrato_data,
+                    'base_legal': 'Lei 8.245/91 - Art. 4º'
+                }
+            
+            # Calcular duração total em meses
+            delta_total = relativedelta(data_fim, data_inicio)
+            prazo_total_meses = delta_total.years * 12 + delta_total.months
+            if delta_total.days > 0:
+                prazo_total_meses += 1  # Arredondar para cima se houver dias extras
+            
+            # Calcular meses restantes
+            delta_restante = relativedelta(data_fim, data_rescisao_dt)
+            meses_restantes = delta_restante.years * 12 + delta_restante.months
+            if delta_restante.days > 0:
+                meses_restantes += 1  # Arredondar para cima se houver dias extras
+            
+            # Calcular meses já cumpridos
+            delta_cumprido = relativedelta(data_rescisao_dt, data_inicio)
+            meses_cumpridos = delta_cumprido.years * 12 + delta_cumprido.months
+            if delta_cumprido.days > 0:
+                meses_cumpridos += 1
+            
+            # Percentuais
+            percentual_cumprido = (meses_cumpridos / prazo_total_meses) * 100
+            percentual_restante = (meses_restantes / prazo_total_meses) * 100
+            
+            print(f"\nCálculos:")
+            print(f"   Prazo Total: {prazo_total_meses} meses")
+            print(f"   Meses Cumpridos: {meses_cumpridos}")
+            print(f"   Meses Restantes: {meses_restantes}")
+            print(f"   Percentual Cumprido: {percentual_cumprido:.1f}%")
+            print(f"   Percentual Restante: {percentual_restante:.1f}%")
+            
+            # Multa integral (sem proporcionalidade)
+            multa_integral = contrato_data['multa_meses'] * contrato_data['valor_aluguel']
+            
+            # Multa proporcional Lei 8.245/91
+            if meses_restantes <= 0:
+                multa_proporcional = 0
+                justificativa = "Contrato já cumpriu prazo integral - sem multa"
+            else:
+                multa_proporcional = multa_integral * (meses_restantes / prazo_total_meses)
+                justificativa = f"Multa proporcional: {contrato_data['multa_meses']} meses × {meses_restantes}/{prazo_total_meses} = R$ {multa_proporcional:,.2f}"
+            
+            print(f"\nResultado:")
+            print(f"   Multa Integral: R$ {multa_integral:,.2f}")
+            print(f"   Multa Proporcional: R$ {multa_proporcional:,.2f}")
+            print(f"   Economia: R$ {multa_integral - multa_proporcional:,.2f}")
+            print(f"   Justificativa: {justificativa}")
+            
+            resultado = {
+                'multa_proporcional': round(multa_proporcional, 2),
+                'multa_integral': round(multa_integral, 2),
+                'meses_restantes': meses_restantes,
+                'meses_cumpridos': meses_cumpridos,
+                'prazo_total_meses': prazo_total_meses,
+                'percentual_cumprido': round(percentual_cumprido, 2),
+                'percentual_restante': round(percentual_restante, 2),
+                'valor_aluguel': contrato_data['valor_aluguel'],
+                'multa_meses': contrato_data['multa_meses'],
+                'justificativa': justificativa,
+                'contrato_dados': contrato_data,
+                'base_legal': 'Lei 8.245/91 - Art. 4º - Multa proporcional ao tempo restante',
+                'data_inicio': data_inicio.isoformat(),
+                'data_fim': data_fim.isoformat(),
+                'data_rescisao': data_rescisao_dt.isoformat()
+            }
+            
+            print("\nMULTA PROPORCIONAL CALCULADA COM SUCESSO!")
+            return resultado
+            
+    except Exception as e:
+        print(f"ERRO no cálculo da multa proporcional: {str(e)}")
+        raise

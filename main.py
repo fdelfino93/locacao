@@ -17,7 +17,10 @@ from repositories_adapter import (
     salvar_dados_bancarios_corretor, buscar_dados_bancarios_corretor,
     buscar_contas_bancarias_locador, inserir_conta_bancaria_locador,
     inserir_endereco_locador, buscar_endereco_locador,
-    inserir_representante_legal_locador
+    inserir_representante_legal_locador,
+    # Novas funções híbridas
+    obter_locadores_contrato_unificado, obter_locatarios_contrato_unificado,
+    buscar_contratos_ativos
 )
 
 # Importar funções específicas para dashboard
@@ -1292,21 +1295,30 @@ async def calcular_prestacao_contrato(request: dict):
         data_entrada = request.get('data_entrada')
         data_saida = request.get('data_saida')
         
+        # Inicializar variáveis
+        data_entrada_dia = None
+        data_saida_dia = None
+        
         # Extrair mês e ano das datas fornecidas
+        # Processar data_entrada
         if data_entrada:
             dt_entrada = datetime.strptime(data_entrada, '%Y-%m-%d')
             mes, ano = dt_entrada.month, dt_entrada.year
             data_entrada_dia = str(dt_entrada.day)
-        elif data_saida:
+        
+        # Processar data_saida (independente de data_entrada)
+        data_saida_iso = None  # Inicializar variável
+        if data_saida:
             dt_saida = datetime.strptime(data_saida, '%Y-%m-%d')
-            mes, ano = dt_saida.month, dt_saida.year
+            data_saida_iso = data_saida  # Guardar data completa em formato ISO
+            if not data_entrada:  # Só atualiza mes/ano se não tem data_entrada
+                mes, ano = dt_saida.month, dt_saida.year
             data_saida_dia = str(dt_saida.day)
-        else:
-            # Usar mês/ano atual se não fornecido
+        
+        # Se não tem nenhuma data, usar mês/ano atual
+        if not data_entrada and not data_saida:
             now = datetime.now()
             mes, ano = now.month, now.year
-            data_entrada_dia = None
-            data_saida_dia = None
         
         # Determinar método de cálculo 
         metodo_calculo = request.get('metodo_calculo', "proporcional-dias")  # Usar valor do frontend
@@ -1321,6 +1333,10 @@ async def calcular_prestacao_contrato(request: dict):
         if tipo_calculo == "Mensal":
             metodo_calculo = "dias-completo"
         
+        # Para Rescisão, sempre usar proporcional-dias (conforme prática de mercado e lei)
+        if tipo_calculo == "Rescisão":
+            metodo_calculo = "proporcional-dias"
+        
         # Processar lançamentos adicionais se fornecidos
         lancamentos_adicionais = request.get('lancamentos_adicionais', [])
         
@@ -1331,7 +1347,7 @@ async def calcular_prestacao_contrato(request: dict):
             ano=ano,
             tipo_calculo=tipo_mapeado,
             data_entrada=data_entrada_dia if tipo_mapeado == "Entrada" else None,
-            data_saida=data_saida_dia if tipo_mapeado == "Saída" else None,
+            data_saida=data_saida_dia if tipo_mapeado in ["Saída", "Rescisão"] else None,
             metodo_calculo=metodo_calculo
         )
         
@@ -1344,16 +1360,29 @@ async def calcular_prestacao_contrato(request: dict):
         desconto = request.get('desconto', 0)
         multa = request.get('multa', 0)
         
+        # Para rescisão, calcular multa proporcional conforme Lei 8.245/91
+        if tipo_mapeado == "Rescisão" and data_saida_iso:
+            try:
+                from repositories_adapter import calcular_multa_proporcional
+                calculo_multa = calcular_multa_proporcional(contrato_id, data_saida_iso)
+                multa = calculo_multa.get('multa_proporcional', multa)
+                print(f"APLICANDO LEI 8.245/91 - Multa proporcional: R$ {multa:,.2f}")
+            except Exception as e:
+                print(f"Erro no cálculo da multa proporcional: {e}")
+                print("Usando valor de multa informado pelo usuário")
+        
         valor_com_lancamentos = valor_base + valor_lancamentos_credito - valor_lancamentos_debito
         valor_com_desconto = valor_com_lancamentos * (1 - desconto / 100)
         valor_final = valor_com_desconto + multa
         
         # Converter para formato esperado pelo frontend
+        valor_calculado = resultado.get('valor_calculado', 0)
+        
         resposta = {
-            "proporcional_entrada": resultado.get('valor_calculado', 0) if tipo_mapeado == "Entrada" else 0,
-            "meses_completos": resultado.get('valor_calculado', 0) if tipo_mapeado == "Mensal" else 0,
-            "qtd_meses_completos": 1 if tipo_mapeado == "Mensal" else 0,
-            "proporcional_saida": resultado.get('valor_calculado', 0) if tipo_mapeado == "Saída" else 0,
+            "proporcional_entrada": valor_calculado if tipo_mapeado == "Entrada" else 0,
+            "meses_completos": valor_calculado if tipo_mapeado in ["Mensal", "Rescisão"] else 0,
+            "qtd_meses_completos": 1 if tipo_mapeado in ["Mensal", "Rescisão"] else 0,
+            "proporcional_saida": valor_calculado if tipo_mapeado == "Saída" else 0,
             "lancamentos_adicionais": lancamentos_adicionais,
             "desconto": desconto,
             "multa": multa,
@@ -1381,6 +1410,97 @@ async def calcular_prestacao_contrato(request: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro no cálculo: {str(e)}")
+
+# ============ ENDPOINT DE TESTE PARA ESTRUTURA HÍBRIDA ============
+
+@app.get("/teste/contrato-hibrido/{contrato_id}")
+async def testar_contrato_hibrido(contrato_id: int):
+    """Endpoint de teste para verificar estrutura híbrida e taxa de transferência"""
+    try:
+        print(f"\n🧪 TESTE: Analisando contrato {contrato_id}...")
+        
+        # Buscar locadores via função unificada
+        locadores = obter_locadores_contrato_unificado(contrato_id)
+        locatarios = obter_locatarios_contrato_unificado(contrato_id)
+        
+        # Calcular taxa de transferência correta
+        taxa_transferencia_por_locador = 2.50  # Valor configurado
+        num_locadores = len(locadores)
+        taxa_transferencia_total = taxa_transferencia_por_locador * max(0, num_locadores - 1)
+        
+        resultado = {
+            "contrato_id": contrato_id,
+            "estrutura_hibrida": {
+                "locadores": {
+                    "total": num_locadores,
+                    "origem": "N:N" if locadores and "ContratoLocadores" in str(locadores) else "fallback",
+                    "dados": [
+                        {
+                            "id": loc[0],
+                            "nome": loc[1],
+                            "porcentagem": loc[2],
+                            "principal": loc[3]
+                        } for loc in locadores
+                    ]
+                },
+                "locatarios": {
+                    "total": len(locatarios),
+                    "origem": "N:N" if locatarios and "ContratoLocatarios" in str(locatarios) else "fallback",
+                    "dados": [
+                        {
+                            "id": locat[0],
+                            "nome": locat[1],
+                            "percentual": locat[2],
+                            "principal": locat[3]
+                        } for locat in locatarios
+                    ]
+                }
+            },
+            "calculo_taxa_transferencia": {
+                "num_locadores": num_locadores,
+                "taxa_por_locador": taxa_transferencia_por_locador,
+                "locadores_adicionais": max(0, num_locadores - 1),
+                "taxa_total": taxa_transferencia_total,
+                "logica": f"{num_locadores} locadores -> {max(0, num_locadores - 1)} × R$ {taxa_transferencia_por_locador} = R$ {taxa_transferencia_total}"
+            },
+            "status": "✅ CORRIGIDO" if taxa_transferencia_total != 2.50 or num_locadores == 1 else "⚠️ VERIFICAR"
+        }
+        
+        print(f"🔍 Resultado: {num_locadores} locadores, taxa: R$ {taxa_transferencia_total}")
+        return resultado
+        
+    except Exception as e:
+        print(f"❌ ERRO no teste: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
+
+@app.get("/teste/contratos-ativos")
+async def testar_contratos_ativos():
+    """Testa a nova função buscar_contratos_ativos híbrida"""
+    try:
+        print("\n🧪 TESTE: Testando buscar_contratos_ativos híbrida...")
+        
+        contratos = buscar_contratos_ativos()
+        
+        # Analisar primeiros contratos
+        analise = []
+        for contrato in contratos[:5]:  # Analisar apenas os 5 primeiros
+            analise.append({
+                "id": contrato.get("id"),
+                "locadores": contrato.get("num_locadores", 0),
+                "locatarios": contrato.get("num_locatarios", 0),
+                "locador_principal": contrato.get("locador_nome", "N/A"),
+                "taxa_transferencia_esperada": (contrato.get("num_locadores", 1) - 1) * 2.50
+            })
+        
+        return {
+            "total_contratos": len(contratos),
+            "analise_amostra": analise,
+            "status": "✅ FUNÇÃO HÍBRIDA ATIVA"
+        }
+        
+    except Exception as e:
+        print(f"❌ ERRO no teste: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
