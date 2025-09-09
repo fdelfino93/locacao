@@ -416,8 +416,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
     
     // Se temos resultado do cálculo da API e é proporcional, calcular valores proporcionais
     if (resultadoCalculo && isNovaPrestacao) {
-      const isProporcional = (tipoLancamento === 'entrada' && metodoCalculo === 'proporcional-dias') || 
-                            tipoLancamento === 'rescisao';
+      // Rescisão usa valores proporcionais aos dias ocupados (multa é calculada sobre valor integral)
+      if (tipoLancamento === 'rescisao' && resultadoCalculo?.periodo_dias) {
+        const proporcao = resultadoCalculo.periodo_dias / 30;
+        
+        return {
+          valor_aluguel: (contratoSelecionado.valor_aluguel || 0) * proporcao,
+          valor_condominio: (contratoSelecionado.valor_condominio || 0) * proporcao,
+          valor_fci: (contratoSelecionado.valor_fci || 0) * proporcao,
+          valor_seguro_fianca: (contratoSelecionado.valor_seguro_fianca || 0) * proporcao,
+          valor_seguro_incendio: (contratoSelecionado.valor_seguro_incendio || 0) * proporcao, // Seguros também proporcionais
+          valor_iptu: (contratoSelecionado.valor_iptu || 0) * proporcao,
+        };
+      }
+      
+      // Para entrada proporcional, calcular valores proporcionais
+      const isProporcional = tipoLancamento === 'entrada' && metodoCalculo === 'proporcional-dias';
       
       if (isProporcional && resultadoCalculo.periodo_dias) {
         // Calcular proporção baseada nos dias
@@ -1663,7 +1677,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
 
 {(() => {
-                          const valoresPorTipo = obterValoresPorTipo();
                           return (
                             <>
                               {/* Aluguel - Valor Principal */}
@@ -1687,14 +1700,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   </div>
                                   <div className="text-right">
                                     <span className="text-lg font-bold text-green-600">
-                                      +{formatCurrency(valoresPorTipo.valor_aluguel || 0)}
+                                      +{formatCurrency(obterValoresPorTipo().valor_aluguel || 0)}
                                     </span>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Condomínio */}
-                              {valoresPorTipo.valor_condominio > 0 && (
+                              {obterValoresPorTipo().valor_condominio > 0 && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -1709,7 +1722,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-blue-600">
-                                        +{formatCurrency(valoresPorTipo.valor_condominio)}
+                                        +{formatCurrency(obterValoresPorTipo().valor_condominio)}
                                       </span>
                                     </div>
                                   </div>
@@ -1717,7 +1730,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* FCI */}
-                              {valoresPorTipo.valor_fci > 0 && (
+                              {obterValoresPorTipo().valor_fci > 0 && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -1732,7 +1745,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-purple-600">
-                                        +{formatCurrency(valoresPorTipo.valor_fci)}
+                                        +{formatCurrency(obterValoresPorTipo().valor_fci)}
                                       </span>
                                     </div>
                                   </div>
@@ -1740,7 +1753,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* Seguro Fiança */}
-                              {valoresPorTipo.valor_seguro_fianca > 0 && (
+                              {obterValoresPorTipo().valor_seguro_fianca > 0 && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -1755,7 +1768,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-orange-600">
-                                        +{formatCurrency(valoresPorTipo.valor_seguro_fianca)}
+                                        +{formatCurrency(obterValoresPorTipo().valor_seguro_fianca)}
                                       </span>
                                     </div>
                                   </div>
@@ -1763,7 +1776,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* Seguro Incêndio */}
-                              {valoresPorTipo.valor_seguro_incendio > 0 && (
+                              {obterValoresPorTipo().valor_seguro_incendio > 0 && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -1778,7 +1791,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-red-600">
-                                        +{formatCurrency(valoresPorTipo.valor_seguro_incendio)}
+                                        +{formatCurrency(obterValoresPorTipo().valor_seguro_incendio)}
                                       </span>
                                     </div>
                                   </div>
@@ -1786,7 +1799,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* IPTU */}
-                              {valoresPorTipo.valor_iptu > 0 && (
+                              {obterValoresPorTipo().valor_iptu > 0 && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -1801,14 +1814,36 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-indigo-600">
-                                        +{formatCurrency(valoresPorTipo.valor_iptu)}
+                                        +{formatCurrency(obterValoresPorTipo().valor_iptu)}
                                       </span>
                                     </div>
                                   </div>
                                 </div>
                               )}
 
-                              {/* Multa Rescisória agora é calculada automaticamente pela Lei 8.245/91 no backend */}
+                              {/* Multa Rescisória - Exibir quando for rescisão e API já calculou */}
+                              {tipoLancamento === 'rescisao' && resultadoCalculo && resultadoCalculo.multa > 0 && (
+                                <div className="p-3 bg-background border border-border rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3 flex-1">
+                                      <div className="p-1.5 rounded-lg">
+                                        <span className="text-xs font-medium px-2 py-1 rounded-full bg-orange-200 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300">
+                                          multa
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <h4 className="text-sm font-medium text-foreground">Multa Rescisória</h4>
+                                        <p className="text-xs text-muted-foreground">Lei 8.245/91 - Proporcional ao tempo restante</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <span className="text-sm font-bold text-orange-600">
+                                        +{formatCurrency(resultadoCalculo.multa)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Desconto por Pontualidade - quando houver bonificação configurada */}
                               {contratoSelecionado?.bonificacao > 0 && (
@@ -1830,7 +1865,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                       <span className="text-sm font-bold text-red-600">
-                                        -{formatCurrency(contratoSelecionado.bonificacao)}
+                                        -{formatCurrency((() => {
+                                          if (tipoLancamento === 'rescisao' && resultadoCalculo?.periodo_dias) {
+                                            // Para rescisão, usar o desconto proporcional
+                                            const proporcao = resultadoCalculo.periodo_dias / 30;
+                                            return (contratoSelecionado.bonificacao || 0) * proporcao;
+                                          }
+                                          return contratoSelecionado.bonificacao || 0;
+                                        })())}
                                       </span>
                                     </div>
                                   </div>
@@ -1922,13 +1964,20 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                           <span className="text-xl font-bold text-foreground">
                             {formatCurrency((() => {
+                              // Se temos resultado da API, usar o valor total dela
+                              if (resultadoCalculo && isNovaPrestacao) {
+                                return resultadoCalculo.valor_boleto;
+                              }
+                              
+                              // Caso contrário, calcular manualmente
                               const valoresPorTipo = obterValoresPorTipo();
                               const totalFixos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => 
                                 total + (typeof valor === 'number' ? valor : 0), 0);
                               const totalExtras = lancamentos.reduce((total, lanc) => 
                                 lanc.tipo === 'desconto' || lanc.tipo === 'ajuste' ? total - lanc.valor : total + lanc.valor, 0);
                               const descontoPontualidade = contratoSelecionado?.bonificacao || 0;
-                              return totalFixos + totalExtras - descontoPontualidade;
+                              const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa) ? resultadoCalculo.multa : 0;
+                              return totalFixos + totalExtras - descontoPontualidade + multaRescisao;
                             })())}
                           </span>
                         </div>

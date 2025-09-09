@@ -3731,29 +3731,27 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
                 print(f"SAIDA DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
                 
         elif tipo_calculo == 'Rescisão':
-            # Rescisão pode ser proporcional ou completa
-            if not data_saida:
-                # Se não tem data de saída, usar mês completo
-                resultado['valor_calculado'] = valor_bruto_base
-                resultado['dias_utilizados'] = dias_no_mes
-                print(f"RESCISAO COMPLETA: R${valor_bruto_base:.2f}")
-            else:
-                # Calcular dias do início do mês até a rescisão
+            # Rescisão = Aluguel PROPORCIONAL aos dias ocupados + Multa sobre valor INTEGRAL
+            if data_saida:
+                # Calcular dias ocupados até a rescisão
                 dias_utilizados = int(data_saida)
                 resultado['dias_utilizados'] = dias_utilizados
                 
-                if metodo_calculo == "proporcional-dias":
-                    # Método 1: Apenas proporcional aos dias até rescisão
-                    valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                    resultado['valor_calculado'] = valores_proporcionais_calculados + valores_fixos - bonificacao
-                    print(f"RESCISAO PROPORCIONAL: Proporcionais={valores_proporcionais_calculados:.2f} + Fixos={valores_fixos:.2f} - Bonif={bonificacao:.2f} = R${resultado['valor_calculado']:.2f}")
-                    
-                elif metodo_calculo == "dias-completo":
-                    # Método 2: Proporcional + mês completo
-                    valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
-                    proporcional = valores_proporcionais_calculados + valores_fixos - bonificacao
-                    resultado['valor_calculado'] = proporcional + valor_bruto_base
-                    print(f"RESCISAO DIAS+COMPLETO: R${proporcional:.2f} + R${valor_bruto_base:.2f} = R${resultado['valor_calculado']:.2f}")
+                # Aluguel proporcional aos dias efetivamente ocupados
+                valores_proporcionais_calculados = (valores_proporcionais / dias_no_mes) * dias_utilizados
+                bonificacao_proporcional = (bonificacao / dias_no_mes) * dias_utilizados if bonificacao > 0 else 0
+                resultado['valor_calculado'] = valores_proporcionais_calculados + valores_fixos - bonificacao_proporcional
+                print(f"RESCISAO PROPORCIONAL: {dias_utilizados} dias ocupados")
+                print(f"   Valores proporcionais: R${valores_proporcionais_calculados:.2f}")
+                print(f"   Valores fixos: R${valores_fixos:.2f}")
+                print(f"   Bonificação proporcional: -R${bonificacao_proporcional:.2f} ({dias_utilizados}/{dias_no_mes} de R${bonificacao:.2f})")
+                print(f"   Total aluguel proporcional: R${resultado['valor_calculado']:.2f}")
+                print(f"NOTA: Multa é calculada sobre aluguel MENSAL COMPLETO (não proporcional)")
+            else:
+                # Se não tem data, usar mês completo
+                resultado['valor_calculado'] = valor_bruto_base
+                resultado['dias_utilizados'] = dias_no_mes
+                print(f"RESCISAO SEM DATA: Mês completo = R${valor_bruto_base:.2f}")
         
         # Calcular valores finais com retenções
         valor_bruto = resultado['valor_calculado']
@@ -3812,20 +3810,15 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
             valor_total_retido = retencoes_variaveis + taxas_fixas
             
         elif tipo_calculo == 'Rescisão':
-            # Rescisão pode ter retenção proporcional se tem data
-            if data_saida and metodo_calculo == "proporcional-dias":
-                # Rescisão proporcional = retenção proporcional + taxas fixas
+            # Rescisão usa retenção proporcional aos dias ocupados
+            if data_saida:
                 dias_utilizados = int(data_saida)
                 retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
                 valor_total_retido = retencao_proporcional + taxas_fixas
-            elif data_saida and metodo_calculo == "dias-completo":
-                # Rescisão dias+completo = retenção proporcional + retenção completa + taxas fixas (UMA VEZ)
-                dias_utilizados = int(data_saida)
-                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
-                valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
+                print(f"RETENCAO RESCISAO: Proporcional {dias_utilizados} dias = R${valor_total_retido:.2f}")
             else:
-                # Sem data, usar retenção completa
                 valor_total_retido = retencoes_variaveis + taxas_fixas
+                print(f"RETENCAO RESCISAO: Mês completo = R${valor_total_retido:.2f}")
             
         elif tipo_calculo == 'Entrada':
             if metodo_calculo == "proporcional-dias":
