@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Importar repositórios existentes via adapter
 from repositories_adapter import (
     inserir_locador, buscar_locadores, atualizar_locador,
-    inserir_locatario, buscar_locatarios, atualizar_locatario,
+    inserir_locatario, buscar_locatarios, atualizar_locatario, buscar_locatario_por_id,
     inserir_imovel, buscar_imoveis, atualizar_imovel,
     inserir_contrato, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura,
@@ -72,7 +72,7 @@ class LocadorCreate(BaseModel):
     contas_bancarias: Optional[List[dict]] = []
     deseja_fci: Optional[str] = "Não"
     deseja_seguro_fianca: Optional[str] = "Não" 
-    deseja_seguro_incendio: Optional[Union[str, int]] = "Não"
+    deseja_seguro_incendio: Optional[Union[str, int, bool]] = "Não"
     dados_bancarios_id: Optional[int] = None
     
     # Dados pessoais
@@ -94,7 +94,7 @@ class LocadorCreate(BaseModel):
     atividade_principal: Optional[str] = ""
     
     # Campos cônjuge
-    existe_conjuge: Optional[int] = None
+    existe_conjuge: Optional[Union[int, bool, str]] = None
     nome_conjuge: Optional[str] = None
     cpf_conjuge: Optional[str] = None
     rg_conjuge: Optional[str] = None
@@ -106,7 +106,7 @@ class LocadorCreate(BaseModel):
     observacoes: Optional[str] = ""
     ativo: Optional[bool] = True
     email_recebimento: Optional[str] = None
-    usa_multiplos_metodos: Optional[bool] = False
+    usa_multiplos_metodos: Optional[Union[bool, int, str]] = False
     representante_legal: Optional[dict] = None
     
     # Campos para funcionalidades avançadas
@@ -119,36 +119,118 @@ class LocadorCreate(BaseModel):
     telefones: Optional[list] = None
     emails: Optional[list] = None
 
+class EnderecoLocatarioInput(BaseModel):
+    rua: Optional[str] = ""
+    numero: Optional[str] = ""
+    complemento: Optional[str] = ""
+    bairro: Optional[str] = ""
+    cidade: Optional[str] = ""
+    estado: Optional[str] = "PR"
+    uf: Optional[str] = "PR"  # Alias para compatibilidade
+    cep: Optional[str] = ""
+
+class FormaEnvioCobrancaInput(BaseModel):
+    tipo: str  # 'email', 'whatsapp', 'imovel'
+    contato: str
+    observacoes: Optional[str] = ""
+
+class RepresentanteLegalInput(BaseModel):
+    nome_representante: Optional[str] = ""
+    cpf_representante: Optional[str] = ""
+    rg_representante: Optional[str] = ""
+    cargo_representante: Optional[str] = ""
+    telefone_representante: Optional[str] = ""
+    email_representante: Optional[str] = ""
+    endereco_representante: Optional[EnderecoLocatarioInput] = None
+
 class LocatarioCreate(BaseModel):
+    model_config = {"extra": "allow"}  # Permitir campos extras
+    
+    # CAMPOS BÁSICOS OBRIGATÓRIOS
     nome: str
     cpf_cnpj: str
-    telefone: str
-    email: str
-    tipo_garantia: Optional[str] = None
-    responsavel_pgto_agua: Optional[str] = None
-    responsavel_pgto_luz: Optional[str] = None
-    responsavel_pgto_gas: Optional[str] = None
-    rg: Optional[str] = None
-    dados_empresa: Optional[str] = None
-    representante: Optional[str] = None
+    tipo_pessoa: Optional[str] = "PF"
+    
+    # MÚLTIPLOS CONTATOS (NOVA FUNCIONALIDADE)
+    telefones: Optional[List[str]] = []
+    emails: Optional[List[str]] = []
+    telefone: Optional[str] = ""  # Compatibilidade - será o primeiro da lista
+    email: Optional[str] = ""     # Compatibilidade - será o primeiro da lista
+    
+    # ENDEREÇO HÍBRIDO (NOVA FUNCIONALIDADE)
+    endereco: Optional[EnderecoLocatarioInput] = None  # Endereço estruturado
+    endereco_rua: Optional[str] = ""      # Compatibilidade inline
+    endereco_numero: Optional[str] = ""   # Compatibilidade inline
+    endereco_complemento: Optional[str] = ""
+    endereco_bairro: Optional[str] = ""
+    endereco_cidade: Optional[str] = ""
+    endereco_estado: Optional[str] = ""
+    endereco_cep: Optional[str] = ""
+    Endereco_inq: Optional[str] = ""      # Campo string original
+    
+    # FORMAS DE ENVIO DE COBRANÇA (NOVA FUNCIONALIDADE)
+    formas_envio_cobranca: Optional[List[FormaEnvioCobrancaInput]] = []
+    
+    # CAMPOS PESSOA FÍSICA
+    rg: Optional[str] = ""
+    data_nascimento: Optional[Union[date, str]] = None
     nacionalidade: Optional[str] = "Brasileira"
     estado_civil: Optional[str] = "Solteiro"
-    profissao: Optional[str] = None
-    dados_moradores: Optional[str] = None
-    Endereco_inq: Optional[str] = None
+    profissao: Optional[str] = ""
+    
+    # CAMPOS PESSOA JURÍDICA
+    razao_social: Optional[str] = ""
+    nome_fantasia: Optional[str] = ""
+    inscricao_estadual: Optional[str] = ""
+    inscricao_municipal: Optional[str] = ""
+    atividade_principal: Optional[str] = ""
+    data_constituicao: Optional[Union[date, str]] = None
+    capital_social: Optional[str] = ""
+    porte_empresa: Optional[str] = ""
+    regime_tributario: Optional[str] = ""
+    
+    # REPRESENTANTE LEGAL (PJ)
+    representante_legal: Optional[RepresentanteLegalInput] = None
+    nome_representante: Optional[str] = ""    # Compatibilidade
+    cpf_representante: Optional[str] = ""     # Compatibilidade
+    rg_representante: Optional[str] = ""      # Compatibilidade
+    cargo_representante: Optional[str] = ""   # Compatibilidade
+    telefone_representante: Optional[str] = "" # Telefone do representante
+    email_representante: Optional[str] = ""    # Email do representante
+    endereco_representante: Optional[EnderecoLocatarioInput] = None  # Endereço do representante
+    
+    # CÔNJUGE
+    possui_conjuge: Optional[bool] = False
+    existe_conjuge: Optional[Union[int, bool]] = None  # Compatibilidade
+    nome_conjuge: Optional[str] = ""
+    cpf_conjuge: Optional[str] = ""
+    rg_conjuge: Optional[str] = ""
+    endereco_conjuge: Optional[str] = ""
+    telefone_conjuge: Optional[str] = ""
+    regime_bens: Optional[str] = ""
+    
+    # CAMPOS DE NEGÓCIO
+    tipo_garantia: Optional[str] = ""
+    responsavel_pgto_agua: Optional[str] = "Locatario"
+    responsavel_pgto_luz: Optional[str] = "Locatario"
+    responsavel_pgto_gas: Optional[str] = "Locatario"
+    
+    # CAMPOS DIVERSOS
+    dados_empresa: Optional[str] = ""
+    representante: Optional[str] = ""        # Campo legado
+    dados_moradores: Optional[str] = ""
     responsavel_inq: Optional[int] = None
     dependentes_inq: Optional[int] = None
     qtd_dependentes_inq: int = 0
     pet_inquilino: Optional[int] = None
     qtd_pet_inquilino: int = 0
-    porte_pet: Optional[str] = None
-    nome_conjuge: Optional[str] = None
-    cpf_conjuge: Optional[str] = None
-    rg_conjuge: Optional[str] = None
-    endereco_conjuge: Optional[str] = None
-    telefone_conjuge: Optional[str] = None
+    porte_pet: Optional[str] = ""
+    observacoes: Optional[str] = ""
+    ativo: Optional[bool] = True
 
 class LocatarioUpdate(BaseModel):
+    model_config = {"extra": "allow"}  # Permitir campos extras
+    
     nome: Optional[str] = None
     cpf_cnpj: Optional[str] = None
     telefone: Optional[str] = None
@@ -185,6 +267,11 @@ class LocatarioUpdate(BaseModel):
     representante: Optional[str] = None
     tem_fiador: Optional[bool] = None
     tem_moradores: Optional[bool] = None
+    data_constituicao: Optional[Union[date, str]] = None
+    capital_social: Optional[str] = None
+    porte_empresa: Optional[str] = None
+    regime_tributario: Optional[str] = None
+    representante_legal: Optional[dict] = None
 
 class EnderecoImovelInput(BaseModel):
     rua: str
@@ -481,7 +568,7 @@ async def alterar_status_locador(locador_id: int, request: StatusRequest):
 @app.post("/api/locatarios")
 async def criar_locatario(locatario: LocatarioCreate):
     try:
-        novo_locatario = inserir_locatario(**locatario.dict())
+        novo_locatario = inserir_locatario(locatario)
         return {"data": novo_locatario, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar locatário: {str(e)}")
@@ -497,8 +584,21 @@ async def listar_locatarios():
 @app.put("/api/locatarios/{locatario_id}")
 async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUpdate):
     try:
+        print(f"\n==== DEBUGGING PUT /api/locatarios/{locatario_id} ====")
         print(f"ENDPOINT: Iniciando atualização de locatário ID: {locatario_id}")
-        print(f"ENDPOINT: Dados recebidos: {locatario.model_dump()}")
+        print(f"ENDPOINT: Modelo LocatarioUpdate fields: {list(LocatarioUpdate.model_fields.keys())}")
+        
+        dados_recebidos = locatario.model_dump()
+        print(f"ENDPOINT: Total de campos recebidos: {len(dados_recebidos)}")
+        
+        # Verificar campos específicos de empresa
+        campos_empresa = ['data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario']
+        for campo in campos_empresa:
+            valor = dados_recebidos.get(campo)
+            print(f"ENDPOINT: {campo} = {valor} (tipo: {type(valor)})")
+        
+        print(f"ENDPOINT: representante_legal = {dados_recebidos.get('representante_legal')}")
+        print(f"ENDPOINT: Dados completos: {dados_recebidos}")
         
         # Chamar função de atualização
         print(f"ENDPOINT: Chamando atualizar_locatario({locatario_id}, **kwargs)")
@@ -522,15 +622,15 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar locatário: {str(e)}")
 
 @app.get("/api/locatarios/{locatario_id}")
-async def buscar_locatario_por_id(locatario_id: int):
+async def buscar_locatario_endpoint(locatario_id: int):
     try:
-        print(f"Buscando locatário ID: {locatario_id}")
+        print(f"🔍 ENDPOINT: Buscando locatário ID: {locatario_id}")
         
-        # Usar busca geral e filtrar
-        locatarios = buscar_locatarios()
-        locatario = next((loc for loc in locatarios if loc.get('id') == locatario_id), None)
+        # Usar nova função que busca com múltiplos contatos
+        locatario = buscar_locatario_por_id(locatario_id)
         
         if not locatario:
+            print(f"❌ ENDPOINT: Locatário ID {locatario_id} não encontrado")
             raise HTTPException(status_code=404, detail="Locatário não encontrado")
             
         return {"data": locatario, "success": True}
@@ -1411,96 +1511,8 @@ async def calcular_prestacao_contrato(request: dict):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro no cálculo: {str(e)}")
 
-# ============ ENDPOINT DE TESTE PARA ESTRUTURA HÍBRIDA ============
 
-@app.get("/teste/contrato-hibrido/{contrato_id}")
-async def testar_contrato_hibrido(contrato_id: int):
-    """Endpoint de teste para verificar estrutura híbrida e taxa de transferência"""
-    try:
-        print(f"\n🧪 TESTE: Analisando contrato {contrato_id}...")
-        
-        # Buscar locadores via função unificada
-        locadores = obter_locadores_contrato_unificado(contrato_id)
-        locatarios = obter_locatarios_contrato_unificado(contrato_id)
-        
-        # Calcular taxa de transferência correta
-        taxa_transferencia_por_locador = 2.50  # Valor configurado
-        num_locadores = len(locadores)
-        taxa_transferencia_total = taxa_transferencia_por_locador * max(0, num_locadores - 1)
-        
-        resultado = {
-            "contrato_id": contrato_id,
-            "estrutura_hibrida": {
-                "locadores": {
-                    "total": num_locadores,
-                    "origem": "N:N" if locadores and "ContratoLocadores" in str(locadores) else "fallback",
-                    "dados": [
-                        {
-                            "id": loc[0],
-                            "nome": loc[1],
-                            "porcentagem": loc[2],
-                            "principal": loc[3]
-                        } for loc in locadores
-                    ]
-                },
-                "locatarios": {
-                    "total": len(locatarios),
-                    "origem": "N:N" if locatarios and "ContratoLocatarios" in str(locatarios) else "fallback",
-                    "dados": [
-                        {
-                            "id": locat[0],
-                            "nome": locat[1],
-                            "percentual": locat[2],
-                            "principal": locat[3]
-                        } for locat in locatarios
-                    ]
-                }
-            },
-            "calculo_taxa_transferencia": {
-                "num_locadores": num_locadores,
-                "taxa_por_locador": taxa_transferencia_por_locador,
-                "locadores_adicionais": max(0, num_locadores - 1),
-                "taxa_total": taxa_transferencia_total,
-                "logica": f"{num_locadores} locadores -> {max(0, num_locadores - 1)} × R$ {taxa_transferencia_por_locador} = R$ {taxa_transferencia_total}"
-            },
-            "status": "✅ CORRIGIDO" if taxa_transferencia_total != 2.50 or num_locadores == 1 else "⚠️ VERIFICAR"
-        }
-        
-        print(f"🔍 Resultado: {num_locadores} locadores, taxa: R$ {taxa_transferencia_total}")
-        return resultado
-        
-    except Exception as e:
-        print(f"❌ ERRO no teste: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
 
-@app.get("/teste/contratos-ativos")
-async def testar_contratos_ativos():
-    """Testa a nova função buscar_contratos_ativos híbrida"""
-    try:
-        print("\n🧪 TESTE: Testando buscar_contratos_ativos híbrida...")
-        
-        contratos = buscar_contratos_ativos()
-        
-        # Analisar primeiros contratos
-        analise = []
-        for contrato in contratos[:5]:  # Analisar apenas os 5 primeiros
-            analise.append({
-                "id": contrato.get("id"),
-                "locadores": contrato.get("num_locadores", 0),
-                "locatarios": contrato.get("num_locatarios", 0),
-                "locador_principal": contrato.get("locador_nome", "N/A"),
-                "taxa_transferencia_esperada": (contrato.get("num_locadores", 1) - 1) * 2.50
-            })
-        
-        return {
-            "total_contratos": len(contratos),
-            "analise_amostra": analise,
-            "status": "✅ FUNÇÃO HÍBRIDA ATIVA"
-        }
-        
-    except Exception as e:
-        print(f"❌ ERRO no teste: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro no teste: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

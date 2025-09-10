@@ -1,9 +1,0 @@
-{
-  "nome": "Teste Update Campos",
-  "cpf_cnpj": "55555555555", 
-  "telefone": "11777888999",
-  "email": "update.test@email.com",
-  "tipo_pessoa": "PF",
-  "estado_civil": "Solteiro",
-  "observacoes": "Teste de atualização"
-}

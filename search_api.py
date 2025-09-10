@@ -450,22 +450,3 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
 # Adicionar importação de datetime
 from datetime import datetime
 
-# Teste da API
-if __name__ == "__main__":
-    print("Testando API de busca...")
-    
-    # Testar busca geral
-    resultado = buscar_global("fernando")
-    print(f"\nBusca por 'fernando':")
-    print(f"Locadores: {len(resultado['locadores'])}")
-    print(f"Locatários: {len(resultado['locatarios'])}")
-    print(f"Imóveis: {len(resultado['imoveis'])}")
-    print(f"Contratos: {len(resultado['contratos'])}")
-    
-    # Testar estatísticas
-    stats = obter_estatisticas_busca("teste")
-    print(f"\nEstatísticas para 'teste': {stats}")
-    
-    # Testar sugestões
-    sugestoes = buscar_sugestoes()
-    print(f"\nSugestões: {sugestoes}")

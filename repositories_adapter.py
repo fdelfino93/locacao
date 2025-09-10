@@ -245,26 +245,38 @@ def buscar_locadores():
         return []
 
 def buscar_locatarios():
-    """Busca todos os locatarios da tabela Locatarios"""
+    """Busca todos os locatários usando repository v4 (com múltiplos contatos)"""
     try:
-        conn = get_conexao()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Locatarios")
-        
-        # Obter nomes das colunas
-        columns = [column[0] for column in cursor.description]
-        
-        # Converter resultados para lista de dicionarios
-        rows = cursor.fetchall()
-        result = []
-        for row in rows:
-            row_dict = {}
-            for i, value in enumerate(row):
-                row_dict[columns[i]] = value
-            result.append(row_dict)
-        
-        conn.close()
-        return result
+        # Usar repository v4 que retorna dados completos com contatos
+        locatarios = buscar_locatarios_v4()
+        print(f"ADAPTER: {len(locatarios)} locatarios encontrados via v4")
+        return locatarios
+    except Exception as e:
+        print(f"ADAPTER: Erro no v4, usando fallback: {e}")
+        # Fallback para busca simples
+        try:
+            conn = get_conexao()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM Locatarios ORDER BY nome")
+            
+            # Obter nomes das colunas
+            columns = [column[0] for column in cursor.description]
+            
+            # Converter resultados para lista de dicionarios
+            rows = cursor.fetchall()
+            result = []
+            for row in rows:
+                row_dict = {}
+                for i, value in enumerate(row):
+                    row_dict[columns[i]] = value
+                result.append(row_dict)
+            
+            conn.close()
+            print(f"ADAPTER: {len(result)} locatarios via fallback")
+            return result
+        except Exception as e2:
+            print(f"ADAPTER: Fallback também falhou: {e2}")
+            return []
     except Exception as e:
         print(f"Erro ao buscar locatarios: {e}")
         return []
@@ -300,7 +312,12 @@ def buscar_imoveis():
 
 # Funçoes de insercao (usar as existentes)
 from locacao.repositories.cliente_repository import inserir_cliente
-from locacao.repositories.inquilino_repository import inserir_inquilino  
+from locacao.repositories.inquilino_repository import inserir_inquilino
+from locacao.repositories.locatario_repository_v4_final import (
+    inserir_locatario_v4, 
+    buscar_locatario_completo, 
+    buscar_inquilinos as buscar_locatarios_v4
+)  
 from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
 from locacao.repositories.contrato_repository import inserir_contrato
 
@@ -725,7 +742,69 @@ def atualizar_cliente(cliente_id, **kwargs):
         return False
 
 def inserir_locatario(dados):
-    return inserir_inquilino(dados)
+    """Inserir locatário usando repository v4 com múltiplos contatos"""
+    try:
+        # Se dados for um dict Pydantic, converter
+        if hasattr(dados, 'dict'):
+            dados_dict = dados.dict()
+        elif hasattr(dados, 'model_dump'):
+            dados_dict = dados.model_dump()
+        else:
+            dados_dict = dados if isinstance(dados, dict) else dados.__dict__
+        
+        print(f"ADAPTER: Inserindo locatário com dados: {dados_dict.keys()}")
+        
+        # Usar repository v4 que suporta múltiplos contatos
+        locatario_id = inserir_locatario_v4(dados_dict)
+        
+        if locatario_id:
+            print(f"ADAPTER: Locatário inserido com ID: {locatario_id}")
+            return {"id": locatario_id, "success": True}
+        else:
+            print("ADAPTER: Falha na inserção via v4")
+            return None
+            
+    except Exception as e:
+        print(f"ADAPTER: Erro no v4, tentando fallback: {e}")
+        # Fallback para repository antigo
+        try:
+            return inserir_inquilino(dados_dict if 'dados_dict' in locals() else dados)
+        except Exception as e2:
+            print(f"ADAPTER: Fallback também falhou: {e2}")
+            return None
+
+def buscar_locatario_por_id(locatario_id):
+    """Busca locatário por ID usando repository v4 (dados completos)"""
+    try:
+        # Usar repository v4 que retorna todos os contatos
+        locatario = buscar_locatario_completo(locatario_id)
+        if locatario:
+            print(f"ADAPTER: Locatário ID {locatario_id} encontrado via v4")
+            return locatario
+        else:
+            print(f"ADAPTER: Locatário ID {locatario_id} não encontrado via v4")
+            return None
+    except Exception as e:
+        print(f"ADAPTER: Erro no v4, usando fallback: {e}")
+        # Fallback para busca simples
+        try:
+            conn = get_conexao()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM Locatarios WHERE id = ?", (locatario_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                columns = [column[0] for column in cursor.description]
+                row_dict = dict(zip(columns, row))
+                conn.close()
+                print(f"ADAPTER: Locatário ID {locatario_id} encontrado via fallback")
+                return row_dict
+            else:
+                conn.close()
+                return None
+        except Exception as e2:
+            print(f"ADAPTER: Fallback também falhou: {e2}")
+            return None
 
 # Funçoes que faltam mas sao esperadas pelo main.py
 def buscar_locadores_com_contratos():
@@ -1749,7 +1828,8 @@ def atualizar_locatario(locatario_id, **kwargs):
             'telefone_conjuge', 'possui_inquilino_solidario', 'possui_fiador', 
             'qtd_pets', 'observacoes', 'ativo', 'responsavel_pgto_agua',
             'responsavel_pgto_luz', 'responsavel_pgto_gas', 'dados_empresa',
-            'representante', 'tem_fiador', 'tem_moradores'
+            'representante', 'tem_fiador', 'tem_moradores',
+            'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario'
         ]
         
         # Filtrar apenas os campos que foram enviados e sao atualizáveis
@@ -1791,6 +1871,57 @@ def atualizar_locatario(locatario_id, **kwargs):
             print("Nenhuma linha foi afetada pela atualizacao")
             conn.close()
             return False
+        
+        # Atualizar dados do representante legal se fornecidos e for PJ
+        if 'representante_legal' in kwargs and kwargs.get('tipo_pessoa') == 'PJ':
+            repr_legal = kwargs['representante_legal']
+            print(f"Processando dados do representante legal: {repr_legal}")
+            
+            if isinstance(repr_legal, dict) and repr_legal.get("nome"):
+                # Verificar se já existe um representante legal para este locatário
+                cursor.execute("""
+                    SELECT id FROM RepresentanteLegalLocatario 
+                    WHERE id_locatario = ?
+                """, (locatario_id,))
+                
+                representante_existente = cursor.fetchone()
+                
+                if representante_existente:
+                    # UPDATE - Atualizar representante existente
+                    print(f"Atualizando representante legal existente ID: {representante_existente[0]}")
+                    cursor.execute("""
+                        UPDATE RepresentanteLegalLocatario 
+                        SET nome = ?, cpf = ?, rg = ?, endereco = ?, telefone = ?, email = ?, cargo = ?
+                        WHERE id_locatario = ?
+                    """, (
+                        repr_legal.get("nome", ""),
+                        repr_legal.get("cpf", ""),
+                        repr_legal.get("rg", ""),
+                        repr_legal.get("endereco", ""),
+                        repr_legal.get("telefone", ""),
+                        repr_legal.get("email", ""),
+                        repr_legal.get("cargo", ""),
+                        locatario_id
+                    ))
+                    print(f"Representante legal atualizado para locatário {locatario_id}")
+                else:
+                    # INSERT - Criar novo representante legal
+                    print(f"Inserindo novo representante legal para locatário {locatario_id}")
+                    cursor.execute("""
+                        INSERT INTO RepresentanteLegalLocatario 
+                        (id_locatario, nome, cpf, rg, endereco, telefone, email, cargo, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                    """, (
+                        locatario_id,
+                        repr_legal.get("nome", ""),
+                        repr_legal.get("cpf", ""),
+                        repr_legal.get("rg", ""),
+                        repr_legal.get("endereco", ""),
+                        repr_legal.get("telefone", ""),
+                        repr_legal.get("email", ""),
+                        repr_legal.get("cargo", "")
+                    ))
+                    print(f"Novo representante legal inserido para locatário {locatario_id}")
         
         conn.commit()
         print(f"Locatario {locatario_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")

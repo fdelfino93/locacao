@@ -61,6 +61,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
   
   // Estados para dados bancários e cônjuge
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
+  const [conjugeSelectValue, setConjugeSelectValue] = useState<string>('');
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
   const [showMoradores, setShowMoradores] = useState<boolean>(false);
   const [showFiador, setShowFiador] = useState<boolean>(false);
@@ -104,64 +105,158 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
   
   // Hook para carregar dados do locatário quando em modo de edição ou visualização
   React.useEffect(() => {
+    console.log('🔍 USEEFFECT - isEditing:', isEditing, 'isViewing:', isViewing);
+    console.log('🔍 USEEFFECT - URL atual:', window.location.pathname);
+    
     if (isEditing || isViewing) {
       const pathParts = window.location.pathname.split('/');
+      console.log('🔍 USEEFFECT - Path parts:', pathParts);
+      
       const locatarioId = pathParts[pathParts.length - 1];
+      console.log('🔍 USEEFFECT - ID extraído:', locatarioId);
+      
       if (locatarioId && locatarioId !== 'editar' && locatarioId !== 'visualizar') {
+        console.log('🔍 USEEFFECT - Chamando carregarDadosLocatario com ID:', locatarioId);
         carregarDadosLocatario(parseInt(locatarioId));
+      } else {
+        console.log('❌ USEEFFECT - ID inválido ou é palavra reservada:', locatarioId);
       }
+    } else {
+      console.log('🔍 USEEFFECT - Não está em modo edição/visualização');
     }
   }, [isEditing, isViewing]);
 
   const carregarDadosLocatario = async (locatarioId: number) => {
+    console.log('🚀 INICIANDO carregarDadosLocatario com ID:', locatarioId);
     setLoadingData(true);
+    setMessage(null);
+    setApiError(null);
+    
     try {
-      console.log('🔍 Carregando locatário ID:', locatarioId);
+      console.log('🔍 Fazendo requisição para:', `http://localhost:8000/api/locatarios/${locatarioId}`);
       
-      // Primeiro tentar API específica por ID
-      let response = await fetch(`http://localhost:8000/api/locatarios/${locatarioId}`);
+      // Tentar API específica por ID
+      const response = await fetch(`http://localhost:8000/api/locatarios/${locatarioId}`);
+      console.log('📡 Response status:', response.status, response.statusText);
       
       if (!response.ok) {
-        // Se não funcionar, usar busca geral e filtrar pelo ID exato
-        console.log('⚠️ API específica falhou, usando busca geral');
-        response = await fetch('http://localhost:8000/api/locatarios');
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
       console.log('📦 Dados recebidos:', data);
+      console.log('📦 Success:', data.success);
+      console.log('📦 Data type:', typeof data.data, Array.isArray(data.data));
       
-      let locatario = null;
-      
-      if (data.success) {
-        if (data.data && !Array.isArray(data.data)) {
-          // Resposta da API específica
-          locatario = data.data;
-        } else if (data.data && Array.isArray(data.data)) {
-          // Resposta da busca geral - filtrar pelo ID exato
-          locatario = data.data.find((loc: any) => loc.id === locatarioId);
-        }
-      }
-      
-      if (locatario) {
-        console.log('✅ Locatário encontrado:', locatario);
+      if (data.success && data.data) {
+        const locatario = data.data;
+        console.log('✅ Locatário encontrado:', locatario.nome);
+        console.log('📋 Campos disponíveis:', Object.keys(locatario));
         
-        // Preencher os dados do formulário
-        setFormData({
+        // Preencher formData com TODOS os campos disponíveis
+        const novoFormData = {
           ...formData,
           nome: locatario.nome || '',
           cpf_cnpj: locatario.cpf_cnpj || '',
-          telefone: locatario.telefone || '',
-          email: locatario.email || '',
+          telefone: locatario.telefone || locatario.telefone_principal || '',
+          email: locatario.email || locatario.email_principal || '',
           rg: locatario.rg || '',
+          data_nascimento: locatario.data_nascimento || '',
           nacionalidade: locatario.nacionalidade || 'Brasileiro(a)',
           estado_civil: locatario.estado_civil || 'Solteiro(a)',
           profissao: locatario.profissao || '',
           tipo_pessoa: locatario.tipo_pessoa || 'PF',
           renda_mensal: locatario.renda_mensal || 0,
-          empresa: locatario.empresa || '',
+          empresa: locatario.empresa || locatario.dados_empresa || '',
           telefone_comercial: locatario.telefone_comercial || '',
-          observacoes: locatario.observacoes || ''
-        });
+          observacoes: locatario.observacoes || '',
+          // Campos específicos de PJ
+          razao_social: locatario.razao_social || '',
+          nome_fantasia: locatario.nome_fantasia || '',
+          inscricao_estadual: locatario.inscricao_estadual || '',
+          inscricao_municipal: locatario.inscricao_municipal || '',
+          atividade_principal: locatario.atividade_principal || '',
+          // Campos de cônjuge
+          nome_conjuge: locatario.nome_conjuge || locatario.conjuge_nome || '',
+          cpf_conjuge: locatario.cpf_conjuge || '',
+          rg_conjuge: locatario.rg_conjuge || '',
+          telefone_conjuge: locatario.telefone_conjuge || '',
+          regime_bens: locatario.regime_bens || (locatario.possui_conjuge ? 'Comunhão Parcial de Bens' : ''),
+          existe_conjuge: locatario.possui_conjuge || 0
+        };
+        
+        console.log('📝 Preenchendo formData com:', novoFormData);
+        setFormData(novoFormData);
+        
+        // Adicionar campos de empresa que podem estar faltando
+        if (locatario.tipo_pessoa === 'PJ') {
+          console.log('🏢 Mapeando campos de empresa adicionais');
+          setFormData(prev => ({
+            ...prev,
+            data_constituicao: locatario.data_constituicao || '',
+            capital_social: locatario.capital_social || '',
+            porte_empresa: locatario.porte_empresa || '',
+            regime_tributario: locatario.regime_tributario || ''
+          }));
+        }
+        
+        // Verificar se tem cônjuge (usar campos que realmente existem)
+        const hasConjuge = !!(locatario.nome_conjuge || locatario.conjuge_nome || locatario.possui_conjuge);
+        if (hasConjuge) {
+          console.log('💑 Ativando seção de cônjuge');
+          setShowConjuge(true);
+          setConjugeSelectValue('Sim');
+        } else {
+          setConjugeSelectValue('Não');
+        }
+        
+        // Verificar se é PJ e tem representante
+        if (locatario.tipo_pessoa === 'PJ' || locatario.razao_social) {
+          console.log('🏢 Ativando seção de representante legal');
+          setShowRepresentante(true);
+          
+          // Mapear dados do representante_legal para campos individuais
+          if (locatario.representante_legal) {
+            console.log('📋 Mapeando representante legal:', locatario.representante_legal);
+            
+            // Converter endereço string em objeto estruturado se necessário
+            let enderecoRepresentante = {};
+            if (locatario.representante_legal.endereco) {
+              // Se já for objeto, usar direto
+              if (typeof locatario.representante_legal.endereco === 'object') {
+                enderecoRepresentante = locatario.representante_legal.endereco;
+              } else {
+                // Se for string, tentar extrair partes (formato: "Rua, Numero, Complemento, Bairro, Cidade - Estado, CEP: 00000-000")
+                const endStr = locatario.representante_legal.endereco;
+                const partes = endStr.split(',').map(p => p.trim());
+                
+                enderecoRepresentante = {
+                  rua: partes[0] || '',
+                  numero: partes[1] || '',
+                  complemento: partes[2] || '',
+                  bairro: partes[3] || '',
+                  cidade: partes[4]?.split('-')[0]?.trim() || '',
+                  estado: partes[4]?.split('-')[1]?.trim() || 'PR',
+                  cep: endStr.match(/CEP:\s*([\d-]+)/)?.[1] || ''
+                };
+              }
+            }
+            
+            setFormData(prev => ({
+              ...prev,
+              nome_representante: locatario.representante_legal.nome || '',
+              cpf_representante: locatario.representante_legal.cpf || '',
+              rg_representante: locatario.representante_legal.rg || '',
+              cargo_representante: locatario.representante_legal.cargo || '',
+              telefone_representante: locatario.representante_legal.telefone || '',
+              email_representante: locatario.representante_legal.email || '',
+              endereco_representante: enderecoRepresentante
+            }));
+            console.log('✅ Dados do representante legal mapeados');
+          } else {
+            console.log('⚠️ Nenhum representante_legal encontrado nos dados');
+          }
+        }
         
         // Preencher endereço se existir
         if (locatario.endereco) {
@@ -185,24 +280,77 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
           setMoradores(locatario.moradores);
         }
         
-        // Preencher múltiplos telefones e emails
-        if (locatario.telefones && locatario.telefones.length > 0) {
-          setTelefones(locatario.telefones);
+        // Preencher endereço estruturado ou inline
+        const enderecoAtualizado = { ...endereco };
+        if (locatario.endereco_estruturado) {
+          Object.assign(enderecoAtualizado, locatario.endereco_estruturado);
+          console.log('🏠 Endereço estruturado carregado');
+        } else if (locatario.endereco_rua) {
+          enderecoAtualizado.rua = locatario.endereco_rua || '';
+          enderecoAtualizado.numero = locatario.endereco_numero || '';
+          enderecoAtualizado.complemento = locatario.endereco_complemento || '';
+          enderecoAtualizado.bairro = locatario.endereco_bairro || '';
+          enderecoAtualizado.cidade = locatario.endereco_cidade || '';
+          enderecoAtualizado.estado = locatario.endereco_estado || '';
+          enderecoAtualizado.cep = locatario.endereco_cep || '';
+          console.log('🏠 Endereço inline carregado');
         }
-        if (locatario.emails && locatario.emails.length > 0) {
-          setEmails(locatario.emails);
+        setEndereco(enderecoAtualizado);
+        
+        // Preencher múltiplos telefones
+        if (locatario.telefones && locatario.telefones.length > 0) {
+          const telefonesArray = locatario.telefones.map((t: any) => 
+            typeof t === 'string' ? t : t.telefone
+          );
+          setTelefones(telefonesArray);
+          console.log('📞 Múltiplos telefones carregados:', telefonesArray.length);
+        } else if (locatario.telefone || locatario.telefone_principal) {
+          setTelefones([locatario.telefone || locatario.telefone_principal]);
+          console.log('📞 Telefone único carregado');
         }
         
-        setMessage({ type: 'success', text: 'Dados carregados com sucesso!' });
+        // Preencher múltiplos emails
+        if (locatario.emails && locatario.emails.length > 0) {
+          const emailsArray = locatario.emails.map((e: any) => 
+            typeof e === 'string' ? e : e.email
+          );
+          setEmails(emailsArray);
+          console.log('📧 Múltiplos emails carregados:', emailsArray.length);
+        } else if (locatario.email || locatario.email_principal) {
+          setEmails([locatario.email || locatario.email_principal]);
+          console.log('📧 Email único carregado');
+        }
+        
+        // Preencher formas de envio se existir
+        if (locatario.formas_envio_cobranca && locatario.formas_envio_cobranca.length > 0) {
+          const formasArray = locatario.formas_envio_cobranca.map((f: any) => ({
+            tipo: f.tipo || '',
+            contato: f.contato || ''
+          }));
+          setFormasEnvio(formasArray);
+          console.log('💸 Formas de cobrança carregadas:', formasArray.length);
+        }
+        
+        // Preencher dados bancários se existir
+        if (locatario.dados_bancarios) {
+          setDadosBancarios(locatario.dados_bancarios);
+          console.log('🏦 Dados bancários carregados');
+        }
+        
+        setMessage({ type: 'success', text: `Dados de ${locatario.nome} carregados com sucesso!` });
+        console.log('✅ CARREGAMENTO CONCLUÍDO COM SUCESSO');
+        
       } else {
-        console.error('❌ Locatário não encontrado com ID:', locatarioId);
-        setMessage({ type: 'error', text: 'Locatário não encontrado' });
+        console.error('❌ Resposta sem dados válidos:', data);
+        setMessage({ type: 'error', text: 'Dados do locatário não encontrados na resposta da API' });
       }
     } catch (error) {
-      console.error('❌ Erro ao carregar locatário:', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar dados do locatário' });
+      console.error('❌ ERRO ao carregar locatário:', error);
+      setMessage({ type: 'error', text: `Erro ao carregar dados: ${error}` });
+      setApiError(`Erro na API: ${error}`);
     } finally {
       setLoadingData(false);
+      console.log('🏁 carregarDadosLocatario FINALIZADO');
     }
   };
   
@@ -304,6 +452,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
   const handleConjugeChange = (value: string) => {
     const hasConjuge = value === 'Sim';
     setShowConjuge(hasConjuge);
+    setConjugeSelectValue(value);
     setFormData(prev => ({
       ...prev,
       existe_conjuge: hasConjuge ? 1 : 0
@@ -378,8 +527,46 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     }
 
     try {
-      const dadosParaEnvio = {
-        ...formData,
+      // Preparar dados do representante legal para envio
+      const representanteLegalParaEnvio = showRepresentante ? {
+        nome: formData.nome_representante || '',
+        cpf: formData.cpf_representante || '',
+        rg: formData.rg_representante || '',
+        cargo: formData.cargo_representante || '',
+        telefone: formData.telefone_representante || '',
+        email: formData.email_representante || '',
+        // Converter endereço estruturado em string para o banco
+        endereco: typeof formData.endereco_representante === 'string' 
+          ? formData.endereco_representante 
+          : formData.endereco_representante 
+            ? `${formData.endereco_representante.rua || ''}, ${formData.endereco_representante.numero || ''}, ${formData.endereco_representante.complemento || ''}, ${formData.endereco_representante.bairro || ''}, ${formData.endereco_representante.cidade || ''} - ${formData.endereco_representante.estado || ''}, CEP: ${formData.endereco_representante.cep || ''}`.replace(/,\s*,/g, ',').replace(/,\s*-/g, ' -').replace(/,\s*CEP:\s*$/g, '').trim()
+            : ''
+      } : undefined;
+
+      // Limpar campos de data vazios e converter capital_social para string
+      const limparCamposData = (dados: any) => {
+        const camposData = ['data_nascimento', 'data_constituicao'];
+        const dadosLimpos = { ...dados };
+        
+        camposData.forEach(campo => {
+          if (dadosLimpos[campo] === '' || dadosLimpos[campo] === undefined) {
+            dadosLimpos[campo] = null;
+          }
+        });
+        
+        // Converter capital_social para string se for número
+        if (dadosLimpos.capital_social !== null && dadosLimpos.capital_social !== undefined) {
+          dadosLimpos.capital_social = String(dadosLimpos.capital_social);
+        }
+        
+        return dadosLimpos;
+      };
+
+      // Remover endereco_representante do formData antes de enviar
+      const { endereco_representante, ...formDataSemEnderecoRepresentante } = formData;
+      
+      const dadosParaEnvio = limparCamposData({
+        ...formDataSemEnderecoRepresentante,
         telefones: telefones.filter(t => t.trim()),
         emails: emails.filter(e => e.trim()),
         endereco: endereco,
@@ -388,8 +575,9 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
         moradores: showMoradores ? moradores : [],
         tem_moradores: showMoradores,
         tem_fiador: showFiador,
-        existe_conjuge: showConjuge ? 1 : 0
-      };
+        existe_conjuge: showConjuge ? 1 : 0,
+        representante_legal: representanteLegalParaEnvio
+      });
 
       let response;
       
@@ -398,6 +586,20 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
         const pathParts = window.location.pathname.split('/');
         const locatarioId = pathParts[pathParts.length - 1];
         console.log('💾 Salvando alterações do locatário ID:', locatarioId);
+        
+        // LOG DETALHADO PARA DEBUG
+        console.log('🔍 DADOS SENDO ENVIADOS:', {
+          campos_empresa: {
+            data_constituicao: dadosParaEnvio.data_constituicao,
+            capital_social: dadosParaEnvio.capital_social,
+            porte_empresa: dadosParaEnvio.porte_empresa,
+            regime_tributario: dadosParaEnvio.regime_tributario
+          },
+          representante_legal: dadosParaEnvio.representante_legal,
+          tipo_pessoa: dadosParaEnvio.tipo_pessoa,
+          total_campos: Object.keys(dadosParaEnvio).length
+        });
+        console.log('📦 PAYLOAD COMPLETO:', JSON.stringify(dadosParaEnvio, null, 2));
         
         // Chamar API de atualização
         response = await apiService.atualizarLocatario(parseInt(locatarioId), dadosParaEnvio);
@@ -438,8 +640,15 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
 
   // Funções para validação
   const validatePhoneFormat = (phone: string): boolean => {
-    const phoneRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
-    return phoneRegex.test(phone) || phone === '';
+    if (phone === '') return true;
+    
+    // Formato com parênteses e traço: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+    const formattedRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
+    
+    // Formato só números: XXXXXXXXXXX ou XXXXXXXXXX  
+    const numbersOnlyRegex = /^\d{10,11}$/;
+    
+    return formattedRegex.test(phone) || numbersOnlyRegex.test(phone);
   };
 
   const validateEmailFormat = (email: string): boolean => {
@@ -764,7 +973,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
                           
                           <div>
                             <Label className="text-sm font-medium text-foreground">Possui cônjuge/companheiro(a)?</Label>
-                            <Select onValueChange={handleConjugeChange} disabled={isReadOnly}>
+                            <Select value={conjugeSelectValue} onValueChange={handleConjugeChange} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione..." />
                               </SelectTrigger>
@@ -933,7 +1142,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
                       
                       <div className="space-y-4">
                         <div>
-                          <Label htmlFor="regime_bens" className="text-sm font-medium text-foreground">Regime de Bens *</Label>
+                          <Label htmlFor="regime_bens" className="text-sm font-medium text-foreground">Regime de Bens</Label>
                           <Select 
                             value={formData.regime_bens || ''} 
                             onValueChange={(value) => handleInputChange('regime_bens', value)}
@@ -943,10 +1152,10 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
                               <SelectValue placeholder="Selecione o regime de bens" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Comunhão Total de Bens">Comunhão Total de Bens</SelectItem>
                               <SelectItem value="Comunhão Parcial de Bens">Comunhão Parcial de Bens</SelectItem>
+                              <SelectItem value="Comunhão Universal de Bens">Comunhão Universal de Bens</SelectItem>
                               <SelectItem value="Separação Total de Bens">Separação Total de Bens</SelectItem>
-                              <SelectItem value="Outros">Outros</SelectItem>
+                              <SelectItem value="Participação Final nos Aquestos">Participação Final nos Aquestos</SelectItem>
                             </SelectContent>
                           </Select>
                           <p className="text-xs text-muted-foreground mt-1">

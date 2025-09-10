@@ -70,7 +70,29 @@ class ApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // Tentar obter detalhes do erro do backend
+      let errorDetail = '';
+      try {
+        const errorBody = await response.json();
+        console.error('❌ ERRO DO BACKEND:', errorBody);
+        
+        // Expandir detalhes do erro se for um array
+        if (errorBody.detail && Array.isArray(errorBody.detail)) {
+          console.error('📋 DETALHES DO ERRO:');
+          errorBody.detail.forEach((err: any, index: number) => {
+            console.error(`  ${index + 1}. Campo: ${err.loc?.join(' > ') || 'desconhecido'}`);
+            console.error(`     Mensagem: ${err.msg}`);
+            console.error(`     Tipo: ${err.type}`);
+            console.error(`     Input: ${JSON.stringify(err.input)}`);
+          });
+          errorDetail = errorBody.detail.map((err: any) => `${err.loc?.join('.')} - ${err.msg}`).join('; ');
+        } else {
+          errorDetail = errorBody.detail || errorBody.message || '';
+        }
+      } catch (e) {
+        // Se não conseguir parsear o JSON, apenas usar o status
+      }
+      throw new Error(`HTTP error! status: ${response.status}. ${errorDetail}`);
     }
 
     return response.json();

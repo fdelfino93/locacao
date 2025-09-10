@@ -157,14 +157,28 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
             nome: locador.representante_legal.nome || '',
             cpf: locador.representante_legal.cpf || '',
             rg: locador.representante_legal.rg || '',
-            telefone: locador.representante_legal.telefone || '',
-            email: locador.representante_legal.email || '',
+            // Converter telefone string para array se necessário
+            telefones: locador.representante_legal.telefone ? [locador.representante_legal.telefone] : [''],
+            // Converter email string para array se necessário  
+            emails: locador.representante_legal.email ? [locador.representante_legal.email] : [''],
+            endereco: locador.representante_legal.endereco || '',
             data_nascimento: '',
             nacionalidade: 'Brasileira',
             estado_civil: 'Solteiro',
             profissao: ''
           });
-          console.log('🏢 Representante legal carregado');
+          console.log('🏢 Representante legal carregado:', locador.representante_legal.nome);
+          
+          // IMPORTANTE: Também mapear para formData para exibição nos campos
+          setFormData(prev => ({
+            ...prev,
+            nome_representante: locador.representante_legal.nome || '',
+            cpf_representante: locador.representante_legal.cpf || '',
+            rg_representante: locador.representante_legal.rg || '',
+            telefone_representante: locador.representante_legal.telefone || '',
+            email_representante: locador.representante_legal.email || '',
+            endereco_representante: locador.representante_legal.endereco || ''
+          }));
         }
         
         // Configurar arrays de contatos - usar múltiplos contatos se existirem

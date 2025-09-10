@@ -301,11 +301,11 @@ function App() {
               onNavigateToCadastro={() => handlePageChange('locatario-cadastro')}
               onNavigateToDetalhes={(locatarioId) => {
                 window.history.pushState(null, '', `/locatario/visualizar/${locatarioId}`);
-                handlePageChange('locatario-visualizar');
+                handlePageChange('locatario-visualizar', false);
               }}
               onNavigateToEdicao={(locatarioId) => {
                 window.history.pushState(null, '', `/locatario/editar/${locatarioId}`);
-                handlePageChange('locatario-edicao');
+                handlePageChange('locatario-edicao', false);
               }}
             />
           </motion.div>
