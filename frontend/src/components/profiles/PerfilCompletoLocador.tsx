@@ -175,11 +175,213 @@ export const PerfilCompletoLocador: React.FC<PerfilCompletoLocadorProps> = ({
         </Card>
       </div>
 
-      {/* Dados Pessoais */}
+      {/* Dados da Empresa (se for PJ) */}
+      {dados.tipo_pessoa === 'PJ' && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <Building className="w-5 h-5" />
+            <span>Dados da Empresa</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              {dados.razao_social && (
+                <div className="flex items-center space-x-2">
+                  <Building className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Razão Social:</span>
+                  <span>{dados.razao_social}</span>
+                </div>
+              )}
+              {dados.nome_fantasia && (
+                <div className="flex items-center space-x-2">
+                  <Building className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Nome Fantasia:</span>
+                  <span>{dados.nome_fantasia}</span>
+                </div>
+              )}
+              {dados.inscricao_estadual && (
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Inscrição Estadual:</span>
+                  <span>{dados.inscricao_estadual}</span>
+                </div>
+              )}
+              {dados.inscricao_municipal && (
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Inscrição Municipal:</span>
+                  <span>{dados.inscricao_municipal}</span>
+                </div>
+              )}
+              {dados.atividade_principal && (
+                <div className="flex items-center space-x-2">
+                  <Activity className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Atividade Principal:</span>
+                  <span>{dados.atividade_principal}</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              {dados.data_constituicao && (
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Data Constituição:</span>
+                  <span>{formatDate(dados.data_constituicao)}</span>
+                </div>
+              )}
+              {dados.capital_social && (
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Capital Social:</span>
+                  <span>{formatCurrency(Number(dados.capital_social))}</span>
+                </div>
+              )}
+              {dados.porte_empresa && (
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Porte da Empresa:</span>
+                  <span>{dados.porte_empresa}</span>
+                </div>
+              )}
+              {dados.regime_tributario && (
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Regime Tributário:</span>
+                  <span>{dados.regime_tributario}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Dados do Representante Legal (se for PJ) */}
+      {dados.tipo_pessoa === 'PJ' && perfil?.dados?.locador?.representante_legal && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <UserCheck className="w-5 h-5" />
+            <span>Representante Legal</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              {perfil.dados.locador.representante_legal.nome && (
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Nome:</span>
+                  <span>{perfil.dados.locador.representante_legal.nome}</span>
+                </div>
+              )}
+              {perfil.dados.locador.representante_legal.cpf && (
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">CPF:</span>
+                  <span>{perfil.dados.locador.representante_legal.cpf}</span>
+                </div>
+              )}
+              {perfil.dados.locador.representante_legal.rg && (
+                <div className="flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">RG:</span>
+                  <span>{perfil.dados.locador.representante_legal.rg}</span>
+                </div>
+              )}
+              {perfil.dados.locador.representante_legal.cargo && (
+                <div className="flex items-center space-x-2">
+                  <Building className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Cargo:</span>
+                  <span>{perfil.dados.locador.representante_legal.cargo}</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              {perfil.dados.locador.representante_legal.telefone && (
+                <div className="flex items-center space-x-2">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Telefone:</span>
+                  <span>{perfil.dados.locador.representante_legal.telefone}</span>
+                </div>
+              )}
+              {perfil.dados.locador.representante_legal.email && (
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Email:</span>
+                  <span>{perfil.dados.locador.representante_legal.email}</span>
+                </div>
+              )}
+              {perfil.dados.locador.representante_legal.endereco && (
+                <div className="flex items-center space-x-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Endereço:</span>
+                  <span>{perfil.dados.locador.representante_legal.endereco}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Dados Pessoais (se for PF) */}
+      {dados.tipo_pessoa === 'PF' && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <UserCheck className="w-5 h-5" />
+            <span>Dados Pessoais</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              {dados.tipo_recebimento && (
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Tipo Recebimento:</span>
+                  <span>{dados.tipo_recebimento}</span>
+                </div>
+              )}
+              {dados.data_nascimento && (
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Data Nascimento:</span>
+                  <span>{formatDate(dados.data_nascimento)}</span>
+                </div>
+              )}
+              {dados.profissao && (
+                <div className="flex items-center space-x-2">
+                  <Building className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Profissão:</span>
+                  <span>{dados.profissao}</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-3">
+              {dados.estado_civil && (
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Estado Civil:</span>
+                  <span>{dados.estado_civil}</span>
+                </div>
+              )}
+              {dados.nacionalidade && (
+                <div className="flex items-center space-x-2">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Nacionalidade:</span>
+                  <span>{dados.nacionalidade}</span>
+                </div>
+              )}
+              {dados.data_cadastro && (
+                <div className="flex items-center space-x-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Cliente desde:</span>
+                  <span>{formatDate(dados.data_cadastro)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Dados Gerais */}
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-          <UserCheck className="w-5 h-5" />
-          <span>Dados Pessoais</span>
+          <Activity className="w-5 h-5" />
+          <span>Informações Gerais</span>
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-3">
@@ -190,41 +392,18 @@ export const PerfilCompletoLocador: React.FC<PerfilCompletoLocadorProps> = ({
                 <span>{dados.tipo_recebimento}</span>
               </div>
             )}
-            {dados.data_nascimento && (
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Data Nascimento:</span>
-                <span>{formatDate(dados.data_nascimento)}</span>
-              </div>
-            )}
-            {dados.profissao && (
-              <div className="flex items-center space-x-2">
-                <Building className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Profissão:</span>
-                <span>{dados.profissao}</span>
-              </div>
-            )}
-          </div>
-          <div className="space-y-3">
-            {dados.estado_civil && (
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Estado Civil:</span>
-                <span>{dados.estado_civil}</span>
-              </div>
-            )}
-            {dados.nacionalidade && (
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium">Nacionalidade:</span>
-                <span>{dados.nacionalidade}</span>
-              </div>
-            )}
             {dados.data_cadastro && (
               <div className="flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="font-medium">Cliente desde:</span>
                 <span>{formatDate(dados.data_cadastro)}</span>
+              </div>
+            )}
+            {dados.observacoes && (
+              <div className="flex items-center space-x-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Observações:</span>
+                <span>{dados.observacoes}</span>
               </div>
             )}
           </div>

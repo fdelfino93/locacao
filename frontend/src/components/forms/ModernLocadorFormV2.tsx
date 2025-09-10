@@ -47,6 +47,69 @@ const tiposLocador = ['Proprietário', 'Administrador', 'Procurador', 'Outro'];
 const regimesBens = ['Comunhão Total de Bens', 'Comunhão Parcial de Bens', 'Separação Total de Bens', 'Outros'];
 const formasRecebimento = ['PIX', 'TED', 'Boleto', 'Transferência'];
 
+// Função para parsear endereço string em objeto estruturado
+const parseEnderecoString = (enderecoString: string) => {
+  if (!enderecoString) {
+    return {
+      rua: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      cep: ''
+    };
+  }
+  
+  // Formato real do banco: "Rua, Numero, Complemento, Bairro, Cidade - Estado, CEP: xxxxx-xxx"
+  // Exemplo: "Av. Nova do Representante, 1000, Sala 500, Centro, Curitiba - PR, CEP: 80000-000"
+  try {
+    let cep = '';
+    let enderecoSemCep = enderecoString;
+    
+    // Verificar se há CEP na string
+    const cepMatch = enderecoString.match(/, CEP:\s*([0-9-]+)\s*$/);
+    if (cepMatch) {
+      cep = cepMatch[1];
+      enderecoSemCep = enderecoString.replace(/, CEP:\s*[0-9-]+\s*$/, '');
+    }
+    
+    // Dividir por vírgulas primeiro, depois tratar o último item que contém "cidade - estado"
+    const partes = enderecoSemCep.split(', ');
+    const rua = partes[0] || '';
+    const numero = partes[1] || '';
+    const complemento = partes[2] || '';
+    const bairro = partes[3] || '';
+    const cidadeEstado = partes[4] || '';
+    
+    // Separar cidade e estado (formato: "Curitiba - PR")
+    const cidadeEstadoParts = cidadeEstado.split(' - ');
+    const cidade = cidadeEstadoParts[0] || '';
+    const estado = cidadeEstadoParts[1] || '';
+    
+    return {
+      rua: rua.trim(),
+      numero: numero.trim(),
+      complemento: complemento.trim(),
+      bairro: bairro.trim(),
+      cidade: cidade.trim(),
+      estado: estado.trim(),
+      cep: cep.trim()
+    };
+  } catch (error) {
+    console.log('Erro ao parsear endereço:', error);
+    return {
+      rua: enderecoString, // Se der erro, coloca tudo no campo rua
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      cep: ''
+    };
+  }
+};
+
 interface ModernLocadorFormV2Props {
   onBack?: () => void;
   isEditing?: boolean;
@@ -121,7 +184,11 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
           nome_fantasia: locador.nome_fantasia || '',
           inscricao_estadual: locador.inscricao_estadual || '',
           inscricao_municipal: locador.inscricao_municipal || '',
-          atividade_principal: locador.atividade_principal || ''
+          atividade_principal: locador.atividade_principal || '',
+          data_constituicao: locador.data_constituicao || '',
+          capital_social: locador.capital_social ? locador.capital_social.toString() : '',
+          porte_empresa: locador.porte_empresa || '',
+          regime_tributario: locador.regime_tributario || ''
         }));
         
         // Carregar endereço estruturado se existe
@@ -170,14 +237,19 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
           console.log('🏢 Representante legal carregado:', locador.representante_legal.nome);
           
           // IMPORTANTE: Também mapear para formData para exibição nos campos
+          // Parsear endereço string em objeto estruturado
+          const endereco_string = locador.representante_legal.endereco || '';
+          const enderecoParseado = parseEnderecoString(endereco_string);
+          
           setFormData(prev => ({
             ...prev,
             nome_representante: locador.representante_legal.nome || '',
             cpf_representante: locador.representante_legal.cpf || '',
             rg_representante: locador.representante_legal.rg || '',
+            cargo_representante: locador.representante_legal.cargo || '',
             telefone_representante: locador.representante_legal.telefone || '',
             email_representante: locador.representante_legal.email || '',
-            endereco_representante: locador.representante_legal.endereco || ''
+            endereco_representante: enderecoParseado
           }));
         }
         
@@ -409,6 +481,22 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
 
     try {
       console.log('✅ Entrou no try block');
+      // Preparar representante legal com endereço estruturado convertido para string
+      const representanteLegalParaEnvio = showRepresentante ? {
+        nome: formData.nome_representante || '',
+        cpf: formData.cpf_representante || '',
+        rg: formData.rg_representante || '',
+        cargo: formData.cargo_representante || '',
+        telefone: formData.telefone_representante || '',
+        email: formData.email_representante || '',
+        // Converter endereço estruturado em string para o banco (incluindo CEP)
+        endereco: typeof formData.endereco_representante === 'string' 
+          ? formData.endereco_representante 
+          : formData.endereco_representante 
+            ? `${formData.endereco_representante.rua || ''}, ${formData.endereco_representante.numero || ''}, ${formData.endereco_representante.complemento || ''}, ${formData.endereco_representante.bairro || ''}, ${formData.endereco_representante.cidade || ''} - ${formData.endereco_representante.estado || ''}, CEP: ${formData.endereco_representante.cep || ''}`.replace(/,\s*,/g, ',').replace(/,\s*-/g, ' -').replace(/,\s*CEP:\s*$/g, '').trim()
+            : ''
+      } : undefined;
+
       // Preparar dados para envio
       const dadosParaEnvio = {
         ...formData,
@@ -417,7 +505,7 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
         contas_bancarias: contasBancarias, // Múltiplas contas bancárias
         telefones: telefones.filter(tel => tel.trim() !== ''), // Múltiplos telefones
         emails: emails.filter(email => email.trim() !== ''), // Múltiplos emails
-        representante_legal: showRepresentante ? representanteLegal : undefined,
+        representante_legal: representanteLegalParaEnvio,
         documentos_empresa: showRepresentante ? documentosEmpresa : undefined,
         existe_conjuge: showConjuge ? 1 : 0
       };
@@ -433,11 +521,17 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
         
         // Chamar API de atualização - usando URL completa temporariamente
         console.log('🔧 Usando URL direta para contornar problema de proxy');
-        response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`, {
+        const fetchResponse = await fetch(`http://localhost:8000/api/locadores/${locadorId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dadosParaEnvio)
-        }).then(res => res.json());
+        });
+        
+        if (!fetchResponse.ok) {
+          throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+        }
+        
+        response = await fetchResponse.json();
       } else {
         // Modo cadastro
         response = await apiService.criarLocador(dadosParaEnvio);

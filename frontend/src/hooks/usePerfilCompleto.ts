@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState, useCallback } from 'react';
+import { apiService } from '../services/api';
 
 interface PerfilData {
   id: number;
@@ -22,8 +23,42 @@ export const usePerfilCompleto = (
   enabled: boolean = true
 ): UsePerfilCompletoReturn => {
   
-  // Dados reais do banco (temporário enquanto resolve timeout da API)
-  const generateRealProfile = (tipo: string, id: number) => {
+  // Buscar dados reais da API
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['perfil-completo', tipo, id],
+    queryFn: async () => {
+      if (tipo === 'locadores') {
+        const response = await apiService.requestPublic(`locadores/${id}`);
+        return {
+          id,
+          tipo: 'locador',
+          dados: {
+            locador: response.data
+          },
+          relacionamentos: {
+            imoveis: [],
+            contratos_ativos: []
+          },
+          estatisticas: {
+            total_imoveis: 0,
+            imoveis_ocupados: 0,
+            imoveis_disponiveis: 0,
+            contratos_ativos: 0,
+            receita_mensal_bruta: 0,
+            receita_mensal_estimada: 0,
+            avaliacao_media: 5.0
+          }
+        };
+      }
+      return null;
+    },
+    enabled: enabled && !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnWindowFocus: false
+  });
+
+  // Dados mock como fallback (apenas para IDs específicos se a API falhar)
+  const generateMockProfile = (tipo: string, id: number) => {
     if (tipo === 'locadores') {
       // Dados reais do Fernando (ID 21) extraídos do banco
       if (id === 21) {
@@ -126,16 +161,13 @@ export const usePerfilCompleto = (
     return null;
   };
 
-  const perfil: PerfilData | null = enabled && id ? generateRealProfile(tipo, id) as any : null;
-
-  const refetch = () => {
-    // Mock refetch
-  };
+  // Usar dados da API ou fallback para mock se houver erro
+  const perfil: PerfilData | null = data || (error && enabled && id ? generateMockProfile(tipo, id) as any : null);
 
   return {
     perfil,
-    isLoading: false,
-    error: null,
+    isLoading,
+    error,
     refetch
   };
 };

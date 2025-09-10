@@ -33,7 +33,7 @@ def obter_locadores_contrato_unificado(contrato_id):
             locadores_nn = cursor.fetchall()
             
             if locadores_nn:
-                print(f"✅ Contrato {contrato_id}: {len(locadores_nn)} locadores via tabela N:N")
+                print(f"Contrato {contrato_id}: {len(locadores_nn)} locadores via tabela N:N")
                 return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_nn]
             
             # 2. FALLBACK para estrutura antiga (via Imoveis)
@@ -53,7 +53,7 @@ def obter_locadores_contrato_unificado(contrato_id):
             locadores_antigas = cursor.fetchall()
             resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_antigas] if locadores_antigas else []
             
-            print(f"📊 Contrato {contrato_id}: {len(resultado)} locadores via fallback")
+            print(f"Contrato {contrato_id}: {len(resultado)} locadores via fallback")
             return resultado
             
     except Exception as e:
@@ -86,7 +86,7 @@ def obter_locatarios_contrato_unificado(contrato_id):
             locatarios_nn = cursor.fetchall()
             
             if locatarios_nn:
-                print(f"✅ Contrato {contrato_id}: {len(locatarios_nn)} locatários via tabela N:N")
+                print(f"Contrato {contrato_id}: {len(locatarios_nn)} locatários via tabela N:N")
                 return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_nn]
             
             # 2. FALLBACK para FK antiga
@@ -105,7 +105,7 @@ def obter_locatarios_contrato_unificado(contrato_id):
             locatarios_antigos = cursor.fetchall()
             resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_antigos] if locatarios_antigos else []
             
-            print(f"📊 Contrato {contrato_id}: {len(resultado)} locatários via fallback")
+            print(f"Contrato {contrato_id}: {len(resultado)} locatários via fallback")
             return resultado
             
     except Exception as e:
@@ -369,6 +369,10 @@ def inserir_cliente(**kwargs):
             inscricao_estadual = kwargs.get('inscricao_estadual', '')
             inscricao_municipal = kwargs.get('inscricao_municipal', '')
             atividade_principal = kwargs.get('atividade_principal', '')
+            data_constituicao = kwargs.get('data_constituicao')
+            capital_social = kwargs.get('capital_social') 
+            porte_empresa = kwargs.get('porte_empresa', '')
+            regime_tributario = kwargs.get('regime_tributario', '')
             
             # Campos de auditoria
             from datetime import datetime
@@ -395,9 +399,10 @@ def inserir_cliente(**kwargs):
                     nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
                     tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
                     razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
-                    atividade_principal, ativo, data_cadastro, data_atualizacao
+                    atividade_principal, data_constituicao, capital_social, porte_empresa, 
+                    regime_tributario, ativo, data_cadastro, data_atualizacao
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 nome, cpf_cnpj, telefone, email, endereco_completo, endereco_id,
                 tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
@@ -406,7 +411,8 @@ def inserir_cliente(**kwargs):
                 nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
                 tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
                 razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
-                atividade_principal, ativo, data_cadastro, data_atualizacao
+                atividade_principal, data_constituicao, capital_social, porte_empresa, 
+                regime_tributario, ativo, data_cadastro, data_atualizacao
             ))
             
             conn.commit()
@@ -447,7 +453,7 @@ def inserir_imovel(**kwargs):
     try:
         print(f"Inserindo imóvel - Dados recebidos: {kwargs}")
         
-        # 🆕 PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
+        # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
         if 'endereco' in kwargs:
             try:
                 endereco_input = kwargs['endereco']
@@ -510,6 +516,7 @@ def atualizar_locador(locador_id, **kwargs):
                 # Empresa/PJ
                 'dados_empresa', 'representante', 'tipo_pessoa', 'razao_social',
                 'nome_fantasia', 'inscricao_estadual', 'inscricao_municipal', 'atividade_principal',
+                'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario',
                 # Cônjuge
                 'existe_conjuge', 'nome_conjuge', 'cpf_conjuge', 'rg_conjuge',
                 'endereco_conjuge', 'telefone_conjuge', 'regime_bens',
@@ -613,9 +620,10 @@ def atualizar_locador(locador_id, **kwargs):
                     from datetime import datetime
                     cursor.execute("""
                         INSERT INTO RepresentanteLegalLocador (
-                            id_locador, nome, cpf, rg, endereco, telefone, email, cargo, created_at
+                            id_locador, nome, cpf, rg, endereco, telefone, email, cargo, 
+                            data_nascimento, nacionalidade, estado_civil, profissao, created_at
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         locador_id,
                         representante.get('nome', ''),
@@ -625,8 +633,24 @@ def atualizar_locador(locador_id, **kwargs):
                         representante.get('telefone', ''),
                         representante.get('email', ''),
                         representante.get('cargo', 'Administrador'),
+                        representante.get('data_nascimento'),
+                        representante.get('nacionalidade', ''),
+                        representante.get('estado_civil', ''),
+                        representante.get('profissao', ''),
                         datetime.now()
                     ))
+            
+            # Atualizar telefones se fornecidos
+            if 'telefones' in kwargs:
+                atualizar_telefones_locador(cursor, locador_id, kwargs['telefones'])
+            
+            # Atualizar emails se fornecidos  
+            if 'emails' in kwargs:
+                atualizar_emails_locador(cursor, locador_id, kwargs['emails'])
+            
+            # Atualizar métodos de pagamento se fornecidos
+            if 'metodos_pagamento' in kwargs:
+                atualizar_metodos_pagamento_locador(cursor, locador_id, kwargs['metodos_pagamento'])
             
             conn.commit()
             
@@ -896,7 +920,7 @@ def buscar_contratos_ativos():
             """)
             
             rows = cursor.fetchall()
-            print(f"📊 PRESTACAO: Encontrados {len(rows)} contratos no banco")
+            print(f"PRESTACAO: Encontrados {len(rows)} contratos no banco")
             
             columns = [column[0] for column in cursor.description]
             contratos = []
@@ -950,7 +974,7 @@ def buscar_contratos_ativos():
                 
                 contratos.append(contrato_dict)
             
-            print(f"✅ PRESTACAO: Retornando {len(contratos)} contratos com locadores/locatários unificados")
+            print(f"PRESTACAO: Retornando {len(contratos)} contratos com locadores/locatários unificados")
             return contratos
             
     except Exception as e:
@@ -1201,9 +1225,10 @@ def inserir_representante_legal_locador(locador_id, dados_representante):
             
             cursor.execute("""
                 INSERT INTO RepresentanteLegalLocador (
-                    id_locador, nome, cpf, rg, endereco, telefone, email, cargo, created_at
+                    id_locador, nome, cpf, rg, endereco, telefone, email, cargo, 
+                    data_nascimento, nacionalidade, estado_civil, profissao, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 locador_id,
                 dados_representante.get('nome', ''),
@@ -1213,6 +1238,10 @@ def inserir_representante_legal_locador(locador_id, dados_representante):
                 dados_representante.get('telefone', ''),
                 dados_representante.get('email', ''),
                 dados_representante.get('cargo', 'Administrador'),
+                dados_representante.get('data_nascimento'),
+                dados_representante.get('nacionalidade', ''),
+                dados_representante.get('estado_civil', ''),
+                dados_representante.get('profissao', ''),
                 datetime.now()
             ))
             
@@ -1825,11 +1854,13 @@ def atualizar_locatario(locatario_id, **kwargs):
             'endereco_rua', 'endereco_numero', 'endereco_complemento', 'endereco_bairro',
             'endereco_cidade', 'endereco_estado', 'endereco_cep', 'possui_conjuge',
             'conjuge_nome', 'cpf_conjuge', 'nome_conjuge', 'rg_conjuge', 'endereco_conjuge',
-            'telefone_conjuge', 'possui_inquilino_solidario', 'possui_fiador', 
+            'telefone_conjuge', 'regime_bens', 'possui_inquilino_solidario', 'possui_fiador', 
             'qtd_pets', 'observacoes', 'ativo', 'responsavel_pgto_agua',
             'responsavel_pgto_luz', 'responsavel_pgto_gas', 'dados_empresa',
             'representante', 'tem_fiador', 'tem_moradores',
-            'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario'
+            'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario',
+            'inscricao_estadual', 'inscricao_municipal', 'atividade_principal', 
+            'razao_social', 'nome_fantasia'
         ]
         
         # Filtrar apenas os campos que foram enviados e sao atualizáveis
@@ -1923,6 +1954,26 @@ def atualizar_locatario(locatario_id, **kwargs):
                     ))
                     print(f"Novo representante legal inserido para locatário {locatario_id}")
         
+        # Atualizar telefones se fornecidos
+        if 'telefones' in kwargs:
+            atualizar_telefones_locatario(cursor, locatario_id, kwargs['telefones'])
+        
+        # Atualizar emails se fornecidos
+        if 'emails' in kwargs:
+            atualizar_emails_locatario(cursor, locatario_id, kwargs['emails'])
+        
+        # Atualizar endereço se fornecido (como dict estruturado)
+        if 'endereco' in kwargs and isinstance(kwargs['endereco'], dict):
+            atualizar_endereco_locatario(cursor, locatario_id, kwargs['endereco'])
+        elif 'endereco_estruturado' in kwargs:
+            atualizar_endereco_locatario(cursor, locatario_id, kwargs['endereco_estruturado'])
+        
+        # Atualizar formas de cobrança se fornecidas
+        if 'forma_envio_boleto' in kwargs:
+            atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['forma_envio_boleto'])
+        elif 'formas_envio_cobranca' in kwargs:
+            atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['formas_envio_cobranca'])
+        
         conn.commit()
         print(f"Locatario {locatario_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
         
@@ -1984,7 +2035,7 @@ def atualizar_imovel(imovel_id, **kwargs):
         print(f"Iniciando atualizacao do imóvel ID: {imovel_id}")
         print(f"Dados recebidos: {kwargs}")
         
-        # 🆕 PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
+        # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
         if 'endereco' in kwargs:
             try:
                 endereco_input = kwargs['endereco']
@@ -3339,30 +3390,30 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         try:
             cursor.execute("SELECT contrato_id FROM PrestacaoContas WHERE 1=0")
             tem_contrato_id = True
-            print("✅ Campo contrato_id já existe")
+            print("Campo contrato_id já existe")
         except:
             print("⚠️ Campo contrato_id não existe na tabela PrestacaoContas - adicionando...")
             try:
                 cursor.execute("ALTER TABLE PrestacaoContas ADD contrato_id INT")
-                print("✅ Campo contrato_id adicionado")
+                print("Campo contrato_id adicionado")
                 conn.commit()
                 tem_contrato_id = True
             except Exception as alter_error:
-                print(f"❌ Erro ao adicionar campo contrato_id: {alter_error}")
+                print(f"Erro ao adicionar campo contrato_id: {alter_error}")
                 tem_contrato_id = False
         
         # Remover qualquer constraint UNIQUE que impeça histórico completo
         try:
             # Remover constraint antiga se existir
             cursor.execute("ALTER TABLE PrestacaoContas DROP CONSTRAINT UK_PrestacaoContas_Cliente_Periodo")
-            print("✅ Constraint UNIQUE antiga removida - histórico completo habilitado")
+            print("Constraint UNIQUE antiga removida - histórico completo habilitado")
         except:
             pass  # Constraint já foi removida ou não existia
             
         try:
             # Remover constraint nova também (não queremos UNIQUE para histórico completo)
             cursor.execute("ALTER TABLE PrestacaoContas DROP CONSTRAINT UK_PrestacaoContas_Contrato_Periodo")
-            print("✅ Constraint UNIQUE por contrato removida - histórico completo habilitado")
+            print("Constraint UNIQUE por contrato removida - histórico completo habilitado")
         except:
             pass  # Constraint não existia
         
@@ -3505,7 +3556,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         conn.commit()
         conn.close()
         
-        print(f"✅ Prestação de contas salva com sucesso - ID: {prestacao_id}")
+        print(f"Prestação de contas salva com sucesso - ID: {prestacao_id}")
         return {
             "success": True,
             "prestacao_id": prestacao_id,
@@ -3514,7 +3565,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         }
         
     except Exception as e:
-        print(f"❌ Erro ao salvar prestação de contas: {e}")
+        print(f"Erro ao salvar prestação de contas: {e}")
         if conn:
             conn.rollback()
             conn.close()
@@ -4018,7 +4069,7 @@ def criar_exemplo_contrato3():
     Demonstra os dois métodos: 'proporcional-dias' vs 'dias-completo'
     """
     print("=" * 80)
-    print("🏠 EXEMPLOS DE CÁLCULO PROPORCIONAL - CONTRATO 3")
+    print("EXEMPLOS DE CÁLCULO PROPORCIONAL - CONTRATO 3")
     print("=" * 80)
     
     # Dados de exemplo do contrato 3
@@ -4045,7 +4096,7 @@ def criar_exemplo_contrato3():
         print(f"• Taxa administração: R${resultado1['breakdown_retencao']['taxa_admin']:.2f}")
         
     except Exception as e:
-        print(f"❌ Erro no cenário 1: {e}")
+        print(f"Erro no cenário 1: {e}")
         # Usar valores exemplo se não conseguir conectar com banco
         print("• Exemplo com valores simulados:")
         print("• Valor aluguel: R$ 1.500,00")
@@ -4075,7 +4126,7 @@ def criar_exemplo_contrato3():
         print(f"• Taxa administração: R${resultado2['breakdown_retencao']['taxa_admin']:.2f}")
         
     except Exception as e:
-        print(f"❌ Erro no cenário 2: {e}")
+        print(f"Erro no cenário 2: {e}")
         # Usar valores exemplo se não conseguir conectar com banco
         print("• Exemplo com valores simulados:")
         print("• Valor aluguel: R$ 1.500,00")
@@ -4106,7 +4157,7 @@ def criar_exemplo_contrato3():
         print(f"• Taxa administração: R${resultado3['breakdown_retencao']['taxa_admin']:.2f}")
         
     except Exception as e:
-        print(f"❌ Erro no cenário 3: {e}")
+        print(f"Erro no cenário 3: {e}")
         # Usar valores exemplo se não conseguir conectar com banco
         print("• Exemplo com valores simulados:")
         print("• Valor aluguel: R$ 1.500,00")
@@ -4118,7 +4169,7 @@ def criar_exemplo_contrato3():
         print("• Líquido locador: R$ 2.961,29")
     
     print("\n" + "=" * 80)
-    print("📊 RESUMO DOS MÉTODOS DE CÁLCULO")
+    print("RESUMO DOS MÉTODOS DE CÁLCULO")
     print("=" * 80)
     print("• PROPORCIONAL-DIAS: Calcula apenas pelos dias efetivamente utilizados")
     print("• DIAS-COMPLETO: Dias utilizados + valor total do mês (mais favorável ao locador)")
@@ -4300,4 +4351,370 @@ def calcular_multa_proporcional(contrato_id, data_rescisao):
             
     except Exception as e:
         print(f"ERRO no cálculo da multa proporcional: {str(e)}")
+        raise
+
+# ===== FUNÇÕES PARA ATUALIZAR DADOS RELACIONADOS =====
+
+def atualizar_telefones_locatario(cursor, locatario_id, telefones):
+    """
+    Atualiza os telefones de um locatário usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locatario_id: ID do locatário
+        telefones: Lista de strings com os telefones
+    """
+    try:
+        print(f"Atualizando telefones do locatario {locatario_id}")
+        print(f"Telefones recebidos: {telefones}")
+        
+        # 1. Desativar telefones existentes (soft delete)
+        cursor.execute("""
+            UPDATE TelefonesLocatario 
+            SET ativo = 0 
+            WHERE locatario_id = ?
+        """, (locatario_id,))
+        
+        telefones_desativados = cursor.rowcount
+        print(f"{telefones_desativados} telefone(s) anterior(es) desativado(s)")
+        
+        # 2. Inserir novos telefones se fornecidos
+        if telefones and isinstance(telefones, list):
+            telefones_inseridos = 0
+            for telefone in telefones:
+                if telefone and telefone.strip():  # Ignorar strings vazias
+                    cursor.execute("""
+                        INSERT INTO TelefonesLocatario (locatario_id, telefone, tipo, principal, ativo, data_cadastro)
+                        VALUES (?, ?, ?, ?, 1, GETDATE())
+                    """, (
+                        locatario_id,
+                        telefone.strip(),
+                        'celular',  # Tipo padrão
+                        1 if telefones_inseridos == 0 else 0  # Primeiro telefone é principal
+                    ))
+                    telefones_inseridos += 1
+            
+            print(f"SUCCESS: {telefones_inseridos} novo(s) telefone(s) inserido(s)")
+        else:
+            print("INFO: Nenhum telefone valido para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar telefones do locatario {locatario_id}: {str(e)}")
+        raise
+
+def atualizar_emails_locatario(cursor, locatario_id, emails):
+    """
+    Atualiza os emails de um locatário usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locatario_id: ID do locatário
+        emails: Lista de strings com os emails
+    """
+    try:
+        print(f"Atualizando emails do locatario {locatario_id}")
+        print(f"Emails recebidos: {emails}")
+        
+        # 1. Desativar emails existentes (soft delete)
+        cursor.execute("""
+            UPDATE EmailsLocatario 
+            SET ativo = 0 
+            WHERE locatario_id = ?
+        """, (locatario_id,))
+        
+        emails_desativados = cursor.rowcount
+        print(f"{emails_desativados} email(s) anterior(es) desativado(s)")
+        
+        # 2. Inserir novos emails se fornecidos
+        if emails and isinstance(emails, list):
+            emails_inseridos = 0
+            for email in emails:
+                if email and email.strip() and '@' in email:  # Validação básica de email
+                    cursor.execute("""
+                        INSERT INTO EmailsLocatario (locatario_id, email, tipo, principal, ativo, data_cadastro)
+                        VALUES (?, ?, ?, ?, 1, GETDATE())
+                    """, (
+                        locatario_id,
+                        email.strip(),
+                        'pessoal',  # Tipo padrão
+                        1 if emails_inseridos == 0 else 0  # Primeiro email é principal
+                    ))
+                    emails_inseridos += 1
+            
+            print(f"SUCCESS: {emails_inseridos} novo(s) email(s) inserido(s)")
+        else:
+            print("INFO: Nenhum email valido para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar emails do locatario {locatario_id}: {str(e)}")
+        raise
+
+def atualizar_telefones_locador(cursor, locador_id, telefones):
+    """
+    Atualiza os telefones de um locador usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locador_id: ID do locador
+        telefones: Lista de strings com os telefones
+    """
+    try:
+        print(f"Atualizando telefones do locador {locador_id}")
+        print(f"Telefones recebidos: {telefones}")
+        
+        # 1. Desativar telefones existentes (soft delete)
+        cursor.execute("""
+            UPDATE TelefonesLocador 
+            SET ativo = 0 
+            WHERE locador_id = ?
+        """, (locador_id,))
+        
+        telefones_desativados = cursor.rowcount
+        print(f"{telefones_desativados} telefone(s) anterior(es) desativado(s)")
+        
+        # 2. Inserir novos telefones se fornecidos
+        if telefones and isinstance(telefones, list):
+            telefones_inseridos = 0
+            for telefone in telefones:
+                if telefone and telefone.strip():  # Ignorar strings vazias
+                    cursor.execute("""
+                        INSERT INTO TelefonesLocador (locador_id, telefone, tipo, principal, ativo, data_cadastro)
+                        VALUES (?, ?, ?, ?, 1, GETDATE())
+                    """, (
+                        locador_id,
+                        telefone.strip(),
+                        'celular',  # Tipo padrão
+                        1 if telefones_inseridos == 0 else 0  # Primeiro telefone é principal
+                    ))
+                    telefones_inseridos += 1
+            
+            print(f"SUCCESS: {telefones_inseridos} novo(s) telefone(s) inserido(s)")
+        else:
+            print("Nenhum telefone válido para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar telefones do locador {locador_id}: {str(e)}")
+        raise
+
+def atualizar_emails_locador(cursor, locador_id, emails):
+    """
+    Atualiza os emails de um locador usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locador_id: ID do locador
+        emails: Lista de strings com os emails
+    """
+    try:
+        print(f"Atualizando emails do locador {locador_id}")
+        print(f"Emails recebidos: {emails}")
+        
+        # 1. Desativar emails existentes (soft delete)
+        cursor.execute("""
+            UPDATE EmailsLocador 
+            SET ativo = 0 
+            WHERE locador_id = ?
+        """, (locador_id,))
+        
+        emails_desativados = cursor.rowcount
+        print(f"{emails_desativados} email(s) anterior(es) desativado(s)")
+        
+        # 2. Inserir novos emails se fornecidos
+        if emails and isinstance(emails, list):
+            emails_inseridos = 0
+            for email in emails:
+                if email and email.strip() and '@' in email:  # Validação básica de email
+                    cursor.execute("""
+                        INSERT INTO EmailsLocador (locador_id, email, tipo, principal, ativo, data_cadastro)
+                        VALUES (?, ?, ?, ?, 1, GETDATE())
+                    """, (
+                        locador_id,
+                        email.strip(),
+                        'pessoal',  # Tipo padrão
+                        1 if emails_inseridos == 0 else 0  # Primeiro email é principal
+                    ))
+                    emails_inseridos += 1
+            
+            print(f"SUCCESS: {emails_inseridos} novo(s) email(s) inserido(s)")
+        else:
+            print("Nenhum email válido para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar emails do locador {locador_id}: {str(e)}")
+        raise
+
+def atualizar_metodos_pagamento_locador(cursor, locador_id, metodos_pagamento):
+    """
+    Atualiza os métodos de pagamento de um locador usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locador_id: ID do locador
+        metodos_pagamento: Lista de dicts com os dados bancários
+    """
+    try:
+        print(f"🔄 Atualizando métodos de pagamento do locador {locador_id}")
+        print(f"💳 Métodos recebidos: {metodos_pagamento}")
+        
+        # 1. Desativar métodos de pagamento existentes (soft delete)
+        cursor.execute("""
+            UPDATE MetodosPagamentoLocador 
+            SET ativo = 0 
+            WHERE locador_id = ?
+        """, (locador_id,))
+        
+        metodos_desativados = cursor.rowcount
+        print(f"🗑️ {metodos_desativados} método(s) de pagamento anterior(es) desativado(s)")
+        
+        # 2. Inserir novos métodos se fornecidos
+        if metodos_pagamento and isinstance(metodos_pagamento, list):
+            metodos_inseridos = 0
+            for i, metodo in enumerate(metodos_pagamento):
+                if isinstance(metodo, dict) and metodo.get('banco') and metodo.get('conta'):
+                    cursor.execute("""
+                        INSERT INTO MetodosPagamentoLocador (
+                            locador_id, banco, agencia, conta, tipo_conta, chave_pix, tipo_chave, 
+                            principal, ativo, data_cadastro
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, GETDATE())
+                    """, (
+                        locador_id,
+                        metodo.get('banco', ''),
+                        metodo.get('agencia', ''),
+                        metodo.get('conta', ''),
+                        metodo.get('tipo_conta', 'corrente'),
+                        metodo.get('pix_chave', ''),
+                        metodo.get('pix_tipo', ''),
+                        1 if i == 0 else 0  # Primeiro método é principal
+                    ))
+                    metodos_inseridos += 1
+            
+            print(f"SUCCESS: {metodos_inseridos} novo(s) metodo(s) de pagamento inserido(s)")
+        else:
+            print("INFO: Nenhum metodo de pagamento valido para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar metodos de pagamento do locador {locador_id}: {str(e)}")
+        raise
+
+def inserir_endereco_locatario_com_conexao(cursor, dados_endereco):
+    """Insere um endereço estruturado para locatário usando cursor existente"""
+    try:
+        print(f"Inserindo endereço do locatario com cursor existente: {dados_endereco}")
+        
+        from datetime import datetime
+        
+        cursor.execute("""
+            INSERT INTO EnderecoLocatario (
+                rua, numero, complemento, bairro, cidade, uf, cep, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            dados_endereco.get('rua', ''),
+            dados_endereco.get('numero', ''),
+            dados_endereco.get('complemento', ''),
+            dados_endereco.get('bairro', ''),
+            dados_endereco.get('cidade', ''),
+            dados_endereco.get('uf', dados_endereco.get('estado', 'PR')),
+            dados_endereco.get('cep', ''),
+            datetime.now()
+        ))
+        
+        # Obter ID do endereço inserido
+        cursor.execute("SELECT @@IDENTITY")
+        endereco_id = cursor.fetchone()[0]
+        
+        print(f"SUCCESS: Endereço locatario inserido com ID: {endereco_id}")
+        return int(endereco_id)
+        
+    except Exception as e:
+        print(f"ERRO ao inserir endereço do locatario: {str(e)}")
+        raise
+
+def atualizar_endereco_locatario(cursor, locatario_id, endereco_data):
+    """
+    Atualiza endereço de um locatário - insere novo endereço e atualiza endereco_id.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locatario_id: ID do locatário
+        endereco_data: Dict com dados do endereço
+    """
+    try:
+        if not endereco_data or not isinstance(endereco_data, dict):
+            print("INFO: Dados de endereço inválidos, pulando atualização")
+            return
+            
+        print(f"Atualizando endereço do locatario {locatario_id}")
+        print(f"Dados do endereço: {endereco_data}")
+        
+        # Inserir novo endereço
+        endereco_id = inserir_endereco_locatario_com_conexao(cursor, endereco_data)
+        
+        if endereco_id:
+            # Atualizar endereco_id na tabela Locatarios
+            cursor.execute("""
+                UPDATE Locatarios 
+                SET endereco_id = ? 
+                WHERE id = ?
+            """, (endereco_id, locatario_id))
+            
+            print(f"SUCCESS: endereco_id atualizado para {endereco_id}")
+        else:
+            print("ERRO: Falha ao inserir novo endereço")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar endereço do locatario {locatario_id}: {str(e)}")
+        raise
+
+def atualizar_formas_cobranca_locatario(cursor, locatario_id, formas_cobranca):
+    """
+    Atualiza as formas de cobrança de um locatário usando soft delete.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        locatario_id: ID do locatário
+        formas_cobranca: Lista de dicts com as formas de cobrança
+    """
+    try:
+        print(f"Atualizando formas de cobranca do locatario {locatario_id}")
+        print(f"Formas de cobranca recebidas: {formas_cobranca}")
+        
+        # 1. Desativar formas de cobrança existentes (soft delete)
+        cursor.execute("""
+            UPDATE FormasEnvioCobranca 
+            SET ativo = 0 
+            WHERE locatario_id = ?
+        """, (locatario_id,))
+        
+        formas_desativadas = cursor.rowcount
+        print(f"{formas_desativadas} forma(s) de cobranca anterior(es) desativada(s)")
+        
+        # 2. Inserir novas formas se fornecidas
+        if formas_cobranca and isinstance(formas_cobranca, list):
+            formas_inseridas = 0
+            for i, forma in enumerate(formas_cobranca):
+                if isinstance(forma, dict) and forma.get('tipo') and forma.get('contato'):
+                    cursor.execute("""
+                        INSERT INTO FormasEnvioCobranca (
+                            locatario_id, tipo, contato, observacoes, principal, ativo, 
+                            ordem, verificado, data_cadastro
+                        )
+                        VALUES (?, ?, ?, ?, ?, 1, ?, 0, GETDATE())
+                    """, (
+                        locatario_id,
+                        forma.get('tipo', ''),
+                        forma.get('contato', ''),
+                        forma.get('observacoes', ''),
+                        1 if i == 0 else 0,  # Primeira forma é principal
+                        i  # Ordem baseada na posição na lista
+                    ))
+                    formas_inseridas += 1
+            
+            print(f"SUCCESS: {formas_inseridas} nova(s) forma(s) de cobranca inserida(s)")
+        else:
+            print("INFO: Nenhuma forma de cobranca valida para inserir")
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar formas de cobranca do locatario {locatario_id}: {str(e)}")
         raise

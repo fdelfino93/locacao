@@ -9,7 +9,6 @@ import { ModernImovelFormV2 } from './components/forms/ModernImovelFormV2';
 import { ModernContratoForm } from './components/forms/ModernContratoForm';
 import { PrestacaoContasModernaDebug } from './components/sections/PrestacaoContasModernaDebug';
 import PrestacaoContasLancamento from './components/pages/PrestacaoContasLancamento';
-import TesteEdicaoSimples from './components/pages/TesteEdicaoSimples';
 import Dashboard from './components/dashboard/Dashboard';
 import DashboardEnhanced from './components/dashboard/DashboardEnhanced';
 import DashboardPro from './components/dashboard/DashboardPro';

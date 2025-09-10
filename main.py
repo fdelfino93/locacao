@@ -272,6 +272,18 @@ class LocatarioUpdate(BaseModel):
     porte_empresa: Optional[str] = None
     regime_tributario: Optional[str] = None
     representante_legal: Optional[dict] = None
+    
+    # MÚLTIPLOS CONTATOS - CAMPOS ESSENCIAIS PARA A CORREÇÃO
+    telefones: Optional[List[str]] = None
+    emails: Optional[List[str]] = None
+    
+    # DADOS BANCÁRIOS/MÉTODOS DE PAGAMENTO
+    metodos_pagamento: Optional[List[dict]] = None
+    dados_bancarios: Optional[dict] = None
+    
+    # ENDEREÇO ESTRUTURADO  
+    endereco: Optional[Union[str, dict]] = None
+    endereco_estruturado: Optional[dict] = None
 
 class EnderecoImovelInput(BaseModel):
     rua: str
@@ -466,7 +478,7 @@ class ContratoUpdate(BaseModel):
 @app.post("/api/locadores")
 async def criar_locador(locador: LocadorCreate):
     try:
-        print(f"💾 Criando novo locador: {locador.nome}")
+        print(f"Criando novo locador: {locador.nome}")
         
         # Usar novo repository v2 com dados completos
         from locacao.repositories.locador_repository_v2 import inserir_locador_v2
@@ -479,7 +491,7 @@ async def criar_locador(locador: LocadorCreate):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Erro ao criar locador: {e}")
+        print(f"Erro ao criar locador: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
 
 @app.put("/api/locadores/{locador_id}")
@@ -510,15 +522,15 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorCreate):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ ERRO no endpoint PUT /api/locadores/{locador_id}: {str(e)}")
+        print(f"ERRO no endpoint PUT /api/locadores/{locador_id}: {str(e)}")
         import traceback
-        print(f"❌ Traceback: {traceback.format_exc()}")
+        print(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
 
 @app.get("/api/locadores/{locador_id}")
 async def buscar_locador_por_id(locador_id: int):
     try:
-        print(f"🔍 Buscando locador completo ID: {locador_id}")
+        print(f"Buscando locador completo ID: {locador_id}")
         
         # Usar novo repository v2 com dados completos
         from locacao.repositories.locador_repository_v2 import buscar_locador_completo
@@ -537,14 +549,14 @@ async def buscar_locador_por_id(locador_id: int):
 @app.get("/api/locadores")
 async def listar_locadores():
     try:
-        print("📋 Listando locadores")
+        print("Listando locadores")
         
         # Usar novo repository v2
         from locacao.repositories.locador_repository_v2 import listar_locadores
         locadores = listar_locadores()
         return {"data": locadores, "success": True}
     except Exception as e:
-        print(f"❌ Erro ao listar locadores: {e}")
+        print(f"Erro ao listar locadores: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locadores: {str(e)}")
 
 class StatusRequest(BaseModel):
@@ -584,53 +596,46 @@ async def listar_locatarios():
 @app.put("/api/locatarios/{locatario_id}")
 async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUpdate):
     try:
-        print(f"\n==== DEBUGGING PUT /api/locatarios/{locatario_id} ====")
-        print(f"ENDPOINT: Iniciando atualização de locatário ID: {locatario_id}")
-        print(f"ENDPOINT: Modelo LocatarioUpdate fields: {list(LocatarioUpdate.model_fields.keys())}")
+        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCATÁRIO {locatario_id} ===")
+        dados_recebidos = locatario.model_dump(exclude_none=True)
+        print(f"Dados recebidos do frontend:")
+        for campo, valor in dados_recebidos.items():
+            print(f"  - {campo}: {valor}")
+        print(f"Total de campos enviados: {len(dados_recebidos)}")
         
-        dados_recebidos = locatario.model_dump()
-        print(f"ENDPOINT: Total de campos recebidos: {len(dados_recebidos)}")
+        from repositories_adapter import atualizar_locatario as atualizar_locatario_db
+        # Filtrar campos None antes de enviar para o banco
+        dados_filtrados = {k: v for k, v in dados_recebidos.items() if v is not None}
+        print(f"Dados após filtrar None: {len(dados_filtrados)} campos")
+        for campo, valor in dados_filtrados.items():
+            print(f"  - {campo}: {valor}")
         
-        # Verificar campos específicos de empresa
-        campos_empresa = ['data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario']
-        for campo in campos_empresa:
-            valor = dados_recebidos.get(campo)
-            print(f"ENDPOINT: {campo} = {valor} (tipo: {type(valor)})")
+        resultado = atualizar_locatario_db(locatario_id, **dados_filtrados)
         
-        print(f"ENDPOINT: representante_legal = {dados_recebidos.get('representante_legal')}")
-        print(f"ENDPOINT: Dados completos: {dados_recebidos}")
-        
-        # Chamar função de atualização
-        print(f"ENDPOINT: Chamando atualizar_locatario({locatario_id}, **kwargs)")
-        sucesso = atualizar_locatario(locatario_id, **locatario.model_dump())
-        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
-        
-        if not sucesso:
-            raise HTTPException(status_code=404, detail="Locatário não encontrado ou erro na atualização")
-            
-        locatario_atualizado = {"id": locatario_id, **locatario.model_dump()}
-        
-        return {
-            "data": locatario_atualizado, 
-            "success": True, 
-            "message": f"Locatário {locatario_id} atualizado com sucesso!"
-        }
+        if resultado:
+            print(f"✓ Locatário {locatario_id} atualizado com sucesso!")
+            return {"message": f"Locatário {locatario_id} atualizado com sucesso", "success": True}
+        else:
+            print(f"✗ Falha ao atualizar locatário {locatario_id}")
+            raise HTTPException(status_code=404, detail="Locatário não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ENDPOINT ERROR: Erro geral ao atualizar locatário: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro ao atualizar locatário: {str(e)}")
+        print(f"ERRO no endpoint PUT /api/locatarios/{locatario_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro interno do servidor: {str(e)}")
 
 @app.get("/api/locatarios/{locatario_id}")
 async def buscar_locatario_endpoint(locatario_id: int):
     try:
-        print(f"🔍 ENDPOINT: Buscando locatário ID: {locatario_id}")
+        print(f"ENDPOINT: Buscando locatário ID: {locatario_id}")
         
         # Usar nova função que busca com múltiplos contatos
         locatario = buscar_locatario_por_id(locatario_id)
         
         if not locatario:
-            print(f"❌ ENDPOINT: Locatário ID {locatario_id} não encontrado")
+            print(f"ENDPOINT: Locatário ID {locatario_id} não encontrado")
             raise HTTPException(status_code=404, detail="Locatário não encontrado")
             
         return {"data": locatario, "success": True}
@@ -710,15 +715,15 @@ async def buscar_imovel_por_id(imovel_id: int):
         if not imovel:
             raise HTTPException(status_code=404, detail="Imóvel não encontrado")
         
-        # 🆕 Se tem endereco_id, buscar dados estruturados
+        # Se tem endereco_id, buscar dados estruturados
         endereco_id = imovel.get('endereco_id')
         if endereco_id:
-            print(f"🏠 Buscando endereço estruturado ID: {endereco_id}")
+            print(f"Buscando endereço estruturado ID: {endereco_id}")
             from repositories_adapter import buscar_endereco_imovel
             endereco_estruturado = buscar_endereco_imovel(endereco_id)
             if endereco_estruturado:
                 imovel['endereco_estruturado'] = endereco_estruturado
-                print(f"✅ Endereço estruturado adicionado: {endereco_estruturado}")
+                print(f"Endereço estruturado adicionado: {endereco_estruturado}")
             
         return {"data": imovel, "success": True}
     except HTTPException:
