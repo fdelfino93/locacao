@@ -2028,6 +2028,7 @@ def alterar_status_locatario(locatario_id, ativo):
 
 def atualizar_imovel(imovel_id, **kwargs):
     """Atualiza um imóvel na tabela Imoveis"""
+    print("🚨🚨🚨 TESTE RELOAD: repositories_adapter.py FOI RECARREGADO! 🚨🚨🚨")
     try:
         conn = get_conexao()
         cursor = conn.cursor()
@@ -2062,23 +2063,58 @@ def atualizar_imovel(imovel_id, **kwargs):
         
         print(f"Imóvel encontrado: ID {imovel_existente[0]}, Endereço: {imovel_existente[1]}, Tipo: {imovel_existente[2]}")
         
-        # Listar campos que podem ser atualizados baseados na estrutura da tabela
+        # ✅ LISTA COMPLETA DE CAMPOS ATUALIZÁVEIS baseados na estrutura atual do banco
         campos_atualizaveis = [
+            # Campos originais básicos
             'id_locador', 'id_locatario', 'tipo', 'endereco', 'endereco_id', 'valor_aluguel', 
             'iptu', 'condominio', 'taxa_incendio', 'status', 'matricula_imovel',
-            'area_imovel', 'dados_imovel', 'permite_pets', 'metragem', 
-            'numero_quartos', 'numero_banheiros', 'numero_vagas', 'andar',
-            'mobiliado', 'aceita_animais', 'valor_condominio', 'valor_iptu_mensal',
-            'finalidade_imovel', 'nome_edificio', 'armario_embutido', 'escritorio',
-            'area_servico', 'ativo', 'observacoes'
+            'area_imovel', 'dados_imovel', 'permite_pets', 'info_iptu',
+            'observacoes_condominio', 'copel_unidade_consumidora', 'sanepar_matricula',
+            'tem_gas', 'info_gas', 'boleto_condominio', 'observacoes',
+            
+            # Campos de metragem e estrutura
+            'metragem_total', 'metragem_construida', 'ano_construcao', 'tipo_edificacao',
+            'andar', 'elevador', 'mobiliado', 'aceita_pets',
+            
+            # ✅ CAMPOS NOVOS ESSENCIAIS - ERAM ESTES QUE ESTAVAM FALTANDO!
+            'area_total', 'area_privativa', 'quartos', 'banheiros', 'salas', 'vagas_garagem',
+            'suites', 'cozinha', 'tem_sacada', 'qtd_sacada', 'tem_churrasqueira', 'qtd_churrasqueira',
+            'caracteristicas', 'titular_iptu', 'inscricao_imobiliaria', 'indicacao_fiscal',
+            'nome_condominio', 'sindico_condominio', 'cnpj_condominio', 'email_condominio', 'telefone_condominio',
+            
+            # Campos de compatibilidade/legado
+            'numero_quartos', 'numero_banheiros', 'numero_vagas', 'aceita_animais',
+            'valor_condominio', 'valor_iptu_mensal', 'finalidade_imovel', 'nome_edificio',
+            'armario_embutido', 'escritorio', 'area_servico', 'ativo'
         ]
         
         # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
             if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int/bool quando necessario
-                if campo in ['mobiliado', 'aceita_animais', 'permite_pets', 'ativo']:
+                # ✅ PROCESSAR CAMPOS BOOLEANOS (sem mobiliado que é string)
+                campos_booleanos = [
+                    'aceita_animais', 'permite_pets', 'ativo', 
+                    'tem_gas', 'boleto_condominio', 'elevador',
+                    'tem_sacada', 'tem_churrasqueira'
+                ]
+                
+                # ✅ TRATAR MOBILIADO - CAMPO É BIT NO BANCO (só True/False)
+                if campo == 'mobiliado':
+                    # DESCOBERTO: Campo mobiliado no banco é BIT, não varchar
+                    # Converter string/booleano para bit (0/1)
+                    if isinstance(valor, bool):
+                        valor = 1 if valor else 0
+                    elif isinstance(valor, str):
+                        valor = valor.lower()
+                        if valor in ['true', '1', 'sim', 's']:
+                            valor = 1  # ✅ Sim = True
+                        else:
+                            valor = 0  # ✅ Não = False
+                    else:
+                        valor = 1 if valor else 0
+                
+                elif campo in campos_booleanos:
                     if isinstance(valor, str):
                         if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
                             valor = 1
@@ -2088,12 +2124,33 @@ def atualizar_imovel(imovel_id, **kwargs):
                             valor = int(valor) if valor.isdigit() else 0
                     elif isinstance(valor, bool):
                         valor = 1 if valor else 0
+                
+                # ✅ SINCRONIZAR permite_pets e aceita_pets
+                if campo == 'permite_pets':
+                    campos_para_atualizar['aceita_pets'] = valor  # Sincronizar ambos
+                elif campo == 'aceita_pets':
+                    campos_para_atualizar['permite_pets'] = valor  # Sincronizar ambos
                 campos_para_atualizar[campo] = valor
         
         if not campos_para_atualizar:
-            print("Nenhum campo válido para atualizar")
+            print("NENHUM campo valido para atualizar")
             conn.close()
             return False
+        
+        print(f"CAMPOS VALIDOS PARA ATUALIZAR ({len(campos_para_atualizar)}):")
+        for campo, valor in campos_para_atualizar.items():
+            print(f"   {campo}: {valor} (tipo: {type(valor)})")
+        
+        # DEBUG: Mostrar campos que foram rejeitados
+        print(f"DEBUG - CAMPOS ENVIADOS vs ACEITOS:")
+        for campo, valor in kwargs.items():
+            if campo in campos_atualizaveis:
+                if valor is None:
+                    print(f"   {campo}: {valor} (REJEITADO - valor None)")
+                else:
+                    print(f"   {campo}: {valor} (ACEITO)")
+            else:
+                print(f"   {campo}: {valor} (REJEITADO - nao esta em campos_atualizaveis)")
             
         # Construir query de UPDATE dinamicamente
         set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
@@ -2102,19 +2159,100 @@ def atualizar_imovel(imovel_id, **kwargs):
         
         query = f"UPDATE Imoveis SET {set_clause} WHERE id = ?"
         
-        print(f"Query: {query}")
+        print(f"EXECUTANDO QUERY: {query}")
+        print(f"VALORES: {valores}")
         print(f"Valores: {valores}")
         
         cursor.execute(query, valores)
         
-        # Verificar se alguma linha foi afetada
-        if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualizacao")
+        linhas_afetadas_imovel = cursor.rowcount
+        print(f"📊 Linhas afetadas na tabela Imoveis: {linhas_afetadas_imovel}")
+        
+        # ✅ CORREÇÃO: Processar múltiplos locadores se fornecidos (ANTES da verificação de rowcount)
+        print(f"🔍 DEBUG: Verificando se existem locadores nos kwargs...")
+        print(f"🔍 DEBUG: kwargs.keys() = {list(kwargs.keys())}")
+        if 'locadores' in kwargs:
+            print(f"🔍 DEBUG: Campo 'locadores' encontrado com valor: {kwargs['locadores']}")
+        
+        if 'locadores' in kwargs and kwargs['locadores']:
+            try:
+                print(f"🔄 PROCESSANDO {len(kwargs['locadores'])} locadores para imóvel {imovel_id}")
+                
+                # ✅ UPSERT: Atualizar existentes ou inserir novos
+                locadores_enviados = [l.get('locador_id') for l in kwargs['locadores']]
+                
+                # Desativar locadores que não estão na nova lista
+                cursor.execute("""
+                    UPDATE ImovelLocadores 
+                    SET ativo = 0, data_atualizacao = GETDATE()
+                    WHERE imovel_id = ? AND locador_id NOT IN ({})
+                """.format(','.join('?' * len(locadores_enviados))), 
+                    [imovel_id] + locadores_enviados)
+                
+                for idx, locador in enumerate(kwargs['locadores']):
+                    locador_id = locador.get('locador_id')
+                    
+                    # Verificar se já existe
+                    cursor.execute("""
+                        SELECT id FROM ImovelLocadores 
+                        WHERE imovel_id = ? AND locador_id = ?
+                    """, (imovel_id, locador_id))
+                    
+                    existe = cursor.fetchone()
+                    
+                    if existe:
+                        # Atualizar existente
+                        cursor.execute("""
+                            UPDATE ImovelLocadores 
+                            SET porcentagem = ?, 
+                                responsabilidade_principal = ?,
+                                ativo = 1,
+                                data_atualizacao = GETDATE()
+                            WHERE imovel_id = ? AND locador_id = ?
+                        """, (
+                            locador.get('porcentagem', 100.00),
+                            locador.get('responsabilidade_principal', idx == 0),
+                            imovel_id,
+                            locador_id
+                        ))
+                        print(f"🔄 ATUALIZADO locador {locador_id} no imóvel {imovel_id}")
+                    else:
+                        # Inserir novo
+                        cursor.execute("""
+                            INSERT INTO ImovelLocadores (
+                                imovel_id, locador_id, porcentagem, 
+                                responsabilidade_principal, ativo,
+                                data_criacao, data_atualizacao
+                            )
+                            VALUES (?, ?, ?, ?, 1, GETDATE(), GETDATE())
+                        """, (
+                            imovel_id,
+                            locador_id,
+                            locador.get('porcentagem', 100.00),
+                            locador.get('responsabilidade_principal', idx == 0)
+                        ))
+                        print(f"➕ INSERIDO novo locador {locador_id} no imóvel {imovel_id}")
+                
+                conn.commit()
+                print(f"✅ {len(kwargs['locadores'])} locadores processados com sucesso!")
+                
+            except Exception as locador_error:
+                print(f"❌ ERRO ao processar locadores: {locador_error}")
+                # Não fazer rollback da atualização do imóvel, apenas logs o erro
+        
+        # Verificar se houve alterações (na tabela Imoveis OU nos locadores)
+        locadores_processados = 'locadores' in kwargs and kwargs['locadores']
+        if linhas_afetadas_imovel == 0 and not locadores_processados:
+            print("NENHUMA alteração foi feita (nem na tabela Imoveis nem nos locadores)")
             conn.close()
             return False
         
-        conn.commit()
-        print(f"Imóvel {imovel_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
+        # Commit final se ainda não foi feito
+        if not locadores_processados:
+            conn.commit()
+        
+        print(f"🎉 REPOSITORY retornando TRUE")
+        print(f"📊 Resumo: {linhas_afetadas_imovel} linha(s) da tabela Imoveis + {len(kwargs.get('locadores', []))} locadores processados")
         
         conn.close()
         return True

@@ -44,6 +44,11 @@ load_dotenv()
 
 app = FastAPI(title="Cobimob API", version="1.0.0", description="Sistema de Locações")
 
+# Endpoint de health check
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "message": "API funcionando"}
+
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
@@ -56,9 +61,9 @@ app.add_middleware(
 # Middleware de debug para ver todas as requisições
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    print(f"🌐 REQUEST: {request.method} {request.url} - Origin: {request.headers.get('origin')}")
+    print(f"REQUEST: {request.method} {request.url} - Origin: {request.headers.get('origin')}")
     response = await call_next(request)
-    print(f"🌐 RESPONSE: {response.status_code}")
+    print(f"RESPONSE: {response.status_code}")
     return response
 
 # Modelos Pydantic para validação dos dados
@@ -452,12 +457,24 @@ class ImovelUpdate(BaseModel):
     area_imovel: Optional[str] = None
     dados_imovel: Optional[str] = None
     permite_pets: Optional[bool] = None
-    metragem: Optional[float] = None
+    # Campos de metragem (nomes corretos do banco)
+    metragem_total: Optional[str] = None
+    metragem_construida: Optional[str] = None
+    area_total: Optional[str] = None
+    area_privativa: Optional[str] = None
+    # Campos básicos do imóvel
+    quartos: Optional[int] = None
+    banheiros: Optional[int] = None
+    salas: Optional[int] = None
+    vagas_garagem: Optional[int] = None
+    andar: Optional[int] = None
+    mobiliado: Optional[str] = None  # 'nao', 'sim', 'parcial'
+    aceita_pets: Optional[bool] = None
+    # Campos opcionais extras
     numero_quartos: Optional[int] = None
     numero_banheiros: Optional[int] = None
     numero_vagas: Optional[int] = None
-    andar: Optional[int] = None
-    mobiliado: Optional[bool] = None
+    metragem: Optional[float] = None
     aceita_animais: Optional[bool] = None
     valor_condominio: Optional[float] = None
     valor_iptu_mensal: Optional[float] = None
@@ -468,6 +485,29 @@ class ImovelUpdate(BaseModel):
     area_servico: Optional[int] = None
     ativo: Optional[bool] = None
     observacoes: Optional[str] = None
+    caracteristicas: Optional[str] = None
+    suites: Optional[int] = None
+    cozinha: Optional[int] = None
+    # ✅ CORREÇÃO: Campos de Encargos IPTU (que estavam faltando)
+    titular_iptu: Optional[str] = None
+    inscricao_imobiliaria: Optional[str] = None
+    indicacao_fiscal: Optional[str] = None
+    info_iptu: Optional[str] = None
+    # ✅ CORREÇÃO: Campos de Condomínio (que estavam faltando)
+    nome_condominio: Optional[str] = None
+    sindico_condominio: Optional[str] = None
+    cnpj_condominio: Optional[str] = None
+    email_condominio: Optional[str] = None
+    telefone_condominio: Optional[str] = None
+    observacoes_condominio: Optional[str] = None
+    boleto_condominio: Optional[bool] = None
+    # ✅ CORREÇÃO: Campos de Concessionárias (que estavam faltando)
+    copel_unidade_consumidora: Optional[str] = None
+    sanepar_matricula: Optional[str] = None
+    tem_gas: Optional[bool] = None
+    info_gas: Optional[str] = None
+    # ✅ CORREÇÃO: Campo para múltiplos locadores (que estava faltando)
+    locadores: Optional[List[LocadorImovelInput]] = []
 
 class ContratoCreate(BaseModel):
     # Campos obrigatórios essenciais
@@ -787,22 +827,8 @@ async def criar_imovel(imovel: ImovelCreate):
         # Converter para dict
         imovel_data = imovel.dict()
         
-        # Processar campos estruturados se existirem
-        if imovel_data.get('informacoes_iptu'):
-            iptu_info = imovel_data.pop('informacoes_iptu')
-            # Mapear para campos planos
-            imovel_data['titular_iptu'] = iptu_info.get('titular', '')
-            imovel_data['inscricao_imobiliaria'] = iptu_info.get('inscricao_imobiliaria', '')
-            imovel_data['indicacao_fiscal'] = iptu_info.get('indicacao_fiscal', '')
-        
-        if imovel_data.get('informacoes_condominio'):
-            cond_info = imovel_data.pop('informacoes_condominio')
-            # Mapear para campos planos
-            imovel_data['nome_condominio'] = cond_info.get('nome_condominio', '')
-            imovel_data['sindico_condominio'] = cond_info.get('sindico_condominio', '')
-            imovel_data['cnpj_condominio'] = cond_info.get('cnpj_condominio', '')
-            imovel_data['email_condominio'] = cond_info.get('email_condominio', '')
-            imovel_data['telefone_condominio'] = cond_info.get('telefone_condominio', '')
+        # ✅ CORREÇÃO: Os campos Encargos agora vem diretamente do frontend (não mais aninhados)
+        # Removido processamento de informacoes_iptu e informacoes_condominio - campos vem diretos
         
         if imovel_data.get('dados_gerais'):
             dados_gerais = imovel_data.pop('dados_gerais')
@@ -827,14 +853,13 @@ async def criar_imovel(imovel: ImovelCreate):
         # Processar múltiplos locadores se existirem
         locadores_data = imovel_data.pop('locadores', [])
         
+        # ✅ CORREÇÃO: Passar locadores para o repository
+        if locadores_data:
+            imovel_data['locadores'] = locadores_data
+            print(f"✅ Enviando {len(locadores_data)} locadores para o repository: {locadores_data}")
+        
         # Chamar repository
         novo_imovel = inserir_imovel(**imovel_data)
-        
-        # Se há locadores adicionais, gerenciar múltiplos locadores
-        if locadores_data and novo_imovel.get('id'):
-            # TODO: Implementar gerenciar_locadores_imovel
-            print(f"Locadores a serem processados: {locadores_data}")
-            pass
         
         return {"data": novo_imovel, "success": True}
     except Exception as e:
@@ -854,28 +879,125 @@ async def listar_imoveis():
 @app.put("/api/imoveis/{imovel_id}")
 async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
     try:
-        print(f"ENDPOINT: Iniciando atualização de imóvel ID: {imovel_id}")
-        print(f"ENDPOINT: Dados recebidos: {imovel.model_dump()}")
+        print(f"\nINICIANDO ATUALIZACAO DO IMOVEL {imovel_id}")
+        dados_recebidos = imovel.model_dump(exclude_none=True)
+        print(f"DADOS RECEBIDOS DO FRONTEND ({len(dados_recebidos)} campos):")
+        for campo, valor in dados_recebidos.items():
+            print(f"   {campo}: {valor} (tipo: {type(valor)})")
+        print(f"Total de campos enviados: {len(dados_recebidos)}")
         
-        # Chamar função de atualização
-        print(f"ENDPOINT: Chamando atualizar_imovel({imovel_id}, **kwargs)")
-        sucesso = atualizar_imovel(imovel_id, **imovel.model_dump())
-        print(f"ENDPOINT: Resultado da atualização: {sucesso}")
+        # Processar endereco estruturado se presente
+        if 'endereco' in dados_recebidos and isinstance(dados_recebidos['endereco'], dict):
+            endereco_estruturado = dados_recebidos.pop('endereco')
+            dados_recebidos['endereco_estruturado'] = endereco_estruturado
+            print(f"ENDERECO estruturado encontrado: {endereco_estruturado}")
         
-        if not sucesso:
-            raise HTTPException(status_code=404, detail="Imóvel não encontrado ou erro na atualização")
+        # ✅ CORREÇÃO: Os campos Encargos agora vem diretamente (não mais aninhados)
+        # Removido processamento de informacoes_iptu - campo titular_iptu vem direto
+        # ✅ CORREÇÃO: Os campos Condomínio agora vem diretamente (não mais aninhados)
+        # Removido processamento de informacoes_condominio - campos vem diretos
+
+        # Processar dados_gerais se presente (extrair campos para o nível principal)
+        if 'dados_gerais' in dados_recebidos:
+            dados_gerais = dados_recebidos.pop('dados_gerais')
+            print(f"DADOS_GERAIS encontrados: {dados_gerais}")
             
-        imovel_atualizado = {"id": imovel_id, **imovel.model_dump()}
+            # Mapear campos de dados_gerais para campos do banco
+            mapeamento_dados_gerais = {
+                'quartos': 'quartos',
+                'banheiros': 'banheiros', 
+                'salas': 'salas',
+                'qtd_garagem': 'vagas_garagem',
+                'area_total': 'area_total',
+                'area_construida': 'metragem_construida',  # Manter metragem_construida (existe no repo)
+                'area_privativa': 'area_privativa',
+                'mobiliado': 'mobiliado',
+                'permite_pets': 'permite_pets',  # ✅ CORRIGIDO: aceita_pets -> permite_pets
+                'caracteristicas': 'caracteristicas',
+                'suites': 'suites',
+                'cozinha': 'cozinha',
+                # Campos adicionais que podem vir do frontend
+                'tem_garagem': 'vagas_garagem',  # Mapear tem_garagem como indicador
+                'tem_sacada': 'tem_sacada',
+                'qtd_sacada': 'qtd_sacada',
+                'tem_churrasqueira': 'tem_churrasqueira',
+                'qtd_churrasqueira': 'qtd_churrasqueira',
+                'elevador': 'elevador',
+                'andar': 'andar',
+                'ano_construcao': 'ano_construcao'
+            }
+            
+            for campo_form, campo_db in mapeamento_dados_gerais.items():
+                if campo_form in dados_gerais and dados_gerais[campo_form] is not None:
+                    valor = dados_gerais[campo_form]
+                    if valor != "":  # Não incluir strings vazias
+                        dados_recebidos[campo_db] = valor
+                        print(f"Mapeado: {campo_form} -> {campo_db} = {valor}")
         
-        return {
-            "data": imovel_atualizado, 
-            "success": True, 
-            "message": f"Imóvel {imovel_id} atualizado com sucesso!"
-        }
+        # Forçar reload do módulo
+        import importlib
+        import repositories_adapter
+        importlib.reload(repositories_adapter)
+        from repositories_adapter import atualizar_imovel as atualizar_imovel_db
+        
+        # Filtrar campos None e strings vazias que devem ser NULL (campos numéricos/data)
+        campos_numericos = [
+            'valor_aluguel', 'iptu', 'condominio', 'taxa_incendio', 'metragem',
+            'numero_quartos', 'numero_banheiros', 'numero_vagas', 'andar',
+            'valor_condominio', 'valor_iptu_mensal', 'armario_embutido',
+            'escritorio', 'area_servico', 'id_locador', 'id_locatario',
+            'quartos', 'banheiros', 'salas', 'vagas_garagem', 'suites', 'cozinha',
+            'qtd_sacada', 'qtd_churrasqueira'
+        ]
+        
+        dados_filtrados = {}
+        for k, v in dados_recebidos.items():
+            if v is not None:
+                # Se for campo numérico e string vazia, converter para None (NULL no banco)
+                if k in campos_numericos and v == "":
+                    dados_filtrados[k] = None  # ✅ CORRIGIDO: Incluir como None para limpar o campo
+                # Se for lista vazia, não incluir
+                elif isinstance(v, list) and len(v) == 0:
+                    continue
+                else:
+                    dados_filtrados[k] = v
+        
+        # ✅ CORREÇÃO: Processar múltiplos locadores se existirem
+        print(f"🔍 DEBUG MAIN.PY: Verificando locadores em dados_recebidos...")
+        print(f"🔍 DEBUG MAIN.PY: 'locadores' in dados_recebidos = {'locadores' in dados_recebidos}")
+        if 'locadores' in dados_recebidos:
+            locadores_data = dados_recebidos.get('locadores', [])
+            print(f"🔍 DEBUG MAIN.PY: locadores_data = {locadores_data}")
+            if locadores_data:
+                dados_filtrados['locadores'] = locadores_data
+                print(f"✅ MAIN.PY: Enviando {len(locadores_data)} locadores para atualização: {locadores_data}")
+            else:
+                print("⚠️ MAIN.PY: locadores_data está vazio!")
+        else:
+            print("⚠️ MAIN.PY: Campo 'locadores' NÃO encontrado em dados_recebidos!")
+        
+        print(f"DADOS APOS PROCESSAR ({len(dados_filtrados)} campos):")
+        for campo, valor in dados_filtrados.items():
+            print(f"   {campo}: {valor} (tipo: {type(valor)})")
+        
+        print(f"CHAMANDO atualizar_imovel(id={imovel_id}, campos={list(dados_filtrados.keys())})")
+        resultado = atualizar_imovel_db(imovel_id, **dados_filtrados)
+        print(f"RESULTADO DO REPOSITORY: {resultado} (tipo: {type(resultado)})")
+        
+        if hasattr(resultado, 'get'):
+            print(f"Resultado detalhado: success={resultado.get('success')}, message={resultado.get('message')}")
+        
+        if resultado:
+            print(f"Imovel {imovel_id} atualizado com sucesso!")
+            return {"message": f"Imóvel {imovel_id} atualizado com sucesso", "success": True}
+        else:
+            print(f"Falha ao atualizar imovel {imovel_id}")
+            raise HTTPException(status_code=404, detail="Imóvel não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ENDPOINT ERROR: Erro geral ao atualizar imóvel: {str(e)}")
+        print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {str(e)}")
+        print("Erro no processamento - detalhes removidos para evitar problemas de encoding")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar imóvel: {str(e)}")
 
 @app.get("/api/imoveis/{imovel_id}")
@@ -899,6 +1021,38 @@ async def buscar_imovel_por_id(imovel_id: int):
             if endereco_estruturado:
                 imovel['endereco_estruturado'] = endereco_estruturado
                 print(f"Endereço estruturado adicionado: {endereco_estruturado}")
+        
+        # ✅ CORREÇÃO: Buscar múltiplos locadores do imóvel
+        try:
+            from locacao.repositories.imovel_repository import get_conexao
+            with get_conexao() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        il.id as vinculo_id,
+                        il.locador_id,
+                        l.nome as locador_nome,
+                        l.cpf_cnpj as locador_cpf_cnpj,
+                        l.telefone as locador_telefone,
+                        l.email as locador_email,
+                        il.porcentagem,
+                        il.responsabilidade_principal
+                    FROM ImovelLocadores il
+                    INNER JOIN Locadores l ON il.locador_id = l.id
+                    WHERE il.imovel_id = ? AND il.ativo = 1
+                    ORDER BY il.responsabilidade_principal DESC, il.porcentagem DESC
+                """, (imovel_id,))
+                
+                locadores = []
+                for row in cursor.fetchall():
+                    cols = [col[0] for col in cursor.description]
+                    locadores.append(dict(zip(cols, row)))
+                
+                imovel['locadores'] = locadores
+                print(f"✅ {len(locadores)} locadores adicionados ao imóvel {imovel_id}")
+        except Exception as e:
+            print(f"⚠️ Erro ao buscar locadores do imóvel {imovel_id}: {e}")
+            imovel['locadores'] = []
             
         return {"data": imovel, "success": True}
     except HTTPException:

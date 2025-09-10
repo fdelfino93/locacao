@@ -115,13 +115,20 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     salas: 0,
     cozinha: 0,
     tem_garagem: false,
-    qtd_garagem: undefined,
+    qtd_garagem: 0,
     tem_sacada: false,
     qtd_sacada: undefined,
     tem_churrasqueira: false,
     qtd_churrasqueira: undefined,
     mobiliado: 'nao',
-    permite_pets: false
+    permite_pets: false,
+    area_total: '',
+    area_construida: '',
+    area_privativa: '',
+    ano_construcao: '',
+    elevador: false,
+    andar: '',
+    caracteristicas: ''
   });
   
   // Estado para proprietários com responsabilidade principal
@@ -136,23 +143,22 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     id_cliente: 0,
     id_inquilino: 0,
     tipo: '',
+    status: '',
     valor_aluguel: 0,
     iptu: 0,
     condominio: 0,
     taxa_incendio: 0,
-    status: '',
     matricula_imovel: '',
     area_imovel: '',
-    area_total: '',
-    area_privativa: '',
-    dados_imovel: '',
+    permite_pets: false,
     info_iptu: '',
     observacoes_condominio: '',
     copel_unidade_consumidora: '',
     sanepar_matricula: '',
     tem_gas: false,
     info_gas: '',
-    boleto_condominio: false
+    boleto_condominio: false,
+    observacoes: ''
   });
 
   // Estado separado para controlar se tem condomínio
@@ -296,23 +302,27 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       banheiros: imovel.banheiros || 0,
       salas: imovel.salas || 0,
       cozinha: imovel.cozinha || 0,
-      tem_garagem: imovel.vagas_garagem > 0 || false,
-      qtd_garagem: imovel.vagas_garagem || undefined,
-      area_total: imovel.metragem_total || '',
-      area_construida: imovel.metragem_construida || '',
+      tem_garagem: (imovel.vagas_garagem && imovel.vagas_garagem > 0) || false,
+      qtd_garagem: imovel.vagas_garagem || 0,
+      area_total: imovel.area_total || '',
+      area_construida: imovel.metragem_construida || imovel.area_construida || '',
+      area_privativa: imovel.area_privativa || '',
       ano_construcao: imovel.ano_construcao || '',
       elevador: imovel.elevador || false,
-      andar: imovel.andar || ''
+      andar: imovel.andar || '',
+      mobiliado: imovel.mobiliado ? 'sim' : 'nao', // ✅ Converter booleano do banco para string
+      permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
+      caracteristicas: imovel.caracteristicas || imovel.dados_imovel || '',
+      suites: imovel.suites || 0,
+      cozinha: imovel.cozinha || 0
     });
 
-    // Preencher informações do IPTU
-    if (imovel.info_iptu) {
-      setInformacoesIPTU({
-        titular: imovel.info_iptu.titular || '',
-        inscricao_imobiliaria: imovel.info_iptu.inscricao_imobiliaria || '',
-        indicacao_fiscal: imovel.info_iptu.indicacao_fiscal || ''
-      });
-    }
+    // Preencher informações do IPTU - CORREÇÃO: usar campos diretos do banco
+    setInformacoesIPTU({
+      titular: imovel.titular_iptu || '',
+      inscricao_imobiliaria: imovel.inscricao_imobiliaria || '',
+      indicacao_fiscal: imovel.indicacao_fiscal || ''
+    });
 
     // Preencher informações do Condomínio
     setInformacoesCondominio({
@@ -328,6 +338,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       id_cliente: imovel.id_locador || 0,
       id_inquilino: imovel.id_locatario || 0,
       tipo: imovel.tipo || 'Apartamento',
+      status: imovel.status || 'Disponível',
       valor_aluguel: imovel.valor_aluguel || 0,
       iptu: imovel.iptu || 0,
       condominio: imovel.condominio || 0,
@@ -336,17 +347,32 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       boleto_condominio: imovel.boleto_condominio || false,
       matricula_imovel: imovel.matricula_imovel || '',
       area_imovel: imovel.area_imovel || '',
-      dados_imovel: imovel.dados_imovel || '',
       permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
       copel_unidade_consumidora: imovel.copel_unidade_consumidora || '',
       sanepar_matricula: imovel.sanepar_matricula || '',
       tem_gas: imovel.tem_gas || false,
       info_gas: imovel.info_gas || '',
+      info_iptu: imovel.info_iptu || '',
       observacoes: imovel.observacoes || ''
     });
 
-    // Configurar proprietários se disponível
-    if (imovel.id_locador) {
+    // ✅ CORREÇÃO: Configurar proprietários múltiplos se disponível
+    if (imovel.locadores && imovel.locadores.length > 0) {
+      const novosProprietarios = imovel.locadores.map((locador: any) => ({
+        cliente_id: locador.locador_id,
+        responsabilidade_principal: locador.responsabilidade_principal || false
+      }));
+      
+      setProprietarios(novosProprietarios);
+      setClientesSelecionados(novosProprietarios.map(p => p.cliente_id));
+      
+      // Definir id_cliente como o proprietário principal
+      const principal = novosProprietarios.find(p => p.responsabilidade_principal);
+      if (principal) {
+        setFormData(prev => ({...prev, id_cliente: principal.cliente_id}));
+      }
+    } else if (imovel.id_locador) {
+      // Fallback para compatibilidade com dados antigos
       setProprietarios([{
         cliente_id: imovel.id_locador,
         responsabilidade_principal: true
@@ -394,20 +420,14 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
   };
 
   // Funções para gerenciar proprietários
-  const adicionarProprietario = (clienteId: number) => {
-    if (!proprietarios.some(p => p.cliente_id === clienteId)) {
-      const novosProprietarios = [...proprietarios, {
-        cliente_id: clienteId,
-        responsabilidade_principal: proprietarios.length === 0 // Primeiro é sempre principal
-      }];
-      setProprietarios(novosProprietarios);
-      setClientesSelecionados(novosProprietarios.map(p => p.cliente_id));
-      
-      // Definir o primeiro como principal para compatibilidade
-      if (novosProprietarios.length === 1) {
-        handleFormDataChange('id_cliente', clienteId);
-      }
-    }
+  const adicionarProprietario = () => {
+    const novoProprietario = {
+      cliente_id: 0, // Sem cliente selecionado inicialmente
+      responsabilidade_principal: proprietarios.length === 0 // Primeiro é sempre principal
+    };
+    const novosProprietarios = [...proprietarios, novoProprietario];
+    setProprietarios(novosProprietarios);
+    // Não atualizar clientesSelecionados até que um cliente seja realmente selecionado
   };
 
   const removerProprietario = (clienteId: number) => {
@@ -496,13 +516,96 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     setMessage(null);
 
     try {
+      // ✅ CORREÇÃO: Enviar campos diretamente em vez de aninhados em dados_gerais
       const imovelData = {
         ...formData,
         endereco,
-        informacoes_iptu: informacoesIPTU,
-        informacoes_condominio: informacoesCondominio,
-        dados_gerais: dadosGerais
+        // ✅ CORREÇÃO ENCARGOS: Enviar campos IPTU diretamente (não aninhados)
+        titular_iptu: informacoesIPTU.titular,
+        inscricao_imobiliaria: informacoesIPTU.inscricao_imobiliaria,
+        indicacao_fiscal: informacoesIPTU.indicacao_fiscal,
+        // ✅ CORREÇÃO ENCARGOS: Enviar campos Condomínio diretamente (não aninhados)
+        nome_condominio: informacoesCondominio.nome_condominio,
+        sindico_condominio: informacoesCondominio.sindico_condominio,
+        cnpj_condominio: informacoesCondominio.cnpj_condominio,
+        email_condominio: informacoesCondominio.email_condominio,
+        telefone_condominio: informacoesCondominio.telefone_condominio,
+        // ✅ HELPER: Função para converter valores seguros para inteiros
+        ...(function() {
+          const safeInt = (value: any) => {
+            if (value === null || value === undefined || value === '') return null;
+            const num = parseInt(value);
+            return isNaN(num) ? null : num;
+          };
+          
+          const safeFloat = (value: any) => {
+            if (value === null || value === undefined || value === '') return null;
+            const num = parseFloat(value);
+            return isNaN(num) ? null : num;
+          };
+          
+          const safeString = (value: any) => {
+            if (value === null || value === undefined) return null;
+            return value === '' ? null : String(value);
+          };
+          
+          return {
+            // Campos inteiros
+            quartos: safeInt(dadosGerais.quartos),
+            banheiros: safeInt(dadosGerais.banheiros),
+            salas: safeInt(dadosGerais.salas),
+            // ✅ LÓGICA PARA TEM_GARAGEM: Se não tem garagem, vagas = 0, se tem, manter valor
+            vagas_garagem: dadosGerais.tem_garagem === false ? 0 : safeInt(dadosGerais.qtd_garagem),
+            suites: safeInt(dadosGerais.suites),
+            cozinha: safeInt(dadosGerais.cozinha),
+            qtd_sacada: safeInt(dadosGerais.qtd_sacada),
+            qtd_churrasqueira: safeInt(dadosGerais.qtd_churrasqueira),
+            andar: safeInt(dadosGerais.andar),
+            ano_construcao: safeInt(dadosGerais.ano_construcao),
+            
+            // Campos string (podem ser null se vazios)
+            area_total: safeString(dadosGerais.area_total),
+            area_privativa: safeString(dadosGerais.area_privativa),
+            caracteristicas: safeString(dadosGerais.caracteristicas),
+            // ✅ MOBILIADO: manter como string (sim/nao/parcial)
+            mobiliado: dadosGerais.mobiliado || 'nao',
+            metragem_construida: safeString(dadosGerais.area_construida),
+            
+            // Campos booleanos
+            // ✅ PERMITE_PETS: enviar como booleano direto
+            permite_pets: dadosGerais.permite_pets,
+            aceita_pets: dadosGerais.permite_pets, // ✅ Sincronizar ambos os campos
+            tem_sacada: dadosGerais.tem_sacada,
+            tem_churrasqueira: dadosGerais.tem_churrasqueira,
+            elevador: dadosGerais.elevador
+          };
+        })(),
+        // ✅ CORREÇÃO: Enviar lista de locadores/proprietários
+        locadores: proprietarios.map(prop => ({
+          locador_id: prop.cliente_id,
+          porcentagem: 100.00 / proprietarios.length, // Distribuir igualmente por enquanto
+          responsabilidade_principal: prop.responsabilidade_principal
+        }))
       };
+
+      // DEBUG: Log dos dados sendo enviados
+      console.log('🚀 === DADOS SENDO ENVIADOS ===');
+      console.log('📋 formData:', formData);
+      console.log('🏠 endereco:', endereco);
+      console.log('📄 informacoesIPTU:', informacoesIPTU);
+      console.log('🏢 informacoesCondominio:', informacoesCondominio);
+      console.log('📊 dadosGerais:', dadosGerais);
+      console.log('👥 proprietarios:', proprietarios);
+      console.log('📦 imovelData completo:', imovelData);
+      
+      // 🔍 DEBUG ESPECÍFICO PARA LOCADORES
+      console.log('🔍 === DEBUG ESPECÍFICO LOCADORES ===');
+      console.log('🔢 Quantidade de proprietários:', proprietarios.length);
+      console.log('📝 proprietarios array:', JSON.stringify(proprietarios, null, 2));
+      console.log('📤 locadores sendo enviados:', JSON.stringify(imovelData.locadores, null, 2));
+      console.log('✅ imovelData.locadores existe?', 'locadores' in imovelData);
+      console.log('✅ imovelData.locadores é array?', Array.isArray(imovelData.locadores));
+      console.log('✅ imovelData.locadores.length:', imovelData.locadores?.length);
 
       let response;
       
@@ -511,6 +614,11 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
         const pathParts = window.location.pathname.split('/');
         const imovelId = pathParts[pathParts.length - 1];
         console.log('💾 Salvando alterações do imóvel ID:', imovelId);
+        
+        // 🚀 DEBUG: Log do JSON exato sendo enviado para a API
+        console.log('🚀 === JSON SENDO ENVIADO PARA API ===');
+        console.log('📡 JSON.stringify(imovelData):', JSON.stringify(imovelData));
+        console.log('🎯 URL destino:', `http://localhost:8000/api/imoveis/${imovelId}`);
         
         // Chamar API de atualização
         response = await apiService.atualizarImovel(parseInt(imovelId), imovelData);
@@ -552,9 +660,6 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       status: '',
       matricula_imovel: '',
       area_imovel: '',
-      area_total: '',
-      area_privativa: '',
-      dados_imovel: '',
       info_iptu: '',
       observacoes_condominio: '',
       copel_unidade_consumidora: '',
@@ -591,13 +696,20 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       salas: 0,
       cozinha: 0,
       tem_garagem: false,
-      qtd_garagem: undefined,
+      qtd_garagem: 0,
       tem_sacada: false,
       qtd_sacada: undefined,
       tem_churrasqueira: false,
       qtd_churrasqueira: undefined,
       mobiliado: 'nao',
-      permite_pets: false
+      permite_pets: false,
+      area_total: '',
+      area_construida: '',
+      area_privativa: '',
+      ano_construcao: '',
+      elevador: false,
+      andar: '',
+      caracteristicas: ''
     });
     setTemCondominio(false);
   };
@@ -740,13 +852,10 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                             O primeiro proprietário será automaticamente definido como responsável principal.
                           </p>
                           <Button 
-                            onClick={() => {
-                              // Simular um clique no select para adicionar
-                              document.getElementById('proprietario-select')?.click();
-                            }}
-                            size="sm"
-                            className="btn-outline"
+                            type="button"
+                            onClick={adicionarProprietario}
                             disabled={isReadOnly}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90 border-primary"
                           >
                             <Plus className="w-4 h-4 mr-2" />
                             Adicionar Proprietário
@@ -810,44 +919,25 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                               <p className="text-sm text-muted-foreground mb-4">
                                 Selecione um proprietário da lista abaixo para começar
                               </p>
-                              <div className="max-w-xs mx-auto">
-                                <Label htmlFor="proprietario-select">Selecionar Proprietário *</Label>
-                                <Select 
-                                  onValueChange={(value) => {
-                                    const clienteId = parseInt(value);
-                                    adicionarProprietario(clienteId);
-                                  }}
-                                  disabled={isReadOnly}
-                                >
-                                  <SelectTrigger id="proprietario-select" className="bg-muted/50 border-border text-foreground">
-                                    <SelectValue placeholder={clientes.length > 0 ? "Selecione um proprietário..." : "Nenhum cliente disponível"} />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-card border-border">
-                                    {clientes
-                                      .filter(cliente => !proprietarios.some(p => p.cliente_id === cliente.id))
-                                      .map((cliente) => (
-                                      <SelectItem key={cliente.id} value={cliente.id.toString()} className="text-foreground hover:bg-accent">
-                                        {cliente.nome} - {cliente.cpf_cnpj}
-                                      </SelectItem>
-                                    ))}
-                                    {clientes.filter(c => !proprietarios.some(p => p.cliente_id === c.id)).length === 0 && (
-                                      <SelectItem value="0" disabled>
-                                        {clientes.length === 0 ? "Cadastre um cliente primeiro" : "Todos os clientes já foram selecionados"}
-                                      </SelectItem>
-                                    )}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <Button 
+                                type="button" 
+                                onClick={adicionarProprietario} 
+                                disabled={isReadOnly}
+                                className="btn-gradient"
+                              >
+                                <Plus className="w-4 h-4 mr-2" />
+                                Adicionar Primeiro Proprietário
+                              </Button>
                             </motion.div>
                           ) : (
                             <AnimatePresence>
                               {proprietarios.map((proprietario, index) => {
                                 const cliente = clientes.find(c => c.id === proprietario.cliente_id);
-                                if (!cliente) return null;
+                                // Mostrar o campo mesmo se não há cliente selecionado (cliente_id: 0)
                                 
                                 return (
                                   <motion.div
-                                    key={proprietario.cliente_id}
+                                    key={`proprietario-${index}`} // Usar index como key
                                     layout
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -872,7 +962,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                             )}
                                           </h3>
                                           <p className="text-sm text-muted-foreground">
-                                            {cliente.nome} - {cliente.cpf_cnpj}
+                                            {cliente ? `${cliente.nome} - ${cliente.cpf_cnpj}` : 'Selecione um cliente'}
                                           </p>
                                         </div>
                                       </div>
@@ -894,24 +984,44 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                     </div>
 
                                     {/* Campos adicionais */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       <div>
-                                        <Label>Nome</Label>
-                                        <input 
-                                          type="text" 
-                                          value={cliente.nome} 
-                                          disabled 
-                                          className="w-full p-2 border rounded bg-muted/50 border-border text-foreground"
-                                        />
-                                      </div>
-                                      <div>
-                                        <Label>CPF/CNPJ</Label>
-                                        <input 
-                                          type="text" 
-                                          value={cliente.cpf_cnpj} 
-                                          disabled 
-                                          className="w-full p-2 border rounded bg-muted/50 border-border text-foreground"
-                                        />
+                                        <Label>Cliente *</Label>
+                                        <Select 
+                                          value={proprietario.cliente_id > 0 ? proprietario.cliente_id.toString() : ""}
+                                          onValueChange={(value) => {
+                                            const clienteId = parseInt(value);
+                                            const novosProprietarios = [...proprietarios];
+                                            const proprietarioIndex = novosProprietarios.findIndex((_, i) => i === index);
+                                            if (proprietarioIndex >= 0) {
+                                              novosProprietarios[proprietarioIndex] = {
+                                                ...novosProprietarios[proprietarioIndex],
+                                                cliente_id: clienteId
+                                              };
+                                              setProprietarios(novosProprietarios);
+                                              setClientesSelecionados(novosProprietarios.map(p => p.cliente_id).filter(id => id > 0));
+                                              
+                                              // Se for o primeiro/principal, atualizar formData
+                                              if (novosProprietarios[proprietarioIndex].responsabilidade_principal) {
+                                                handleFormDataChange('id_cliente', clienteId);
+                                              }
+                                            }
+                                          }}
+                                          disabled={isReadOnly}
+                                        >
+                                          <SelectTrigger className="bg-muted/50 border-border text-foreground">
+                                            <SelectValue placeholder="Selecione o cliente" />
+                                          </SelectTrigger>
+                                          <SelectContent className="bg-card border-border">
+                                            {clientes
+                                              .filter(c => !proprietarios.some((p, i) => i !== index && p.cliente_id === c.id))
+                                              .map((clienteOpt) => (
+                                              <SelectItem key={clienteOpt.id} value={clienteOpt.id.toString()} className="text-foreground hover:bg-accent">
+                                                {clienteOpt.nome} - {clienteOpt.cpf_cnpj}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
                                       </div>
 
                                       {/* Campo de Responsabilidade */}
@@ -952,38 +1062,6 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                             </AnimatePresence>
                           )}
 
-                          {/* Botão para adicionar mais proprietários (quando já há alguns) */}
-                          {proprietarios.length > 0 && clientes.filter(c => !proprietarios.some(p => p.cliente_id === c.id)).length > 0 && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="flex justify-center"
-                            >
-                              <div className="max-w-xs w-full">
-                                <Label htmlFor="add-proprietario">Adicionar Outro Proprietário</Label>
-                                <Select 
-                                  onValueChange={(value) => {
-                                    const clienteId = parseInt(value);
-                                    adicionarProprietario(clienteId);
-                                  }}
-                                  disabled={isReadOnly}
-                                >
-                                  <SelectTrigger id="add-proprietario" className="bg-muted/50 border-border text-foreground">
-                                    <SelectValue placeholder="Selecione mais um proprietário..." />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-card border-border">
-                                    {clientes
-                                      .filter(cliente => !proprietarios.some(p => p.cliente_id === cliente.id))
-                                      .map((cliente) => (
-                                      <SelectItem key={cliente.id} value={cliente.id.toString()} className="text-foreground hover:bg-accent">
-                                        {cliente.nome} - {cliente.cpf_cnpj}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </motion.div>
-                          )}
                       </div>
                       </div>
                     </motion.div>
@@ -1173,7 +1251,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           <div>
                             <Label htmlFor="tipo" className="text-sm font-medium text-foreground">Tipo do Imóvel *</Label>
-                            <Select onValueChange={(value) => handleFormDataChange('tipo', value)} disabled={isReadOnly}>
+                            <Select value={formData.tipo || ''} onValueChange={(value) => handleFormDataChange('tipo', value)} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o tipo" />
                               </SelectTrigger>
@@ -1189,7 +1267,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
 
                           <div>
                             <Label htmlFor="status" className="text-sm font-medium text-foreground">Status</Label>
-                            <Select onValueChange={(value) => handleFormDataChange('status', value)} disabled={isReadOnly}>
+                            <Select value={formData.status || ''} onValueChange={(value) => handleFormDataChange('status', value)} disabled={isReadOnly}>
                               <SelectTrigger>
                                 <SelectValue placeholder="Selecione o status" />
                               </SelectTrigger>
@@ -1221,8 +1299,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                               id="area_total"
                               type="text"
                               icon={Home}
-                              value={formData.area_total}
-                              onChange={(e) => handleFormDataChange('area_total', e.target.value)}
+                              value={dadosGerais.area_total || ''}
+                              onChange={(e) => handleDadosGeraisChange('area_total', e.target.value)}
                               placeholder="80m²"
                               disabled={isReadOnly}
                             />
@@ -1234,8 +1312,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                               id="area_privativa"
                               type="text"
                               icon={Home}
-                              value={formData.area_privativa}
-                              onChange={(e) => handleFormDataChange('area_privativa', e.target.value)}
+                              value={dadosGerais.area_privativa || ''}
+                              onChange={(e) => handleDadosGeraisChange('area_privativa', e.target.value)}
                               placeholder="65m²"
                               disabled={isReadOnly}
                             />
@@ -1252,6 +1330,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                 min="0"
                                 placeholder="3"
                                 icon={Bed}
+                                value={dadosGerais.quartos || ''}
+                                onChange={(e) => handleDadosGeraisChange('quartos', parseInt(e.target.value) || 0)}
                                 disabled={isReadOnly}
                               />
                             </div>
@@ -1264,6 +1344,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                 min="0"
                                 placeholder="2"
                                 icon={Bath}
+                                value={dadosGerais.banheiros || ''}
+                                onChange={(e) => handleDadosGeraisChange('banheiros', parseInt(e.target.value) || 0)}
                                 disabled={isReadOnly}
                               />
                             </div>
@@ -1276,6 +1358,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                 min="0"
                                 placeholder="1"
                                 icon={Sofa}
+                                value={dadosGerais.salas || ''}
+                                onChange={(e) => handleDadosGeraisChange('salas', parseInt(e.target.value) || 0)}
                                 disabled={isReadOnly}
                               />
                             </div>
@@ -1288,6 +1372,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                 min="0"
                                 placeholder="2"
                                 icon={Car}
+                                value={dadosGerais.qtd_garagem || ''}
+                                onChange={(e) => handleDadosGeraisChange('qtd_garagem', parseInt(e.target.value) || 0)}
                                 disabled={isReadOnly}
                               />
                             </div>
@@ -1325,7 +1411,6 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   <SelectContent>
                                     <SelectItem value="nao">Não</SelectItem>
                                     <SelectItem value="sim">Sim</SelectItem>
-                                    <SelectItem value="parcial">Parcialmente</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -1357,26 +1442,12 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                 placeholder="Ex: cozinha americana, área de serviço, sacada..."
                                 rows={6}
                                 className="resize-none"
+                                value={dadosGerais.caracteristicas || ''}
+                                onChange={(e) => handleDadosGeraisChange('caracteristicas', e.target.value)}
                                 disabled={isReadOnly}
                               />
                               <p className="text-xs text-muted-foreground mt-1">
                                 Descreva as principais características do imóvel
-                              </p>
-                            </div>
-
-                            <div>
-                              <Label htmlFor="observacoes_gerais" className="text-sm font-medium text-foreground">Observações Gerais</Label>
-                              <Textarea
-                                id="observacoes_gerais"
-                                value={formData.dados_imovel}
-                                onChange={(e) => handleFormDataChange('dados_imovel', e.target.value)}
-                                placeholder="Informações adicionais, estado de conservação, etc..."
-                                rows={6}
-                                className="resize-none"
-                                disabled={isReadOnly}
-                              />
-                              <p className="text-xs text-muted-foreground mt-1">
-                                Informações complementares sobre o imóvel
                               </p>
                             </div>
                           </div>

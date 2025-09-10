@@ -223,7 +223,7 @@ class ApiService {
 
   // Verifica se a API está viva
   async healthCheck(): Promise<{ status: string }> {
-    const response = await fetch('/health'); // também usa proxy
+    const response = await fetch(`${API_BASE_URL}/health`);
     return response.json();
   }
 }
