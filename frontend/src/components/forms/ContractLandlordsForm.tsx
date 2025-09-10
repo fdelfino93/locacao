@@ -65,7 +65,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
 
   const carregarContasBancarias = async (locadorId: number) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/locadores/${locadorId}/contas`);
+      const response = await fetch(`/api/locadores/${locadorId}/contas-bancarias`);
       if (response.ok) {
         const data = await response.json();
         setContasBancarias(prev => ({

@@ -52,7 +52,7 @@ export interface DashboardCompleto {
   timestamp: string;
 }
 
-const API_BASE_URL = '/api'; // usa proxy do vite
+const API_BASE_URL = 'http://localhost:8000/api'; // URL direta temporariamente
 
 class ApiService {
   private async request<T>(

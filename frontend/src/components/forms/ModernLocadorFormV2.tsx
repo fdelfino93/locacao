@@ -141,7 +141,7 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
       console.log('🔍 Carregando locador completo ID:', locadorId);
       
       // Usar API específica com repository v2
-      const response = await fetch(`http://localhost:8000/api/locadores/${locadorId}`);
+      const response = await fetch(`/api/locadores/${locadorId}`);
       
       if (!response.ok) {
         throw new Error(`API retornou status ${response.status}`);
@@ -515,13 +515,13 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
       if (isEditing) {
         // Modo edição - obter ID da URL
         const pathParts = window.location.pathname.split('/');
-        const locadorId = pathParts[pathParts.length - 1];
+        const locadorId = parseInt(pathParts[pathParts.length - 1]);
         console.log('💾 Salvando alterações do locador ID:', locadorId);
         console.log('📦 Dados que serão enviados:', dadosParaEnvio);
         
-        // Chamar API de atualização - usando URL completa temporariamente
-        console.log('🔧 Usando URL direta para contornar problema de proxy');
-        const fetchResponse = await fetch(`http://localhost:8000/api/locadores/${locadorId}`, {
+        // Tentar via proxy do Vite primeiro
+        console.log('🔧 Tentando via proxy do Vite');
+        const fetchResponse = await fetch(`/api/locadores/${locadorId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dadosParaEnvio)

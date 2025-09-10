@@ -6,6 +6,14 @@ export interface InformacoesIPTU {
   indicacao_fiscal: string;
 }
 
+export interface InformacoesCondominio {
+  nome_condominio: string;
+  sindico_condominio: string;
+  cnpj_condominio: string;
+  email_condominio: string;
+  telefone_condominio: string;
+}
+
 export interface DadosGeraisImovel {
   quartos: number;
   suites: number;
@@ -29,6 +37,7 @@ export interface Imovel {
   tipo: string;
   endereco: Endereco;
   informacoes_iptu: InformacoesIPTU;
+  informacoes_condominio: InformacoesCondominio;
   dados_gerais: DadosGeraisImovel;
   valor_aluguel: number;
   iptu: number;

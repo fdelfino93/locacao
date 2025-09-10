@@ -115,10 +115,10 @@ export const ImoveisIndex: React.FC<ImoveisIndexProps> = ({
       setLoading(true);
       setError(null);
       
-      // Buscar imóveis e locadores em paralelo
+      // Buscar imóveis e locadores em paralelo usando proxy
       const [imoveisResponse, locadoresResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/imoveis'),
-        fetch('http://localhost:8000/api/locadores')
+        fetch('/api/imoveis'),
+        fetch('/api/locadores')
       ]);
 
       const imoveisData = await imoveisResponse.json();

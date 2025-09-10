@@ -39,7 +39,7 @@ import {
   CreditCard,
   ArrowLeft
 } from 'lucide-react';
-import type { Imovel, Endereco, InformacoesIPTU, DadosGeraisImovel } from '../../types';
+import type { Imovel, Endereco, InformacoesIPTU, InformacoesCondominio, DadosGeraisImovel } from '../../types';
 import { apiService } from '../../services/api';
 import { useFormSectionsData } from '../../hooks/useFormData';
 
@@ -100,6 +100,14 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     indicacao_fiscal: ''
   });
 
+  const [informacoesCondominio, setInformacoesCondominio] = useState<InformacoesCondominio>({
+    nome_condominio: '',
+    sindico_condominio: '',
+    cnpj_condominio: '',
+    email_condominio: '',
+    telefone_condominio: ''
+  });
+
   const [dadosGerais, setDadosGerais] = useState<DadosGeraisImovel>({
     quartos: 0,
     suites: 0,
@@ -124,7 +132,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
   
   const [clientesSelecionados, setClientesSelecionados] = useState<number[]>([]);
   
-  const [formData, setFormData] = useState<Omit<Imovel, 'endereco' | 'informacoes_iptu' | 'dados_gerais'>>({
+  const [formData, setFormData] = useState<Omit<Imovel, 'endereco' | 'informacoes_iptu' | 'informacoes_condominio' | 'dados_gerais'>>({
     id_cliente: 0,
     id_inquilino: 0,
     tipo: '',
@@ -306,6 +314,15 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       });
     }
 
+    // Preencher informações do Condomínio
+    setInformacoesCondominio({
+      nome_condominio: imovel.nome_condominio || '',
+      sindico_condominio: imovel.sindico_condominio || '',
+      cnpj_condominio: imovel.cnpj_condominio || '',
+      email_condominio: imovel.email_condominio || '',
+      telefone_condominio: imovel.telefone_condominio || ''
+    });
+
     // Preencher dados principais do formulário
     setFormData({
       id_cliente: imovel.id_locador || 0,
@@ -350,6 +367,13 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
 
   const handleIPTUChange = (field: keyof InformacoesIPTU, value: string) => {
     setInformacoesIPTU(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCondominioChange = (field: keyof InformacoesCondominio, value: string) => {
+    setInformacoesCondominio(prev => ({
       ...prev,
       [field]: value
     }));
@@ -423,10 +447,10 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
   };
 
   // ✅ Hook para detectar dados preenchidos em cada seção
-  const sectionsData = useFormSectionsData({...formData, endereco, informacoesIPTU, dadosGerais}, {
+  const sectionsData = useFormSectionsData({...formData, endereco, informacoesIPTU, informacoesCondominio, dadosGerais}, {
     responsaveis: ['id_cliente'],
     endereco: ['endereco', 'rua', 'numero', 'bairro', 'cidade', 'uf', 'cep', 'tipo', 'status', 'area_imovel', 'matricula_imovel', 'dados_imovel'],
-    encargos: ['iptu', 'condominio', 'taxa_incendio', 'titular', 'inscricao_imobiliaria', 'indicacao_fiscal'],
+    encargos: ['iptu', 'condominio', 'taxa_incendio', 'titular', 'inscricao_imobiliaria', 'indicacao_fiscal', 'nome_condominio', 'sindico_condominio', 'cnpj_condominio', 'email_condominio', 'telefone_condominio'],
     valores: ['valor_aluguel']
   });
 
@@ -476,6 +500,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
         ...formData,
         endereco,
         informacoes_iptu: informacoesIPTU,
+        informacoes_condominio: informacoesCondominio,
         dados_gerais: dadosGerais
       };
 
@@ -551,6 +576,13 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       titular: '',
       inscricao_imobiliaria: '',
       indicacao_fiscal: ''
+    });
+    setInformacoesCondominio({
+      nome_condominio: '',
+      sindico_condominio: '',
+      cnpj_condominio: '',
+      email_condominio: '',
+      telefone_condominio: ''
     });
     setDadosGerais({
       quartos: 0,
@@ -1527,6 +1559,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   type="text"
                                   placeholder="Condomínio Residencial Flores"
                                   icon={Building}
+                                  value={informacoesCondominio.nome_condominio}
+                                  onChange={(e) => handleCondominioChange('nome_condominio', e.target.value)}
                                   disabled={isReadOnly}
                                 />
                               </div>
@@ -1538,6 +1572,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   type="text"
                                   placeholder="João Silva"
                                   icon={Users}
+                                  value={informacoesCondominio.sindico_condominio}
+                                  onChange={(e) => handleCondominioChange('sindico_condominio', e.target.value)}
                                   disabled={isReadOnly}
                                 />
                               </div>
@@ -1549,6 +1585,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   type="text"
                                   placeholder="00.000.000/0000-00"
                                   icon={CreditCard}
+                                  value={informacoesCondominio.cnpj_condominio}
+                                  onChange={(e) => handleCondominioChange('cnpj_condominio', e.target.value)}
                                   disabled={isReadOnly}
                                 />
                               </div>
@@ -1560,6 +1598,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   type="email"
                                   placeholder="contato@condominio.com.br"
                                   icon={Mail}
+                                  value={informacoesCondominio.email_condominio}
+                                  onChange={(e) => handleCondominioChange('email_condominio', e.target.value)}
                                   disabled={isReadOnly}
                                 />
                               </div>
@@ -1571,6 +1611,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   type="tel"
                                   placeholder="(41) 99999-9999"
                                   icon={Phone}
+                                  value={informacoesCondominio.telefone_condominio}
+                                  onChange={(e) => handleCondominioChange('telefone_condominio', e.target.value)}
                                   disabled={isReadOnly}
                                 />
                               </div>

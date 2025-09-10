@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Union, List
@@ -52,6 +52,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Middleware de debug para ver todas as requisições
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"🌐 REQUEST: {request.method} {request.url} - Origin: {request.headers.get('origin')}")
+    response = await call_next(request)
+    print(f"🌐 RESPONSE: {response.status_code}")
+    return response
 
 # Modelos Pydantic para validação dos dados
 class LocadorCreate(BaseModel):
@@ -118,6 +126,63 @@ class LocadorCreate(BaseModel):
     # Campos de arrays do frontend
     telefones: Optional[list] = None
     emails: Optional[list] = None
+
+class LocadorUpdate(BaseModel):
+    model_config = {"extra": "allow"}  # Permitir campos extras
+    
+    # Campos básicos
+    nome: Optional[str] = None
+    cpf_cnpj: Optional[str] = None
+    telefone: Optional[str] = None
+    telefones: Optional[List[str]] = None
+    email: Optional[str] = None
+    emails: Optional[List[str]] = None
+    endereco: Optional[Union[str, dict]] = None
+    endereco_estruturado: Optional[dict] = None
+    
+    # Campos financeiros
+    tipo_recebimento: Optional[str] = None
+    conta_bancaria: Optional[str] = None
+    contas_bancarias: Optional[List[dict]] = None
+    deseja_fci: Optional[str] = None
+    deseja_seguro_fianca: Optional[str] = None
+    deseja_seguro_incendio: Optional[Union[str, int, bool]] = None
+    dados_bancarios_id: Optional[int] = None
+    
+    # Dados pessoais
+    rg: Optional[str] = None
+    nacionalidade: Optional[str] = None
+    estado_civil: Optional[str] = None
+    profissao: Optional[str] = None
+    data_nascimento: Optional[Union[date, str]] = None
+    tipo_cliente: Optional[str] = None
+    
+    # Campos empresa/PJ
+    dados_empresa: Optional[str] = None
+    representante: Optional[str] = None
+    tipo_pessoa: Optional[str] = None
+    razao_social: Optional[str] = None
+    nome_fantasia: Optional[str] = None
+    inscricao_estadual: Optional[str] = None
+    inscricao_municipal: Optional[str] = None
+    atividade_principal: Optional[str] = None
+    
+    # Campos cônjuge
+    existe_conjuge: Optional[Union[int, bool, str]] = None
+    nome_conjuge: Optional[str] = None
+    cpf_conjuge: Optional[str] = None
+    rg_conjuge: Optional[str] = None
+    endereco_conjuge: Optional[str] = None
+    telefone_conjuge: Optional[str] = None
+    regime_bens: Optional[str] = None
+    
+    # Campos adicionais
+    observacoes: Optional[str] = None
+    ativo: Optional[bool] = None
+    email_recebimento: Optional[str] = None
+    usa_multiplos_metodos: Optional[Union[bool, int, str]] = None
+    representante_legal: Optional[dict] = None
+    dados_bancarios: Optional[dict] = None
 
 class EnderecoLocatarioInput(BaseModel):
     rua: Optional[str] = ""
@@ -294,6 +359,38 @@ class EnderecoImovelInput(BaseModel):
     estado: str = "PR"
     cep: Optional[str] = None
 
+class InformacoesIPTUInput(BaseModel):
+    titular: Optional[str] = ""
+    inscricao_imobiliaria: Optional[str] = ""
+    indicacao_fiscal: Optional[str] = ""
+
+class InformacoesCondominioInput(BaseModel):
+    nome_condominio: Optional[str] = ""
+    sindico_condominio: Optional[str] = ""
+    cnpj_condominio: Optional[str] = ""
+    email_condominio: Optional[str] = ""
+    telefone_condominio: Optional[str] = ""
+
+class DadosGeraisImovelInput(BaseModel):
+    quartos: Optional[int] = 0
+    suites: Optional[int] = 0
+    banheiros: Optional[int] = 0
+    salas: Optional[int] = 0
+    cozinha: Optional[int] = 0
+    tem_garagem: Optional[bool] = False
+    qtd_garagem: Optional[int] = None
+    tem_sacada: Optional[bool] = False
+    qtd_sacada: Optional[int] = None
+    tem_churrasqueira: Optional[bool] = False
+    qtd_churrasqueira: Optional[int] = None
+    mobiliado: Optional[str] = "nao"  # 'sim', 'nao', 'parcialmente'
+    permite_pets: Optional[bool] = False
+
+class LocadorImovelInput(BaseModel):
+    locador_id: int
+    porcentagem: Optional[float] = 100.0
+    responsabilidade_principal: Optional[bool] = False
+
 class ImovelCreate(BaseModel):
     # Campos obrigatórios básicos
     id_locador: int
@@ -334,6 +431,12 @@ class ImovelCreate(BaseModel):
     armario_embutido: Optional[int] = 0
     escritorio: Optional[int] = 0
     area_servico: Optional[int] = 0
+    
+    # Novos campos estruturados
+    informacoes_iptu: Optional[InformacoesIPTUInput] = None
+    informacoes_condominio: Optional[InformacoesCondominioInput] = None
+    dados_gerais: Optional[DadosGeraisImovelInput] = None
+    locadores: Optional[List[LocadorImovelInput]] = []
 
 class ImovelUpdate(BaseModel):
     id_locador: Optional[int] = None
@@ -495,7 +598,7 @@ async def criar_locador(locador: LocadorCreate):
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
 
 @app.put("/api/locadores/{locador_id}")
-async def atualizar_locador_endpoint(locador_id: int, locador: LocadorCreate):
+async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
     try:
         print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCADOR {locador_id} ===")
         dados_recebidos = locador.model_dump(exclude_none=True)
@@ -505,13 +608,31 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorCreate):
         print(f"Total de campos enviados: {len(dados_recebidos)}")
         
         from repositories_adapter import atualizar_locador as atualizar_locador_db
-        # Filtrar campos None antes de enviar para o banco
-        dados_filtrados = {k: v for k, v in dados_recebidos.items() if v is not None}
-        print(f"Dados após filtrar None: {len(dados_filtrados)} campos")
+        
+        # Filtrar campos None e strings vazias que devem ser NULL (campos numéricos/data)
+        campos_numericos = [
+            'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario',
+            'dados_bancarios_id', 'endereco_id'
+        ]
+        
+        dados_filtrados = {}
+        for k, v in dados_recebidos.items():
+            if v is not None:
+                # Se for campo numérico e string vazia, não incluir (será NULL)
+                if k in campos_numericos and v == "":
+                    continue
+                # Se for lista vazia, não incluir
+                if isinstance(v, list) and len(v) == 0:
+                    continue
+                dados_filtrados[k] = v
+        
+        print(f"Dados após filtrar None e strings vazias: {len(dados_filtrados)} campos")
         for campo, valor in dados_filtrados.items():
             print(f"  - {campo}: {valor}")
         
+        print(f"🔧 DEBUG: Chamando atualizar_locador({locador_id}, **{list(dados_filtrados.keys())})")
         resultado = atualizar_locador_db(locador_id, **dados_filtrados)
+        print(f"🔧 DEBUG: Resultado do adapter: {resultado} (tipo: {type(resultado)})")
         
         if resultado:
             print(f"✓ Locador {locador_id} atualizado com sucesso!")
@@ -663,9 +784,63 @@ async def alterar_status_locatario(locatario_id: int, request: StatusRequest):
 @app.post("/api/imoveis")
 async def criar_imovel(imovel: ImovelCreate):
     try:
-        novo_imovel = inserir_imovel(**imovel.dict())
+        # Converter para dict
+        imovel_data = imovel.dict()
+        
+        # Processar campos estruturados se existirem
+        if imovel_data.get('informacoes_iptu'):
+            iptu_info = imovel_data.pop('informacoes_iptu')
+            # Mapear para campos planos
+            imovel_data['titular_iptu'] = iptu_info.get('titular', '')
+            imovel_data['inscricao_imobiliaria'] = iptu_info.get('inscricao_imobiliaria', '')
+            imovel_data['indicacao_fiscal'] = iptu_info.get('indicacao_fiscal', '')
+        
+        if imovel_data.get('informacoes_condominio'):
+            cond_info = imovel_data.pop('informacoes_condominio')
+            # Mapear para campos planos
+            imovel_data['nome_condominio'] = cond_info.get('nome_condominio', '')
+            imovel_data['sindico_condominio'] = cond_info.get('sindico_condominio', '')
+            imovel_data['cnpj_condominio'] = cond_info.get('cnpj_condominio', '')
+            imovel_data['email_condominio'] = cond_info.get('email_condominio', '')
+            imovel_data['telefone_condominio'] = cond_info.get('telefone_condominio', '')
+        
+        if imovel_data.get('dados_gerais'):
+            dados_gerais = imovel_data.pop('dados_gerais')
+            # Mapear para campos planos
+            imovel_data['quartos'] = dados_gerais.get('quartos', 0)
+            imovel_data['suites'] = dados_gerais.get('suites', 0)
+            imovel_data['banheiros'] = dados_gerais.get('banheiros', 0)
+            imovel_data['salas'] = dados_gerais.get('salas', 0)
+            imovel_data['cozinha'] = dados_gerais.get('cozinha', 0)
+            imovel_data['vagas_garagem'] = dados_gerais.get('qtd_garagem', 0)
+            imovel_data['tem_sacada'] = dados_gerais.get('tem_sacada', False)
+            imovel_data['qtd_sacada'] = dados_gerais.get('qtd_sacada', 0)
+            imovel_data['tem_churrasqueira'] = dados_gerais.get('tem_churrasqueira', False)
+            imovel_data['qtd_churrasqueira'] = dados_gerais.get('qtd_churrasqueira', 0)
+            # Converter mobiliado string para boolean (compatibilidade com DB atual)
+            mobiliado_str = dados_gerais.get('mobiliado', 'nao')
+            imovel_data['mobiliado'] = mobiliado_str.lower() == 'sim'
+            # permite_pets já existe no nível principal
+            if 'permite_pets' not in imovel_data or not imovel_data['permite_pets']:
+                imovel_data['permite_pets'] = dados_gerais.get('permite_pets', False)
+        
+        # Processar múltiplos locadores se existirem
+        locadores_data = imovel_data.pop('locadores', [])
+        
+        # Chamar repository
+        novo_imovel = inserir_imovel(**imovel_data)
+        
+        # Se há locadores adicionais, gerenciar múltiplos locadores
+        if locadores_data and novo_imovel.get('id'):
+            # TODO: Implementar gerenciar_locadores_imovel
+            print(f"Locadores a serem processados: {locadores_data}")
+            pass
+        
         return {"data": novo_imovel, "success": True}
     except Exception as e:
+        print(f"Erro ao criar imóvel: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao criar imóvel: {str(e)}")
 
 @app.get("/api/imoveis")
