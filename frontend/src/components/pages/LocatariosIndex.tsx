@@ -115,7 +115,10 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
     // Filtro por busca
     const matchesSearch = locatario.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (locatario.cpf_cnpj && locatario.cpf_cnpj.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (locatario.email && locatario.email.toLowerCase().includes(searchQuery.toLowerCase()));
+      ((locatario.email_principal || locatario.email) && 
+       (locatario.email_principal || locatario.email).toLowerCase().includes(searchQuery.toLowerCase())) ||
+      ((locatario.telefone_principal || locatario.telefone) && 
+       (locatario.telefone_principal || locatario.telefone).toLowerCase().includes(searchQuery.toLowerCase()));
     
     // Filtro por aba ativa
     const isActive = locatario.ativo !== false; // Considera ativo quando ativo=true ou undefined
@@ -124,9 +127,7 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
       (activeTab === 'inativos' && !isActive);
     
     // Filtro por tipo
-    const matchesTipo = !filtroTipo || 
-      (locatario.cpf_cnpj && locatario.cpf_cnpj.length === 11 && filtroTipo === 'PF') ||
-      (locatario.cpf_cnpj && locatario.cpf_cnpj.length === 14 && filtroTipo === 'PJ');
+    const matchesTipo = !filtroTipo || locatario.tipo_pessoa === filtroTipo;
     
     return matchesSearch && matchesTab && matchesTipo;
   });
@@ -315,7 +316,7 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
                       <Label className="text-sm font-medium text-foreground">Buscar Locatários</Label>
                       <InputWithIcon
                         icon={Search}
-                        placeholder="Buscar por nome, CPF/CNPJ ou email..."
+                        placeholder="Buscar por nome, CPF/CNPJ, telefone ou email..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
@@ -417,8 +418,11 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
                                   <div>
                                     <div className="font-medium text-foreground flex items-center gap-2">
                                       {locatario.nome}
-                                      {locatario.cpf_cnpj && locatario.cpf_cnpj.length === 14 && (
+                                      {locatario.tipo_pessoa === 'PJ' && (
                                         <Badge variant="outline" className="px-1 py-0 text-xs">PJ</Badge>
+                                      )}
+                                      {locatario.tipo_pessoa === 'PF' && (
+                                        <Badge variant="outline" className="px-1 py-0 text-xs">PF</Badge>
                                       )}
                                       {locatario.pet_inquilino && (
                                         <Badge variant="outline" className="px-1 py-0 text-xs">
@@ -437,11 +441,11 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
                               </td>
                               <td className="px-4 py-3">
                                 <div className="space-y-1">
-                                  {locatario.telefone && (
-                                    <div className="text-sm text-foreground">{locatario.telefone}</div>
+                                  {(locatario.telefone_principal || locatario.telefone) && (
+                                    <div className="text-sm text-foreground">{locatario.telefone_principal || locatario.telefone}</div>
                                   )}
-                                  {locatario.email && (
-                                    <div className="text-sm text-muted-foreground truncate max-w-xs">{locatario.email}</div>
+                                  {(locatario.email_principal || locatario.email) && (
+                                    <div className="text-sm text-muted-foreground truncate max-w-xs">{locatario.email_principal || locatario.email}</div>
                                   )}
                                 </div>
                               </td>

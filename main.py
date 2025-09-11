@@ -205,13 +205,23 @@ class FormaEnvioCobrancaInput(BaseModel):
     observacoes: Optional[str] = ""
 
 class RepresentanteLegalInput(BaseModel):
+    # Formato principal (usado pelo frontend e repository)
+    nome: Optional[str] = ""
+    cpf: Optional[str] = ""
+    rg: Optional[str] = ""
+    cargo: Optional[str] = ""
+    telefone: Optional[str] = ""
+    email: Optional[str] = ""
+    endereco: Optional[str] = ""  # String para compatibilidade com repository
+    
+    # Compatibilidade com nomes antigos
     nome_representante: Optional[str] = ""
     cpf_representante: Optional[str] = ""
     rg_representante: Optional[str] = ""
     cargo_representante: Optional[str] = ""
     telefone_representante: Optional[str] = ""
     email_representante: Optional[str] = ""
-    endereco_representante: Optional[EnderecoLocatarioInput] = None
+    endereco_representante: Optional[Union[EnderecoLocatarioInput, str]] = None
 
 class LocatarioCreate(BaseModel):
     model_config = {"extra": "allow"}  # Permitir campos extras
@@ -346,6 +356,9 @@ class LocatarioUpdate(BaseModel):
     # MÚLTIPLOS CONTATOS - CAMPOS ESSENCIAIS PARA A CORREÇÃO
     telefones: Optional[List[str]] = None
     emails: Optional[List[str]] = None
+    
+    # FORMAS DE ENVIO DE COBRANÇA
+    formas_envio_cobranca: Optional[List[FormaEnvioCobrancaInput]] = None
     
     # DADOS BANCÁRIOS/MÉTODOS DE PAGAMENTO
     metodos_pagamento: Optional[List[dict]] = None
@@ -770,6 +783,16 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         print(f"Dados após filtrar None: {len(dados_filtrados)} campos")
         for campo, valor in dados_filtrados.items():
             print(f"  - {campo}: {valor}")
+        
+        # DEBUG ESPECÍFICO PARA FORMAS DE COBRANÇA
+        if 'formas_envio_cobranca' in dados_filtrados:
+            print(f"🚨 DEBUG FORMAS_ENVIO_COBRANCA: {dados_filtrados['formas_envio_cobranca']}")
+            print(f"🚨 TIPO: {type(dados_filtrados['formas_envio_cobranca'])}")
+            if dados_filtrados['formas_envio_cobranca']:
+                for i, forma in enumerate(dados_filtrados['formas_envio_cobranca']):
+                    print(f"🚨 FORMA {i}: {forma} (tipo: {type(forma)})")
+        else:
+            print(f"🚨 DEBUG: formas_envio_cobranca NÃO ENCONTRADA em dados_filtrados")
         
         resultado = atualizar_locatario_db(locatario_id, **dados_filtrados)
         

@@ -228,16 +228,72 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
               } else {
                 // Se for string, tentar extrair partes (formato: "Rua, Numero, Complemento, Bairro, Cidade - Estado, CEP: 00000-000")
                 const endStr = locatario.representante_legal.endereco;
-                const partes = endStr.split(',').map(p => p.trim());
+                
+                // Extrair CEP primeiro
+                const cepMatch = endStr.match(/CEP:\s*([\d-]+)/);
+                const cep = cepMatch ? cepMatch[1] : '';
+                const endSemCep = endStr.replace(/,?\s*CEP:\s*[\d-]+\s*$/, '').trim();
+                
+                // Separar por vírgulas e filtrar vazios
+                const partes = endSemCep.split(',').map(p => p.trim()).filter(p => p !== '');
+                
+                // Parsing inteligente: identificar cidade-estado (contém " - ")
+                let cidadeEstadoIndex = -1;
+                let cidadeEstadoPart = '';
+                for (let i = partes.length - 1; i >= 0; i--) {
+                  if (partes[i].includes(' - ')) {
+                    cidadeEstadoIndex = i;
+                    cidadeEstadoPart = partes[i];
+                    break;
+                  }
+                }
+                
+                // Se não encontrou cidade-estado, última parte pode ser só cidade
+                if (cidadeEstadoIndex === -1 && partes.length > 0) {
+                  cidadeEstadoIndex = partes.length - 1;
+                  cidadeEstadoPart = partes[cidadeEstadoIndex];
+                }
+                
+                // Extrair cidade e estado
+                const cidade = cidadeEstadoPart.includes(' - ') 
+                  ? cidadeEstadoPart.split(' - ')[0].trim()
+                  : cidadeEstadoPart;
+                const estado = cidadeEstadoPart.includes(' - ')
+                  ? cidadeEstadoPart.split(' - ')[1].trim()
+                  : 'PR';
+                
+                // Parsing baseado na quantidade de partes válidas
+                let rua = '', numero = '', complemento = '', bairro = '';
+                
+                if (partes.length >= 1) rua = partes[0];
+                if (partes.length >= 2) numero = partes[1];
+                
+                // Se temos cidade-estado identificada, trabalhar backwards
+                if (cidadeEstadoIndex >= 0) {
+                  const partesAntesCidade = cidadeEstadoIndex;
+                  if (partesAntesCidade >= 4) {
+                    // Temos: rua, numero, complemento, bairro, cidade-estado
+                    complemento = partes[2] || '';
+                    bairro = partes[3] || '';
+                  } else if (partesAntesCidade === 3) {
+                    // Temos: rua, numero, bairro, cidade-estado (sem complemento)
+                    complemento = '';
+                    bairro = partes[2] || '';
+                  } else if (partesAntesCidade === 2) {
+                    // Temos: rua, numero, cidade-estado (sem complemento nem bairro)
+                    complemento = '';
+                    bairro = '';
+                  }
+                }
                 
                 enderecoRepresentante = {
-                  rua: partes[0] || '',
-                  numero: partes[1] || '',
-                  complemento: partes[2] || '',
-                  bairro: partes[3] || '',
-                  cidade: partes[4]?.split('-')[0]?.trim() || '',
-                  estado: partes[4]?.split('-')[1]?.trim() || 'PR',
-                  cep: endStr.match(/CEP:\s*([\d-]+)/)?.[1] || ''
+                  rua: rua,
+                  numero: numero, 
+                  complemento: complemento,
+                  bairro: bairro,
+                  cidade: cidade,
+                  estado: estado,
+                  cep: cep
                 };
               }
             }
@@ -515,7 +571,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     const emailErrors = emails.filter(email => email && !validateEmailFormat(email));
     
     if (phoneErrors.length > 0) {
-      setMessage({type: 'error', text: 'Formato de telefone inválido. Use (XX) XXXXX-XXXX'});
+      setMessage({type: 'error', text: 'Telefone inválido.'});
       setLoading(false);
       return;
     }
@@ -569,6 +625,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
         ...formDataSemEnderecoRepresentante,
         telefones: telefones.filter(t => t.trim()),
         emails: emails.filter(e => e.trim()),
+        formas_envio_cobranca: formasEnvio.filter(f => f.tipo && f.contato),
         endereco: endereco,
         dados_bancarios: dadosBancarios,
         fiador: showFiador ? fiador : undefined,
@@ -597,9 +654,11 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
           },
           representante_legal: dadosParaEnvio.representante_legal,
           tipo_pessoa: dadosParaEnvio.tipo_pessoa,
+          formas_envio_cobranca: dadosParaEnvio.formas_envio_cobranca,
           total_campos: Object.keys(dadosParaEnvio).length
         });
         console.log('📦 PAYLOAD COMPLETO:', JSON.stringify(dadosParaEnvio, null, 2));
+        console.log('💳 FORMAS DE COBRANÇA DETALHADAS:', dadosParaEnvio.formas_envio_cobranca);
         
         // Chamar API de atualização
         response = await apiService.atualizarLocatario(parseInt(locatarioId), dadosParaEnvio);
@@ -640,15 +699,8 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
 
   // Funções para validação
   const validatePhoneFormat = (phone: string): boolean => {
-    if (phone === '') return true;
-    
-    // Formato com parênteses e traço: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
-    const formattedRegex = /^\(\d{2}\)\s\d{4,5}-\d{4}$/;
-    
-    // Formato só números: XXXXXXXXXXX ou XXXXXXXXXX  
-    const numbersOnlyRegex = /^\d{10,11}$/;
-    
-    return formattedRegex.test(phone) || numbersOnlyRegex.test(phone);
+    // Aceita qualquer formato de telefone
+    return true;
   };
 
   const validateEmailFormat = (email: string): boolean => {

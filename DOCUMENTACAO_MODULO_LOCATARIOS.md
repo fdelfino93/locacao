@@ -999,6 +999,89 @@ WHERE l.tipo_pessoa = 'PJ' AND l.ativo = 1;
 
 ---
 
+## 🔧 TROUBLESHOOTING - PROBLEMAS COMUNS
+
+### **Erro: "Erro ao converter tipo de dados nvarchar em numeric"**
+
+**Sintoma:** Falha ao salvar/editar locatário com erro de conversão SQL.
+
+**Causa Raiz:** Tentativa de inserir dados em campos que não existem na tabela ou mapeamento incorreto de tipos de dados.
+
+**Solução:**
+1. **Verificar campos válidos no `repositories_adapter.py`:**
+   ```python
+   campos_atualizaveis = [
+       'nome', 'cpf_cnpj', 'telefone', 'email', 'tipo_pessoa', 'rg', 
+       'data_nascimento', 'nacionalidade', 'estado_civil', 'profissao',
+       'endereco_rua', 'endereco_numero', 'endereco_complemento', 'endereco_bairro',
+       'endereco_cidade', 'endereco_estado', 'endereco_cep', 'possui_conjuge',
+       'conjuge_nome', 'cpf_conjuge', 'nome_conjuge', 'rg_conjuge', 'endereco_conjuge',
+       'telefone_conjuge', 'regime_bens', 'possui_inquilino_solidario', 'possui_fiador', 
+       'qtd_pets', 'observacoes', 'ativo',
+       'data_constituicao', 'capital_social', 'porte_empresa', 'regime_tributario',
+       'inscricao_estadual', 'inscricao_municipal', 'atividade_principal', 
+       'razao_social', 'nome_fantasia'
+   ]
+   ```
+
+2. **Remover campos inexistentes** (se presentes na lista):
+   - ❌ `responsavel_pgto_agua`
+   - ❌ `responsavel_pgto_luz` 
+   - ❌ `responsavel_pgto_gas`
+   - ❌ `dados_empresa`
+   - ❌ `representante`
+   - ❌ `tem_fiador` (usar `possui_fiador`)
+   - ❌ `tem_moradores`
+
+3. **Verificar conversão de tipos:**
+   - Campos booleanos: `possui_conjuge`, `possui_inquilino_solidario`, `possui_fiador`, `ativo`
+   - Campos numéricos: `capital_social` (decimal)
+   - Campos string: `inscricao_estadual`, `inscricao_municipal` (nvarchar)
+
+**Prevenção:**
+- Sempre comparar lista de campos com estrutura real da tabela `Locatarios`
+- Não adicionar campos sem verificar se existem no banco
+- Manter documentação atualizada com estrutura da tabela
+
+### **Erro: Representante Legal não salvando**
+
+**Sintoma:** Dados do representante legal não persistem no banco.
+
+**Solução:** Verificar se o processamento está sendo feito corretamente na função `atualizar_locatario()` para tipo 'PJ'.
+
+### **Erro: Formas de Cobrança não funcionando**
+
+**Sintoma:** Formas de envio de cobrança não salvam/carregam, chegam vazias no processamento.
+
+**Causa Raiz:** Conflito de prioridade entre campos `forma_envio_boleto` e `formas_envio_cobranca` no processamento.
+
+**Problema específico:**
+- Frontend envia tanto `forma_envio_boleto: []` (vazio) quanto `formas_envio_cobranca: [dados]` (com dados)
+- Condição `if/elif` no `repositories_adapter.py` priorizava `forma_envio_boleto` mesmo estando vazio
+- Como `forma_envio_boleto` existia, o `elif formas_envio_cobranca` nunca executava
+
+**Solução:**
+```python
+# CORRETO: Priorizar formas_envio_cobranca se existir e tiver dados
+if 'formas_envio_cobranca' in kwargs and kwargs['formas_envio_cobranca']:
+    atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['formas_envio_cobranca'])
+elif 'forma_envio_boleto' in kwargs and kwargs['forma_envio_boleto']:
+    atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['forma_envio_boleto'])
+
+# INCORRETO: Priorizava campo vazio
+if 'forma_envio_boleto' in kwargs:  # ❌ Executava mesmo com []
+    atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['forma_envio_boleto'])
+elif 'formas_envio_cobranca' in kwargs:  # ❌ Nunca executava
+    atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['formas_envio_cobranca'])
+```
+
+**Verificação:**
+- Confirmar que a função recebe os dados corretos com debug logs
+- Verificar prioridade correta entre os campos
+- Garantir que campos vazios não são processados
+
+---
+
 ## 🔮 ROADMAP FUTURO
 
 ### **Q4 2025**

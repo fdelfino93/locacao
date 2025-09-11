@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Frontend Cobrança</title>
+</head>
+<body>
+    <h1>Debug: Envio de Formas de Cobrança</h1>
+    
+    <h2>Teste 1: Enviar dados como o frontend</h2>
+    <button onclick="testarEnvioFrontend()">Testar Envio Frontend</button>
+    
+    <h2>Logs:</h2>
+    <div id="logs" style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace;"></div>
+
+    <script>
+        function log(message) {
+            const logs = document.getElementById('logs');
+            logs.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+        }
+
+        async function testarEnvioFrontend() {
+            log('Iniciando teste de envio...');
+            
+            // Simular dados como o frontend envia
+            const dadosParaEnvio = {
+                nome: "TESTE EMPRESA LTDA ATUALIZADA - FRONTEND TEST",
+                formas_envio_cobranca: [
+                    {
+                        tipo: "email",
+                        contato: "frontend-teste@example.com",
+                        observacoes: "Email via frontend",
+                        principal: true,
+                        ordem: 0
+                    },
+                    {
+                        tipo: "whatsapp", 
+                        contato: "41999777666",
+                        observacoes: "WhatsApp via frontend",
+                        principal: false,
+                        ordem: 1
+                    },
+                    {
+                        tipo: "email",
+                        contato: "backup-frontend@example.com", 
+                        observacoes: "Backup via frontend",
+                        principal: false,
+                        ordem: 2
+                    }
+                ]
+            };
+
+            log('Dados preparados: ' + JSON.stringify(dadosParaEnvio, null, 2));
+
+            try {
+                const response = await fetch('http://localhost:8000/api/locatarios/5', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dadosParaEnvio)
+                });
+
+                const result = await response.json();
+                log('Response Status: ' + response.status);
+                log('Response Body: ' + JSON.stringify(result, null, 2));
+
+                if (response.ok) {
+                    log('✅ SUCESSO! Verificando se foi salvo...');
+                    
+                    // Verificar se foi salvo
+                    const getResponse = await fetch('http://localhost:8000/api/locatarios/5');
+                    const getData = await getResponse.json();
+                    const formas = getData.data.formas_envio_cobranca || [];
+                    
+                    log('Formas de cobrança retornadas: ' + formas.length);
+                    formas.forEach((forma, i) => {
+                        log(`${i+1}. ${forma.tipo} - ${forma.contato} (Principal: ${forma.principal})`);
+                    });
+                } else {
+                    log('❌ ERRO na resposta');
+                }
+
+            } catch (error) {
+                log('❌ ERRO: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
