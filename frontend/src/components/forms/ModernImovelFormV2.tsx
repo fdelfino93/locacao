@@ -567,8 +567,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
             area_total: safeString(dadosGerais.area_total),
             area_privativa: safeString(dadosGerais.area_privativa),
             caracteristicas: safeString(dadosGerais.caracteristicas),
-            // ✅ MOBILIADO: manter como string (sim/nao/parcial)
-            mobiliado: dadosGerais.mobiliado || 'nao',
+            // ✅ MOBILIADO: manter como string
+            mobiliado: dadosGerais.mobiliado,
             metragem_construida: safeString(dadosGerais.area_construida),
             
             // Campos booleanos
@@ -585,7 +585,10 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
           locador_id: prop.cliente_id,
           porcentagem: 100.00 / proprietarios.length, // Distribuir igualmente por enquanto
           responsabilidade_principal: prop.responsabilidade_principal
-        }))
+        })),
+        // Adicionar campo id_locador para compatibilidade com API (usar o principal)
+        id_locador: proprietarios.find(p => p.responsabilidade_principal)?.cliente_id || 
+                   proprietarios[0]?.cliente_id || 0
       };
 
       // DEBUG: Log dos dados sendo enviados

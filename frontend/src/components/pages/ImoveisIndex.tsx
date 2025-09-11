@@ -536,11 +536,6 @@ export const ImoveisIndex: React.FC<ImoveisIndexProps> = ({
                                 </div>
                                 <div>
                                   <div className="font-medium text-foreground">{imovel.endereco}</div>
-                                  {imovel.area_imovel && (
-                                    <div className="text-sm text-muted-foreground truncate max-w-xs">
-                                      {imovel.area_imovel}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </td>

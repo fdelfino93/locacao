@@ -160,6 +160,91 @@ def inserir_endereco_imovel(endereco_data):
     except Exception as e:
         print(f"ERRO: Erro ao inserir endereço do imóvel: {e}")
         import traceback
+
+def inserir_endereco_imovel_com_conexao(cursor, dados_endereco):
+    """Insere um endereço estruturado para imóvel usando cursor existente - seguindo padrão dos locatários"""
+    try:
+        print(f"Inserindo endereço do imóvel com cursor existente: {dados_endereco}")
+        
+        from datetime import datetime
+        
+        cursor.execute("""
+            INSERT INTO EnderecoImovel (
+                rua, numero, complemento, bairro, cidade, uf, cep, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            dados_endereco.get('rua', ''),
+            dados_endereco.get('numero', ''),
+            dados_endereco.get('complemento', ''),
+            dados_endereco.get('bairro', ''),
+            dados_endereco.get('cidade', ''),
+            dados_endereco.get('estado', dados_endereco.get('uf', 'PR')),
+            dados_endereco.get('cep', ''),
+            datetime.now()
+        ))
+        
+        # Buscar o ID do endereço inserido
+        cursor.execute("SELECT @@IDENTITY")
+        endereco_id = cursor.fetchone()[0]
+        
+        print(f"SUCCESS: Endereço do imóvel inserido com ID: {endereco_id}")
+        return int(endereco_id)
+        
+    except Exception as e:
+        print(f"Erro ao inserir endereço do imóvel: {e}")
+        return None
+
+def atualizar_endereco_imovel(cursor, imovel_id, endereco_data):
+    """
+    Atualiza endereço de um imóvel - insere novo endereço e atualiza endereco_id - seguindo padrão dos locatários.
+    
+    Args:
+        cursor: Cursor da conexão de banco
+        imovel_id: ID do imóvel
+        endereco_data: Dict com dados do endereço
+    """
+    try:
+        if not endereco_data or not isinstance(endereco_data, dict):
+            print("INFO: Dados de endereço inválidos, pulando atualização")
+            return
+            
+        print(f"Atualizando endereço do imóvel {imovel_id}")
+        print(f"Dados do endereço: {endereco_data}")
+        
+        # Inserir novo endereço
+        endereco_id = inserir_endereco_imovel_com_conexao(cursor, endereco_data)
+        
+        if endereco_id:
+            # Atualizar endereco_id na tabela Imoveis
+            cursor.execute("""
+                UPDATE Imoveis 
+                SET endereco_id = ? 
+                WHERE id = ?
+            """, (endereco_id, imovel_id))
+            
+            # Criar string de endereço para compatibilidade
+            endereco_string = f"{endereco_data.get('rua', '')}, {endereco_data.get('numero', '')}"
+            if endereco_data.get('complemento'):
+                endereco_string += f", {endereco_data.get('complemento')}"
+            endereco_string += f" - {endereco_data.get('bairro', '')} - {endereco_data.get('cidade', '')}/{endereco_data.get('estado', 'PR')}"
+            
+            # Atualizar campo de texto também
+            cursor.execute("""
+                UPDATE Imoveis 
+                SET endereco = ? 
+                WHERE id = ?
+            """, (endereco_string, imovel_id))
+            
+            print(f"SUCCESS: endereco_id atualizado para {endereco_id}")
+            return endereco_id
+        else:
+            print("ERRO: Falha ao inserir novo endereço")
+            return None
+            
+    except Exception as e:
+        print(f"ERRO ao atualizar endereço do imóvel {imovel_id}: {str(e)}")
+        return None
         traceback.print_exc()
         return None
 
@@ -281,9 +366,81 @@ def buscar_locatarios():
         print(f"Erro ao buscar locatarios: {e}")
         return []
 
-def buscar_imoveis():
-    """Busca todos os imóveis da tabela Imoveis"""
+def sincronizar_id_locador_legado():
+    """Sincroniza o campo legado id_locador na tabela Imoveis com os dados atuais da ImovelLocadores"""
     try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            
+            # Buscar todos os imóveis que precisam de sincronização
+            cursor.execute("""
+                UPDATE i SET id_locador = il.locador_id
+                FROM Imoveis i
+                INNER JOIN ImovelLocadores il ON i.id = il.imovel_id
+                WHERE il.ativo = 1 
+                  AND il.responsabilidade_principal = 1
+                  AND (i.id_locador != il.locador_id OR i.id_locador IS NULL)
+            """)
+            
+            rows_updated = cursor.rowcount
+            conn.commit()
+            print(f"Sincronizados {rows_updated} imóveis com locadores principais atualizados")
+            
+            # Limpar id_locador de imóveis sem locadores ativos
+            cursor.execute("""
+                UPDATE Imoveis SET id_locador = NULL
+                WHERE id NOT IN (
+                    SELECT DISTINCT imovel_id 
+                    FROM ImovelLocadores 
+                    WHERE ativo = 1
+                )
+                AND id_locador IS NOT NULL
+            """)
+            
+            rows_cleared = cursor.rowcount
+            conn.commit()
+            print(f"Limpados {rows_cleared} imóveis sem locadores ativos")
+            
+    except Exception as e:
+        print(f"Erro ao sincronizar id_locador legado: {e}")
+
+def buscar_locadores_imovel(imovel_id):
+    """Busca todos os locadores ativos de um imóvel"""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    il.locador_id,
+                    l.nome as locador_nome,
+                    il.porcentagem,
+                    il.responsabilidade_principal
+                FROM ImovelLocadores il
+                INNER JOIN Locadores l ON il.locador_id = l.id
+                WHERE il.imovel_id = ? AND il.ativo = 1
+                ORDER BY il.responsabilidade_principal DESC, il.porcentagem DESC
+            """, (imovel_id,))
+            
+            locadores = []
+            for row in cursor.fetchall():
+                locadores.append({
+                    'locador_id': row[0],
+                    'locador_nome': row[1], 
+                    'porcentagem': row[2],
+                    'responsabilidade_principal': row[3]
+                })
+            
+            return locadores
+    except Exception as e:
+        print(f"Erro ao buscar locadores do imóvel {imovel_id}: {e}")
+        return []
+
+def buscar_imoveis():
+    """Busca todos os imóveis da tabela Imoveis com dados estruturados do endereço e locadores atuais"""
+    try:
+        # Primeiro sincronizar campo legado para garantir consistência
+        sincronizar_id_locador_legado()
+        
         conn = get_conexao()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM Imoveis")
@@ -302,6 +459,31 @@ def buscar_imoveis():
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
                 else:
                     row_dict[columns[i]] = value
+            
+            # Adicionar dados estruturados do endereço se endereco_id existir
+            if row_dict.get('endereco_id'):
+                endereco_estruturado = buscar_endereco_imovel(row_dict['endereco_id'])
+                if endereco_estruturado:
+                    row_dict['endereco_estruturado'] = endereco_estruturado
+                    print(f"Endereço estruturado carregado para imóvel {row_dict.get('id')}: {endereco_estruturado}")
+            
+            # Adicionar locadores atuais do imóvel
+            imovel_id = row_dict.get('id')
+            if imovel_id:
+                locadores = buscar_locadores_imovel(imovel_id)
+                row_dict['locadores'] = locadores
+                
+                # Adicionar nome do locador principal
+                locador_principal = next((loc for loc in locadores if loc['responsabilidade_principal']), None)
+                if locador_principal:
+                    row_dict['nome_locador_principal'] = locador_principal['locador_nome']
+                else:
+                    # Se não há locador principal marcado, pegar o primeiro da lista
+                    if locadores:
+                        row_dict['nome_locador_principal'] = locadores[0]['locador_nome']
+                    else:
+                        row_dict['nome_locador_principal'] = None
+            
             result.append(row_dict)
         
         conn.close()
@@ -2028,7 +2210,7 @@ def alterar_status_locatario(locatario_id, ativo):
 
 def atualizar_imovel(imovel_id, **kwargs):
     """Atualiza um imóvel na tabela Imoveis"""
-    print("🚨🚨🚨 TESTE RELOAD: repositories_adapter.py FOI RECARREGADO! 🚨🚨🚨")
+    print("TESTE RELOAD: repositories_adapter.py FOI RECARREGADO!")
     try:
         conn = get_conexao()
         cursor = conn.cursor()
@@ -2036,21 +2218,45 @@ def atualizar_imovel(imovel_id, **kwargs):
         print(f"Iniciando atualizacao do imóvel ID: {imovel_id}")
         print(f"Dados recebidos: {kwargs}")
         
-        # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
-        if 'endereco' in kwargs:
-            try:
-                endereco_input = kwargs['endereco']
-                if isinstance(endereco_input, dict):
-                    print(f"Processando endereço estruturado: {endereco_input}")
-                    endereco_string, endereco_id = processar_endereco_imovel(endereco_input)
-                    kwargs['endereco'] = endereco_string
-                    if endereco_id:
-                        kwargs['endereco_id'] = endereco_id
-                        print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
-            except Exception as endereco_error:
-                print(f"AVISO:️ Erro ao processar endereço, usando fallback: {endereco_error}")
-                # Fallback seguro: converter para string
-                kwargs['endereco'] = str(kwargs['endereco'])
+        # PROCESSAMENTO DE ENDEREÇO - SEGUINDO PADRÃO DOS LOCADORES
+        campos_para_atualizar = {}
+        
+        # PROCESSAMENTO DE ENDEREÇO - SEGUINDO PADRÃO EXATO DOS LOCADORES
+        endereco_foi_atualizado = False
+        
+        # Processar endereco_estruturado (padrão dos locadores)
+        if 'endereco_estruturado' in kwargs and isinstance(kwargs['endereco_estruturado'], dict):
+            endereco_data = kwargs['endereco_estruturado']
+            if endereco_data.get('rua') and endereco_data.get('cidade'):
+                endereco_id = inserir_endereco_imovel_com_conexao(cursor, endereco_data)
+                if endereco_id:
+                    # Atualizar endereco_id e criar string para compatibilidade
+                    cursor.execute("UPDATE Imoveis SET endereco_id = ? WHERE id = ?", (endereco_id, imovel_id))
+                    endereco_string = f"{endereco_data.get('rua', '')}, {endereco_data.get('numero', '')}"
+                    if endereco_data.get('complemento'):
+                        endereco_string += f", {endereco_data.get('complemento')}"
+                    endereco_string += f" - {endereco_data.get('bairro', '')} - {endereco_data.get('cidade', '')}/{endereco_data.get('estado', 'PR')}"
+                    cursor.execute("UPDATE Imoveis SET endereco = ? WHERE id = ?", (endereco_string, imovel_id))
+                    endereco_foi_atualizado = True
+                    print(f"SUCCESS: Endereço estruturado processado - ID: {endereco_id}")
+            del kwargs['endereco_estruturado']
+        
+        # Processar endereco (campo direto, compatibilidade)
+        elif 'endereco' in kwargs and isinstance(kwargs['endereco'], dict):
+            endereco_data = kwargs['endereco']
+            if endereco_data.get('rua') and endereco_data.get('cidade'):
+                endereco_id = inserir_endereco_imovel_com_conexao(cursor, endereco_data)
+                if endereco_id:
+                    # Atualizar endereco_id e criar string para compatibilidade
+                    cursor.execute("UPDATE Imoveis SET endereco_id = ? WHERE id = ?", (endereco_id, imovel_id))
+                    endereco_string = f"{endereco_data.get('rua', '')}, {endereco_data.get('numero', '')}"
+                    if endereco_data.get('complemento'):
+                        endereco_string += f", {endereco_data.get('complemento')}"
+                    endereco_string += f" - {endereco_data.get('bairro', '')} - {endereco_data.get('cidade', '')}/{endereco_data.get('estado', 'PR')}"
+                    cursor.execute("UPDATE Imoveis SET endereco = ? WHERE id = ?", (endereco_string, imovel_id))
+                    endereco_foi_atualizado = True
+                    print(f"SUCCESS: Endereço direto processado - ID: {endereco_id}")
+            del kwargs['endereco']
         
         # Primeiro verificar se o imóvel existe
         cursor.execute("SELECT id, endereco, tipo FROM Imoveis WHERE id = ?", imovel_id)
@@ -2088,10 +2294,22 @@ def atualizar_imovel(imovel_id, **kwargs):
             'armario_embutido', 'escritorio', 'area_servico', 'ativo'
         ]
         
+        # Campos que podem aceitar valores vazios/NULL (para limpar dados)
+        campos_aceita_vazio = [
+            'area_total', 'area_privativa', 'metragem_total', 'metragem_construida',
+            'ano_construcao', 'quartos', 'banheiros', 'suites', 'salas', 'vagas_garagem',
+            'qtd_sacada', 'qtd_churrasqueira', 'observacoes', 'copel_unidade_consumidora',
+            'sanepar_matricula', 'info_gas', 'matricula_imovel', 'area_imovel'
+        ]
+        
         # Filtrar apenas os campos que foram enviados e sao atualizáveis
         campos_para_atualizar = {}
         for campo, valor in kwargs.items():
-            if campo in campos_atualizaveis and valor is not None:
+            # Aceitar valores None/vazios para campos específicos ou rejeitar apenas se não for None para outros
+            aceitar_campo = (campo in campos_atualizaveis and 
+                           (valor is not None or campo in campos_aceita_vazio))
+            
+            if aceitar_campo:
                 # ✅ PROCESSAR CAMPOS BOOLEANOS (sem mobiliado que é string)
                 campos_booleanos = [
                     'aceita_animais', 'permite_pets', 'ativo', 
@@ -2130,6 +2348,29 @@ def atualizar_imovel(imovel_id, **kwargs):
                     campos_para_atualizar['aceita_pets'] = valor  # Sincronizar ambos
                 elif campo == 'aceita_pets':
                     campos_para_atualizar['permite_pets'] = valor  # Sincronizar ambos
+                
+                # Tratar campos numéricos vazios/None - converter para NULL ou 0
+                if campo in ['area_total', 'area_privativa', 'metragem_total', 'metragem_construida',
+                            'quartos', 'banheiros', 'suites', 'salas', 'vagas_garagem',
+                            'qtd_sacada', 'qtd_churrasqueira', 'ano_construcao']:
+                    if valor is None or valor == '' or valor == 'null' or valor == 'undefined':
+                        # Para campos de área e metragem, usar NULL
+                        if campo in ['area_total', 'area_privativa', 'metragem_total', 'metragem_construida']:
+                            valor = None
+                        # Para campos de quantidade, usar 0
+                        else:
+                            valor = 0
+                    elif isinstance(valor, str):
+                        # Tentar converter string para número
+                        try:
+                            valor = float(valor) if '.' in valor else int(valor)
+                        except (ValueError, TypeError):
+                            # Se não conseguir converter, usar NULL para áreas ou 0 para quantidades
+                            if campo in ['area_total', 'area_privativa', 'metragem_total', 'metragem_construida']:
+                                valor = None
+                            else:
+                                valor = 0
+                
                 campos_para_atualizar[campo] = valor
         
         if not campos_para_atualizar:
@@ -2139,7 +2380,10 @@ def atualizar_imovel(imovel_id, **kwargs):
         
         print(f"CAMPOS VALIDOS PARA ATUALIZAR ({len(campos_para_atualizar)}):")
         for campo, valor in campos_para_atualizar.items():
-            print(f"   {campo}: {valor} (tipo: {type(valor)})")
+            if campo in ['area_total', 'area_privativa', 'metragem_total', 'metragem_construida']:
+                print(f"   >>> CAMPO DE AREA: {campo}: {repr(valor)} (tipo: {type(valor)})")
+            else:
+                print(f"   {campo}: {valor} (tipo: {type(valor)})")
         
         # DEBUG: Mostrar campos que foram rejeitados
         print(f"DEBUG - CAMPOS ENVIADOS vs ACEITOS:")
@@ -2166,19 +2410,19 @@ def atualizar_imovel(imovel_id, **kwargs):
         cursor.execute(query, valores)
         
         linhas_afetadas_imovel = cursor.rowcount
-        print(f"📊 Linhas afetadas na tabela Imoveis: {linhas_afetadas_imovel}")
+        print(f"Linhas afetadas na tabela Imoveis: {linhas_afetadas_imovel}")
         
-        # ✅ CORREÇÃO: Processar múltiplos locadores se fornecidos (ANTES da verificação de rowcount)
-        print(f"🔍 DEBUG: Verificando se existem locadores nos kwargs...")
-        print(f"🔍 DEBUG: kwargs.keys() = {list(kwargs.keys())}")
+        # CORREÇÃO: Processar múltiplos locadores se fornecidos (ANTES da verificação de rowcount)
+        print(f"DEBUG: Verificando se existem locadores nos kwargs...")
+        print(f"DEBUG: kwargs.keys() = {list(kwargs.keys())}")
         if 'locadores' in kwargs:
-            print(f"🔍 DEBUG: Campo 'locadores' encontrado com valor: {kwargs['locadores']}")
+            print(f"DEBUG: Campo 'locadores' encontrado com valor: {kwargs['locadores']}")
         
         if 'locadores' in kwargs and kwargs['locadores']:
             try:
-                print(f"🔄 PROCESSANDO {len(kwargs['locadores'])} locadores para imóvel {imovel_id}")
+                print(f"PROCESSANDO {len(kwargs['locadores'])} locadores para imóvel {imovel_id}")
                 
-                # ✅ UPSERT: Atualizar existentes ou inserir novos
+                # UPSERT: Atualizar existentes ou inserir novos
                 locadores_enviados = [l.get('locador_id') for l in kwargs['locadores']]
                 
                 # Desativar locadores que não estão na nova lista
@@ -2231,19 +2475,19 @@ def atualizar_imovel(imovel_id, **kwargs):
                             locador.get('porcentagem', 100.00),
                             locador.get('responsabilidade_principal', idx == 0)
                         ))
-                        print(f"➕ INSERIDO novo locador {locador_id} no imóvel {imovel_id}")
+                        print(f"INSERIDO novo locador {locador_id} no imóvel {imovel_id}")
                 
                 conn.commit()
-                print(f"✅ {len(kwargs['locadores'])} locadores processados com sucesso!")
+                print(f"OK {len(kwargs['locadores'])} locadores processados com sucesso!")
                 
             except Exception as locador_error:
-                print(f"❌ ERRO ao processar locadores: {locador_error}")
+                print(f"ERRO ao processar locadores: {locador_error}")
                 # Não fazer rollback da atualização do imóvel, apenas logs o erro
         
-        # Verificar se houve alterações (na tabela Imoveis OU nos locadores)
+        # Verificar se houve alterações (na tabela Imoveis OU nos locadores OU no endereço)
         locadores_processados = 'locadores' in kwargs and kwargs['locadores']
-        if linhas_afetadas_imovel == 0 and not locadores_processados:
-            print("NENHUMA alteração foi feita (nem na tabela Imoveis nem nos locadores)")
+        if linhas_afetadas_imovel == 0 and not locadores_processados and not endereco_foi_atualizado:
+            print("NENHUMA alteração foi feita (nem na tabela Imoveis nem nos locadores nem no endereço)")
             conn.close()
             return False
         
@@ -2251,8 +2495,24 @@ def atualizar_imovel(imovel_id, **kwargs):
         if not locadores_processados:
             conn.commit()
         
-        print(f"🎉 REPOSITORY retornando TRUE")
-        print(f"📊 Resumo: {linhas_afetadas_imovel} linha(s) da tabela Imoveis + {len(kwargs.get('locadores', []))} locadores processados")
+        print(f"REPOSITORY retornando TRUE")
+        print(f"Resumo: {linhas_afetadas_imovel} linha(s) da tabela Imoveis + {len(kwargs.get('locadores', []))} locadores processados")
+        
+        # Sincronizar campo legado id_locador se houve mudanças nos locadores
+        if locadores_processados:
+            print("Sincronizando campo legado id_locador após atualização de locadores")
+            try:
+                # Usar a mesma conexão para sincronizar apenas este imóvel
+                cursor.execute("""
+                    UPDATE i SET id_locador = il.locador_id
+                    FROM Imoveis i
+                    INNER JOIN ImovelLocadores il ON i.id = il.imovel_id
+                    WHERE i.id = ? AND il.ativo = 1 AND il.responsabilidade_principal = 1
+                """, (imovel_id,))
+                conn.commit()
+                print(f"Campo legado id_locador sincronizado para imóvel {imovel_id}")
+            except Exception as sync_error:
+                print(f"Erro ao sincronizar campo legado: {sync_error}")
         
         conn.close()
         return True
