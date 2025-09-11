@@ -15,15 +15,18 @@ import {
 } from 'lucide-react';
 import { DadosBancariosForm } from './DadosBancariosForm';
 import type { DadosBancarios } from '../../types';
+import { apiService } from '../../services/api';
 
 interface MultipleBankAccountsFormProps {
   contas: DadosBancarios[];
   onChange: (contas: DadosBancarios[]) => void;
+  locadorId?: number;
 }
 
 export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> = ({
   contas,
-  onChange
+  onChange,
+  locadorId
 }) => {
   const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
   const [novaConta, setNovaConta] = useState<DadosBancarios | null>(null);
@@ -41,14 +44,40 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
     });
   };
 
-  const salvarNovaConta = () => {
+  const salvarNovaConta = async () => {
     if (!novaConta) return;
-
-    // Verificar se é a primeira conta e marcar como principal
-    const ehPrimeira = contas.length === 0;
-    const novaContaComPrincipal = { ...novaConta, principal: ehPrimeira };
-
-    onChange([...contas, novaContaComPrincipal]);
+    
+    console.log('🔍 Salvando nova conta. locadorId:', locadorId, 'contas existentes:', contas.length);
+    
+    // Verificar se é a primeira conta (não há conta principal ainda)
+    const temContaPrincipal = contas.some(conta => conta.principal);
+    const ehPrimeira = !temContaPrincipal;
+    const contaComStatus = { ...novaConta, principal: ehPrimeira };
+    
+    // Se tem locadorId, salvar na API; senão, apenas no estado local
+    if (locadorId) {
+      try {
+        console.log('💾 Salvando conta bancária na API para locador:', locadorId);
+        console.log('📋 Dados da conta:', contaComStatus);
+        
+        await apiService.criarContaBancaria(locadorId, contaComStatus);
+        
+        // Recarregar as contas do locador após salvar
+        const contasAtualizadas = await apiService.buscarContasBancarias(locadorId);
+        onChange(contasAtualizadas);
+        
+        console.log('✅ Conta bancária salva com sucesso');
+      } catch (error) {
+        console.error('❌ Erro ao salvar conta bancária:', error);
+        // Fallback: adicionar ao estado local
+        onChange([...contas, contaComStatus]);
+      }
+    } else {
+      // Modo estado local (cadastro novo ou fallback)
+      console.log('📝 Adicionando conta ao estado local');
+      onChange([...contas, contaComStatus]);
+    }
+    
     setNovaConta(null);
   };
 
@@ -109,6 +138,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
         
         <div className="flex justify-end">
           <Button 
+            type="button"
             onClick={adicionarConta} 
             disabled={!!novaConta} 
             size="sm"
@@ -148,6 +178,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                 className="flex-1"
               >
                 <Button 
+                  type="button"
                   onClick={salvarNovaConta} 
                   className="w-full btn-gradient"
                 >
@@ -160,6 +191,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                 whileTap={{ scale: 0.98 }}
               >
                 <Button 
+                  type="button"
                   variant="outline" 
                   onClick={cancelarNovaConta}
                   className="btn-outline"
@@ -249,6 +281,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                     whileTap={{ scale: 0.95 }}
                   >
                     <Button 
+                      type="button"
                       variant="outline" 
                       size="sm" 
                       onClick={() => tornarPrincipal(index)}
@@ -264,6 +297,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                   whileTap={{ scale: 0.95 }}
                 >
                   <Button 
+                    type="button"
                     variant="outline" 
                     size="sm" 
                     onClick={() => setEditandoIndex(editandoIndex === index ? null : index)}
@@ -277,6 +311,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                   whileTap={{ scale: 0.95 }}
                 >
                   <Button 
+                    type="button"
                     variant="outline" 
                     size="sm" 
                     onClick={() => removerConta(index)}
@@ -308,6 +343,7 @@ export const MultipleBankAccountsForm: React.FC<MultipleBankAccountsFormProps> =
                       whileTap={{ scale: 0.98 }}
                     >
                       <Button 
+                        type="button"
                         variant="outline" 
                         size="sm" 
                         onClick={() => setEditandoIndex(null)}

@@ -123,17 +123,58 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
   const [apiError, setApiError] = useState<string | null>(null);
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
+  const [locadorId, setLocadorId] = useState<number | undefined>(undefined);
+  const [contasSalvasAutomaticamente, setContasSalvasAutomaticamente] = useState(false);
 
   // Hook para carregar dados do locador quando em modo de edição ou visualização
   React.useEffect(() => {
     if (isEditing || isViewing) {
       const pathParts = window.location.pathname.split('/');
-      const locadorId = pathParts[pathParts.length - 1];
-      if (locadorId && locadorId !== 'editar' && locadorId !== 'visualizar') {
-        carregarDadosLocador(parseInt(locadorId));
+      const locadorIdFromUrl = pathParts[pathParts.length - 1];
+      if (locadorIdFromUrl && locadorIdFromUrl !== 'editar' && locadorIdFromUrl !== 'visualizar') {
+        const id = parseInt(locadorIdFromUrl);
+        setLocadorId(id);
+        carregarDadosLocador(id);
       }
     }
   }, [isEditing, isViewing]);
+
+  // Hook para salvar contas bancárias quando locadorId for definido (após cadastro)
+  React.useEffect(() => {
+    const salvarContasPendentes = async () => {
+      // Só salvar se:
+      // 1. locadorId existe (foi definido após cadastro)
+      // 2. Há contas no estado local
+      // 3. Não está em modo de edição (para evitar duplicar em edições)
+      // 4. As contas não foram salvas automaticamente ainda
+      // 5. As contas não têm ID (indicando que são novas e não foram salvas)
+      if (locadorId && contasBancarias.length > 0 && !isEditing && !contasSalvasAutomaticamente) {
+        const contasParaSalvar = contasBancarias.filter(conta => !conta.id);
+        
+        if (contasParaSalvar.length > 0) {
+          console.log('💾 Salvando', contasParaSalvar.length, 'contas bancárias pendentes para locador:', locadorId);
+          try {
+            // Salvar apenas as contas que não têm ID (são novas)
+            for (const conta of contasParaSalvar) {
+              await apiService.criarContaBancaria(locadorId, conta);
+              console.log('✅ Conta bancária salva:', conta.tipo_recebimento);
+            }
+            
+            // Recarregar as contas do locador após salvar
+            const contasAtualizadas = await apiService.buscarContasBancarias(locadorId);
+            setContasBancarias(contasAtualizadas);
+            setContasSalvasAutomaticamente(true);
+            
+            console.log('✅ Todas as contas bancárias foram salvas com sucesso');
+          } catch (error) {
+            console.error('❌ Erro ao salvar contas bancárias pendentes:', error);
+          }
+        }
+      }
+    };
+
+    salvarContasPendentes();
+  }, [locadorId]); // Executa quando locadorId muda
 
   const carregarDadosLocador = async (locadorId: number) => {
     setLoadingData(true);
@@ -512,10 +553,8 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
 
       let response;
       
-      if (isEditing) {
-        // Modo edição - obter ID da URL
-        const pathParts = window.location.pathname.split('/');
-        const locadorId = parseInt(pathParts[pathParts.length - 1]);
+      if (isEditing && locadorId) {
+        // Modo edição - usar ID do estado
         console.log('💾 Salvando alterações do locador ID:', locadorId);
         console.log('📦 Dados que serão enviados:', dadosParaEnvio);
         
@@ -543,6 +582,12 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
           : (response.message || 'Locador cadastrado com sucesso!');
           
         setMessage({ type: 'success', text: mensagem });
+        
+        // Se foi um cadastro novo, definir o locadorId para permitir salvar contas bancárias
+        if (!isEditing && response.data?.id) {
+          setLocadorId(response.data.id);
+          console.log('🆔 Novo locador criado com ID:', response.data.id);
+        }
         
         // Reset form apenas no cadastro
         if (!isEditing) {
@@ -1918,6 +1963,7 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
                   <MultipleBankAccountsForm 
                     contas={contasBancarias}
                     onChange={setContasBancarias}
+                    locadorId={locadorId}
                   />
                 </div>
               </TabsContent>

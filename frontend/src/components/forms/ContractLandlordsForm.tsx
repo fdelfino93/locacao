@@ -70,7 +70,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
         const data = await response.json();
         setContasBancarias(prev => ({
           ...prev,
-          [locadorId]: data
+          [locadorId]: Array.isArray(data) ? data : []
         }));
       } else {
         // Locador sem contas bancárias cadastradas ou endpoint não existe
@@ -314,7 +314,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
           <AnimatePresence>
             {locadores.map((locador, index) => {
               const locadorOption = locadoresOptions.find(l => l.id === locador.locador_id);
-              const contasDoLocador = contasBancarias[locador.locador_id] || [];
+              const contasDoLocador = Array.isArray(contasBancarias[locador.locador_id]) ? contasBancarias[locador.locador_id] : [];
 
               return (
                 <motion.div

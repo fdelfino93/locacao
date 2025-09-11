@@ -220,11 +220,11 @@ def processar_endereco_imovel(endereco_input):
 
 # Funçoes diretas para as tabelas corretas
 def buscar_locadores():
-    """Busca todos os locadores da tabela Locadores"""
+    """Busca todos os locadores da tabela Locadores (ativos e inativos)"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Locadores")
+        cursor.execute("SELECT * FROM Locadores ORDER BY ativo DESC, nome ASC")
         
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
@@ -257,7 +257,7 @@ def buscar_locatarios():
         try:
             conn = get_conexao()
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM Locatarios ORDER BY nome")
+            cursor.execute("SELECT * FROM Locatarios ORDER BY ativo DESC, nome ASC")
             
             # Obter nomes das colunas
             columns = [column[0] for column in cursor.description]
@@ -2588,6 +2588,84 @@ def salvar_garantias_individuais(contrato_id, dados_garantias):
     except Exception as e:
         print(f"Erro ao salvar garantias: {e}")
         return {"success": False, "message": str(e)}
+
+def inserir_conta_bancaria_locador(locador_id, dados_conta):
+    """
+    Insere uma ÚNICA conta bancária para um locador SEM afetar as existentes
+    Deve ser chamado pelo endpoint específico /api/locadores/{locador_id}/contas-bancarias
+    """
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        print(f"Inserindo nova conta bancária para locador {locador_id}")
+        
+        # Verificar se o locador existe
+        cursor.execute("SELECT id FROM Locadores WHERE id = ?", (locador_id,))
+        if not cursor.fetchone():
+            conn.close()
+            print(f"Locador {locador_id} não encontrado")
+            return None
+        
+        # Verificar se é a primeira conta (se não há conta principal)
+        cursor.execute("""
+            SELECT COUNT(*) FROM ContasBancariasLocador 
+            WHERE locador_id = ? AND ativo = 1 AND principal = 1
+        """, (locador_id,))
+        tem_principal = cursor.fetchone()[0] > 0
+        
+        # Se não tem conta principal, essa será a principal
+        eh_principal = not tem_principal or dados_conta.get('principal', False)
+        
+        # Se esta conta vai ser principal, desmarcar as outras como principal
+        if eh_principal:
+            cursor.execute("""
+                UPDATE ContasBancariasLocador 
+                SET principal = 0 
+                WHERE locador_id = ? AND ativo = 1
+            """, (locador_id,))
+        
+        # Truncar campos com limite de tamanho
+        banco = dados_conta.get('banco', '')[:10]  # Limite de 10 chars
+        tipo_conta = dados_conta.get('tipo_conta', 'Corrente')
+        if len(tipo_conta) > 20:
+            tipo_conta = tipo_conta[:20]  # Limite de 20 chars
+        
+        # Inserir a nova conta
+        cursor.execute("""
+            INSERT INTO ContasBancariasLocador (
+                locador_id, tipo_recebimento, principal, chave_pix,
+                banco, agencia, conta, tipo_conta, titular, cpf_titular,
+                data_cadastro, data_atualizacao, ativo
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+        """, (
+            locador_id,
+            dados_conta.get('tipo_recebimento', 'PIX'),
+            eh_principal,
+            dados_conta.get('chave_pix', ''),
+            banco,
+            dados_conta.get('agencia', ''),
+            dados_conta.get('conta', ''),
+            tipo_conta,
+            dados_conta.get('titular', ''),
+            dados_conta.get('cpf_titular', '')
+        ))
+        
+        cursor.execute("SELECT @@IDENTITY")
+        conta_id = cursor.fetchone()[0]
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"Conta bancária inserida com ID: {conta_id}")
+        return conta_id
+        
+    except Exception as e:
+        print(f"Erro ao inserir conta bancária: {e}")
+        if 'conn' in locals():
+            conn.close()
+        return None
 
 def salvar_pets_contrato(contrato_id, pets_dados):
     """Salva informações de pets na tabela ContratoPets"""

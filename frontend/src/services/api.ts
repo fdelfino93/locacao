@@ -167,6 +167,19 @@ class ApiService {
     return this.request('/contratos');
   }
 
+  // Métodos para Contas Bancárias
+  async criarContaBancaria(locadorId: number, conta: any): Promise<ApiResponse<any>> {
+    return this.request(`/locadores/${locadorId}/contas-bancarias`, {
+      method: 'POST',
+      body: JSON.stringify(conta),
+    });
+  }
+
+  async buscarContasBancarias(locadorId: number): Promise<any[]> {
+    const response = await this.request(`/locadores/${locadorId}/contas-bancarias`);
+    return response.data || [];
+  }
+
   // Métodos do Dashboard
   async obterMetricasDashboard(): Promise<DashboardMetricas> {
     const response = await fetch(`${API_BASE_URL}/dashboard/metricas`);
