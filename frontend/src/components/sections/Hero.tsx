@@ -22,7 +22,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
     },
     { 
       icon: FileText, 
-      title: "Contratos", 
+      title: "Termos", 
       desc: "Documentação profissional",
       gradient: "from-tertiary to-primary"
     },
@@ -217,7 +217,7 @@ export const Hero: React.FC<HeroProps> = ({ onGetStarted }) => {
           {[
             { label: "Usuários Ativos", value: "1000+" },
             { label: "Propriedades Gerenciadas", value: "5000+" },
-            { label: "Contratos Processados", value: "10000+" }
+            { label: "Termos Processados", value: "10000+" }
           ].map((stat, index) => (
             <div key={stat.label} className="text-center">
               <motion.div

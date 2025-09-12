@@ -402,7 +402,7 @@ const LocadoresListing: React.FC<LocadoresListingProps> = ({
                       <div className="text-2xl font-bold text-green-600">
                         {locador.contratos_ativos}
                       </div>
-                      <div className="text-xs text-gray-600">Contratos Ativos</div>
+                      <div className="text-xs text-gray-600">Termos Ativos</div>
                     </div>
                   </div>
 

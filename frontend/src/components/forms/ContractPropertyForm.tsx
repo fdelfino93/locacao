@@ -96,8 +96,17 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
       // Filtrar imóveis dos locadores selecionados
       console.log('🔍 Filtrando por locadores:', locadoresSelecionados);
       let imoveisFiltradosPorLocador = imoveis.filter(imovel => {
-        const isMatch = imovel.id_cliente && locadoresSelecionados.includes(imovel.id_cliente);
-        console.log(`🔍 Imóvel ${imovel.id} (${imovel.endereco}) - Locador: ${imovel.id_cliente} - Match: ${isMatch}`);
+        // Verificar se o imóvel tem locadores_ids (array N:N)
+        if (imovel.locadores_ids && Array.isArray(imovel.locadores_ids)) {
+          // Verificar se algum dos locadores do imóvel está na lista selecionada
+          const isMatch = imovel.locadores_ids.some(locId => locadoresSelecionados.includes(locId));
+          console.log(`🔍 Imóvel ${imovel.id} - Locadores: [${imovel.locadores_ids}] - Selecionados: [${locadoresSelecionados}] - Match: ${isMatch}`);
+          return isMatch;
+        }
+        // Fallback para estrutura antiga (id_cliente ou id_locador)
+        const locadorId = imovel.id_cliente || imovel.id_locador;
+        const isMatch = locadorId && locadoresSelecionados.includes(locadorId);
+        console.log(`🔍 Imóvel ${imovel.id} - Locador antigo: ${locadorId} - Match: ${isMatch}`);
         return isMatch;
       });
       
@@ -171,6 +180,9 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
           status: imovel.status,
           // O campo correto no banco é id_locador, não id_cliente
           id_cliente: imovel.id_locador,
+          id_locador: imovel.id_locador,
+          // NOVO: Array de locadores da tabela N:N
+          locadores_ids: imovel.locadores_ids || [],
           locador_nome: '', // Será preenchido depois se necessário
           locador_telefone: ''
         }));
@@ -300,11 +312,6 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
             <h3 className="text-lg font-semibold text-foreground">
               Seleção do Imóvel
             </h3>
-            {imovelSelecionado && (
-              <p className="text-sm text-muted-foreground">
-                {imovelSelecionado.endereco}
-              </p>
-            )}
           </div>
         </div>
 
@@ -321,16 +328,19 @@ export const ContractPropertyForm: React.FC<ContractPropertyFormProps> = ({
               onValueChange={readonly ? undefined : handleImovelChange}
               disabled={readonly}
             >
-              <SelectTrigger className="bg-muted/50 border-border text-foreground">
-                <SelectValue placeholder={
-                  loading 
-                    ? "Carregando imóveis..." 
-                    : imoveisFiltrados.length === 0
-                    ? locadoresSelecionados.length > 0 
-                      ? "Nenhum imóvel disponível para os locadores selecionados"
-                      : "Nenhum imóvel disponível"
-                    : "Selecione um imóvel..."
-                } />
+              <SelectTrigger className="bg-muted/50 border-border text-foreground w-full">
+                <SelectValue 
+                  className="truncate max-w-full"
+                  placeholder={
+                    loading 
+                      ? "Carregando imóveis..." 
+                      : imoveisFiltrados.length === 0
+                      ? locadoresSelecionados.length > 0 
+                        ? "Nenhum imóvel disponível para os locadores selecionados"
+                        : "Nenhum imóvel disponível"
+                      : "Selecione um imóvel..."
+                  } 
+                />
               </SelectTrigger>
               <SelectContent className="bg-card border-border">
                 {loading ? (

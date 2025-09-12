@@ -64,7 +64,8 @@ const SearchModernPro: React.FC = () => {
 
   // Buscar dados da nova API
   const searchData = async (query: string, filter: string) => {
-    if (query.length < 2 && query !== '*') {
+    // Permitir busca vazia quando há filtro específico
+    if (query.length < 2 && query !== '' && filter === 'todos') {
       setSearchResults([]);
       return;
     }
@@ -74,8 +75,11 @@ const SearchModernPro: React.FC = () => {
     try {
       // Usar nova API de busca integrada
       const tipoParam = filter === 'todos' ? '' : `&tipo=${filter}`;
-      const response = await fetch(`/api/busca?query=${encodeURIComponent(query)}${tipoParam}`);
+      const url = `/api/busca?query=${encodeURIComponent(query)}${tipoParam}`;
+      console.log('Fazendo busca para:', { query, filter, url });
+      const response = await fetch(url);
       const data = await response.json();
+      console.log('Resposta da API:', data);
 
       if (data.success && data.data) {
         const allResults: SearchResult[] = [];
@@ -162,6 +166,13 @@ const SearchModernPro: React.FC = () => {
 
   // Debounce da busca
   useEffect(() => {
+    // Se mudou o filtro mas não tem query, buscar todos daquele tipo
+    if (!searchQuery && selectedFilter !== 'todos') {
+      searchData('', selectedFilter);  // Enviar string vazia ao invés de *
+      return;
+    }
+    
+    // Se não tem query e está em "todos", limpar resultados
     if (!searchQuery) {
       setSearchResults([]);
       return;
@@ -805,7 +816,7 @@ const SearchModernPro: React.FC = () => {
                   Tente buscar com outros termos ou ajuste os filtros
                 </p>
               </motion.div>
-            ) : !searchQuery ? (
+            ) : (!searchQuery || searchQuery === '') ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -826,6 +837,7 @@ const SearchModernPro: React.FC = () => {
                         onClick={() => {
                           setSelectedFilter('contratos');
                           setSearchQuery('*');
+                          searchData('*', 'contratos');
                         }}
                       >
                         <FileText className="w-5 h-5 text-amber-600" />
@@ -841,6 +853,7 @@ const SearchModernPro: React.FC = () => {
                         onClick={() => {
                           setSelectedFilter('imoveis');
                           setSearchQuery('*');
+                          searchData('*', 'imoveis');
                         }}
                       >
                         <Home className="w-5 h-5 text-purple-600" />
@@ -856,6 +869,7 @@ const SearchModernPro: React.FC = () => {
                         onClick={() => {
                           setSelectedFilter('locadores');
                           setSearchQuery('*');
+                          searchData('*', 'locadores');
                         }}
                       >
                         <Users className="w-5 h-5 text-blue-600" />
@@ -871,6 +885,7 @@ const SearchModernPro: React.FC = () => {
                         onClick={() => {
                           setSelectedFilter('locatarios');
                           setSearchQuery('*');
+                          searchData('*', 'locatarios');
                         }}
                       >
                         <UserCheck className="w-5 h-5 text-green-600" />
@@ -895,7 +910,12 @@ const SearchModernPro: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-              onClick={() => setSelectedResult(null)}
+              onClick={() => {
+                setSelectedResult(null);
+                setSearchQuery('');
+                setSelectedFilter('todos');
+                setSearchResults([]);
+              }}
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -920,7 +940,12 @@ const SearchModernPro: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedResult(null)}
+                      onClick={() => {
+                        setSelectedResult(null);
+                        setSearchQuery('');
+                        setSelectedFilter('todos');
+                        setSearchResults([]);
+                      }}
                       className="text-primary-foreground hover:bg-primary-foreground/10"
                     >
                       <X className="w-5 h-5" />

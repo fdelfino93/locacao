@@ -79,7 +79,7 @@ function PrestacaoContasPage() {
     }
     
     if (!contratoSelecionado) {
-      toast.error("Selecione um contrato para realizar a prestação de contas!");
+      toast.error("Selecione um termo para realizar a prestação de contas!");
       return;
     }
 
@@ -115,7 +115,7 @@ function PrestacaoContasPage() {
     }
     
     if (!contratoSelecionado) {
-      toast.error("Selecione um contrato para realizar a prestação de contas!");
+      toast.error("Selecione um termo para realizar a prestação de contas!");
       return;
     }
 
@@ -194,7 +194,7 @@ function PrestacaoContasPage() {
     }
     
     if (!contratoSelecionado) {
-      toast.error("Selecione um contrato!");
+      toast.error("Selecione um termo!");
       return;
     }
     
@@ -218,7 +218,7 @@ function PrestacaoContasPage() {
     }
     
     if (!contratoSelecionado) {
-      toast.error("Selecione um contrato!");
+      toast.error("Selecione um termo!");
       return;
     }
     

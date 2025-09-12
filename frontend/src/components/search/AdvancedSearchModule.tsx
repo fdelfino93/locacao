@@ -625,7 +625,7 @@ const AdvancedSearchModule: React.FC = () => {
                           {locador.contratos_ativos !== undefined && (
                             <div className="flex items-center">
                               <FileText className="w-4 h-4 mr-2" />
-                              {locador.contratos_ativos} contratos ativos
+                              {locador.contratos_ativos} termos ativos
                             </div>
                           )}
                         </div>

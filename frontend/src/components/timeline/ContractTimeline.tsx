@@ -247,7 +247,7 @@ const ContractTimeline: React.FC<ContractTimelineProps> = ({
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-gray-600" />
-          <h3 className="text-lg font-semibold">Timeline do Contrato</h3>
+          <h3 className="text-lg font-semibold">Timeline do Termo</h3>
         </div>
         
         <div className="flex flex-wrap gap-2">

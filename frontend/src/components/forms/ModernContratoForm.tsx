@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { InputWithIcon } from '../ui/input-with-icon';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -216,8 +217,13 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
   const carregarPlanosDisponiveis = async () => {
     try {
       const response = await apiService.listarPlanos();
-      if (response.success && response.data) {
+      if (response && response.success && Array.isArray(response.data)) {
         setPlanosDisponiveis(response.data);
+      } else {
+        // Fallback: tentar usar o response direto caso seja uma estrutura diferente
+        if (Array.isArray(response)) {
+          setPlanosDisponiveis(response);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar planos:', error);
@@ -537,13 +543,13 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                 
                 await carregarTodosOsDados();
               } else {
-                setApiError('Contrato não encontrado');
+                setApiError('Termo não encontrado');
               }
             } else {
-              setApiError('Erro ao carregar contrato');
+              setApiError('Erro ao carregar termo');
             }
           } else {
-            setApiError('ID do contrato não encontrado na URL');
+            setApiError('ID do termo não encontrado na URL');
           }
         } catch (error) {
           console.error('Erro:', error);
@@ -692,7 +698,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
               setApiError('Contrato não encontrado');
             }
           } else {
-            setApiError('Erro ao recarregar contrato');
+            setApiError('Erro ao recarregar termo');
           }
         }
       } catch (error) {
@@ -700,6 +706,233 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         setApiError('Erro de conexão ao recarregar');
       } finally {
         setLoadingData(false);
+      }
+    };
+
+    // Função para cadastrar novo contrato
+    const handleCreateContract = async (e) => {
+      e.preventDefault(); // Impedir reload da página
+      
+      console.log('=== CADASTRANDO NOVO CONTRATO ===');
+      console.log('Dados do contrato:', contratoData);
+      console.log('Locadores:', locadores);
+      console.log('Locatários:', locatarios);
+      
+      // Validações básicas (igual ao handleSaveContract)
+      if (!contratoData?.id_imovel) {
+        alert('❌ Erro: Selecione um imóvel antes de cadastrar o termo.');
+        return;
+      }
+      
+      if (!contratoData?.data_inicio) {
+        alert('❌ Erro: Defina a data de início do termo.');
+        return;
+      }
+      
+      if (!contratoData?.data_fim) {
+        alert('❌ Erro: Defina a data de fim do termo.');
+        return;
+      }
+      
+      if (!contratoData?.valor_aluguel || contratoData?.valor_aluguel <= 0) {
+        alert('❌ Erro: Defina o valor do aluguel.');
+        return;
+      }
+      
+      if (!contratoData?.vencimento_dia) {
+        alert('❌ Erro: Defina o dia de vencimento.');
+        return;
+      }
+      
+      if (!contratoData?.tipo_garantia) {
+        alert('❌ Erro: Selecione o tipo de garantia.');
+        return;
+      }
+      
+      if (!locatarios || locatarios.length === 0) {
+        alert('❌ Erro: Adicione pelo menos um locatário.');
+        return;
+      }
+      
+      // Verificar se há locatários inválidos (igual ao handleSaveContract)
+      const locatariosInvalidos = locatarios.filter(loc => !loc.locatario_id || loc.locatario_id <= 0);
+      if (locatariosInvalidos.length > 0) {
+        alert(`❌ Erro: ${locatariosInvalidos.length} locatário(s) não foram selecionados. Selecione todos os locatários antes de cadastrar.`);
+        return;
+      }
+      
+      setLoading(true);
+      
+      try {
+        // Debug: Verificar dados antes de enviar (igual ao handleSaveContract)
+        console.log('📤 DADOS ENVIADOS PARA API:');
+        console.log('Dados completos:', JSON.stringify(contratoData, null, 2));
+        
+        // Garantir que o id_locatario está correto (primeiro locatário)
+        const contratoCompleto = {
+          ...contratoData,
+          id_locatario: locatarios[0].locatario_id,
+          status: "ativo"
+        };
+        
+        // 1. Criar dados básicos do contrato (usando contratoCompleto como handleSaveContract)
+        const responseContrato = await fetch('http://localhost:8000/api/contratos', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(contratoCompleto), // IGUAL AO handleSaveContract - usa objeto completo
+          signal: AbortSignal.timeout(30000) // 30 segundos timeout (igual ao handleSaveContract)
+        });
+        
+        if (!responseContrato.ok) {
+          const errorData = await responseContrato.json();
+          console.error('❌ Erro na resposta do servidor:', errorData);
+          throw new Error(`Erro ao criar contrato: ${errorData.detail || 'Erro desconhecido'}`);
+        }
+        
+        const resultContrato = await responseContrato.json();
+        console.log('✅ Resposta do servidor para contrato:', resultContrato); // Igual ao handleSaveContract
+        const contratoId = resultContrato.id;
+        
+        // 2. Salvar locadores usando novo endpoint (igual ao handleSaveContract)
+        if (locadores && locadores.length > 0) {
+          console.log('Salvando locadores...'); // Igual ao handleSaveContract
+          console.log('📤 Dados dos locadores enviados:', JSON.stringify(locadores, null, 2));
+          const responseLocadores = await fetch(`http://localhost:8000/api/contratos/${contratoId}/locadores`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ locadores: locadores }),
+            signal: AbortSignal.timeout(15000) // 15 segundos timeout (igual ao handleSaveContract)
+          });
+          
+          if (!responseLocadores.ok) {
+            const errorData = await responseLocadores.json();
+            console.warn('Erro ao salvar locadores:', errorData);
+          } else {
+            console.log('✅ Locadores salvos com sucesso');
+          }
+        }
+        
+        // 3. Salvar locatários usando novo endpoint (igual ao handleSaveContract)
+        if (locatarios && locatarios.length > 0) {
+          console.log('Salvando locatários...'); // Igual ao handleSaveContract
+          console.log('📤 Dados dos locatários enviados:', JSON.stringify(locatarios, null, 2));
+          
+          // Validar dados antes de enviar (igual ao handleSaveContract)
+          const locatariosValidos = locatarios.filter(l => l.locatario_id > 0);
+          const locatariosInvalidos = locatarios.filter(l => l.locatario_id <= 0);
+          
+          console.log(`📊 Locatários válidos: ${locatariosValidos.length}`);
+          console.log(`❌ Locatários inválidos: ${locatariosInvalidos.length}`);
+          
+          if (locatariosInvalidos.length > 0) {
+            console.log('⚠️ Locatários com ID inválido:', locatariosInvalidos);
+            alert(`Erro: ${locatariosInvalidos.length} locatário(s) não foram selecionados. Selecione todos os locatários antes de salvar.`);
+            return;
+          }
+          
+          const responseLocatarios = await fetch(`http://localhost:8000/api/contratos/${contratoId}/locatarios`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ locatarios: locatarios }),
+            signal: AbortSignal.timeout(15000) // 15 segundos timeout (igual ao handleSaveContract)
+          });
+          
+          if (!responseLocatarios.ok) {
+            const errorData = await responseLocatarios.json();
+            console.warn('Erro ao salvar locatários:', errorData);
+          } else {
+            console.log('✅ Locatários salvos com sucesso');
+          }
+        }
+        
+        // 4. Salvar garantias (fiador, caução, título, apólice)
+        const garantiasData = {
+          fiador_nome: contratoData?.fiador_nome,
+          fiador_cpf: contratoData?.fiador_cpf,
+          fiador_telefone: contratoData?.fiador_telefone,
+          caucao_tipo: contratoData?.caucao_tipo,
+          caucao_valor: contratoData?.caucao_valor,
+          titulo_banco: contratoData?.titulo_banco,
+          titulo_valor: contratoData?.titulo_valor,
+          apolice_numero: contratoData?.seguro_apolice,
+          apolice_valor_cobertura: contratoData?.seguro_valor_cobertura
+        };
+        
+        const temGarantias = Object.values(garantiasData).some(valor => valor !== null && valor !== undefined && valor !== '');
+        
+        if (temGarantias) {
+          console.log('4. Salvando garantias...');
+          const responseGarantias = await fetch(`http://localhost:8000/api/contratos/${contratoId}/garantias`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(garantiasData),
+            signal: AbortSignal.timeout(15000)
+          });
+          
+          if (!responseGarantias.ok) {
+            const errorData = await responseGarantias.json();
+            console.warn('Erro ao salvar garantias:', errorData);
+          } else {
+            console.log('✅ Garantias salvas com sucesso');
+          }
+        }
+        
+        // 5. Salvar pets
+        const petsData = {
+          quantidade_pets: contratoData?.quantidade_pets || 0,
+          pets_racas: contratoData?.pets_racas,
+          pets_tamanhos: contratoData?.pets_tamanhos
+        };
+        
+        const temPets = contratoData?.quantidade_pets > 0;
+        
+        if (temPets) {
+          console.log('5. Salvando pets...');
+          const responsePets = await fetch(`http://localhost:8000/api/contratos/${contratoId}/pets`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(petsData),
+            signal: AbortSignal.timeout(15000)
+          });
+          
+          if (!responsePets.ok) {
+            const errorData = await responsePets.json();
+            console.warn('Erro ao salvar pets:', errorData);
+          } else {
+            console.log('✅ Pets salvos com sucesso');
+          }
+        }
+        
+        alert(`✅ Termo cadastrado com sucesso! ID: ${contratoId}`);
+        console.log('✅ SUCESSO: Contrato criado no banco com ID:', contratoId);
+        
+        // Limpar formulário após sucesso
+        setContratoData({});
+        setLocadores([]);
+        setLocatarios([]);
+        
+        // Opcional: redirecionar para lista de contratos
+        // window.location.href = '/contratos';
+        
+      } catch (error) {
+        console.error('❌ Erro ao cadastrar:', error);
+        if (error.name === 'TimeoutError') {
+          alert('❌ Timeout: A operação demorou muito para ser concluída. Tente novamente.');
+        } else {
+          alert(`❌ Erro ao cadastrar termo: ${error.message || 'Erro de conexão'}`);
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -859,7 +1092,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
           }
         }
         
-        alert('✅ Contrato atualizado com sucesso!');
+        alert('✅ Termo atualizado com sucesso!');
         console.log('✅ SUCESSO: Todas as alterações salvas no banco');
         
         // REMOVIDO: Recarregamento automático para evitar loop infinito
@@ -870,7 +1103,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         if (error.name === 'TimeoutError') {
           alert('❌ Timeout: A operação demorou muito para ser concluída. Tente novamente.');
         } else {
-          alert(`❌ Erro ao salvar contrato: ${error.message || 'Erro de conexão'}`);
+          alert(`❌ Erro ao salvar termo: ${error.message || 'Erro de conexão'}`);
         }
       } finally {
         setLoading(false); // Desativar loading
@@ -935,7 +1168,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-primary-foreground">
-                    {isViewing ? 'Visualizar Contrato' : isEditing ? 'Editar Contrato' : 'Cadastrar Novo Contrato'}
+                    {isViewing ? 'Visualizar Termo' : isEditing ? 'Editar Termo' : 'Cadastrar Novo Termo'}
                   </h1>
                   {contratoData && (
                     <p className="text-primary-foreground/80">
@@ -973,7 +1206,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
               </div>
 
               {(contratoData || (!isViewing && !isEditing)) && (
-                <form className="space-y-8">
+                <form className="space-y-8" onSubmit={!isViewing && !isEditing ? handleCreateContract : undefined}>
                   <Tabs defaultValue="partes" className="w-full">
                     <TabsList className={`grid w-full ${isViewing || isEditing ? 'grid-cols-7' : 'grid-cols-6'}`}>
                       <TabsTrigger value="partes">Partes</TabsTrigger>
@@ -987,7 +1220,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                       )}
                     </TabsList>
 
-                    {/* Aba 1: Partes do Contrato */}
+                    {/* Aba 1: Partes do Termo */}
                     <TabsContent value="partes" className="space-y-8">
                       {/* Header da Seção */}
                       <motion.div
@@ -1006,7 +1239,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </motion.div>
                           <div>
                             <h2 className="text-2xl font-bold text-foreground">
-                              Partes do Contrato
+                              Partes do Termo
                             </h2>
                             <p className="text-muted-foreground">
                               Definir as partes envolvidas no contrato
@@ -1078,18 +1311,21 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                             }}
                             onUtilizacaoChange={(utilizacao) => handleContratoInputChange('tipo_plano_locacao', utilizacao.charAt(0).toUpperCase() + utilizacao.slice(1))}
                             locadoresSelecionados={(() => {
-                              // No modo cadastro, usar os locadores selecionados no estado
-                              if (!isViewing && !isEditing) {
-                                const locadorIds = locadores.map(loc => loc.locador_id);
-                                console.log('🏠 LOCADORES SELECIONADOS (CADASTRO):', locadorIds);
-                                console.log('🏠 LOCADORES ESTADO:', locadores);
-                                console.log('🏠 ESTRUTURA DO PRIMEIRO LOCADOR:', locadores[0]);
-                                return locadorIds;
+                              // Sempre usar os locadores do estado (array N:N), não importa o modo
+                              const locadorIds = locadores.map(loc => loc.locador_id).filter(id => id > 0);
+                              
+                              // Log detalhado para debug
+                              console.log('🏠 MODO:', isEditing ? 'EDIÇÃO' : isViewing ? 'VISUALIZAÇÃO' : 'CADASTRO');
+                              console.log('🏠 LOCADORES SELECIONADOS:', locadorIds);
+                              console.log('🏠 LOCADORES ESTADO COMPLETO:', locadores);
+                              
+                              // Se não tem locadores no array (não deveria acontecer), tentar fallback
+                              if (locadorIds.length === 0 && contratoData?.locador_id) {
+                                console.log('⚠️ FALLBACK: Usando locador_id antigo:', contratoData.locador_id);
+                                return [contratoData.locador_id];
                               }
-                              // No modo visualização/edição, usar o locador do contrato
-                              const locadorId = contratoData?.locador_id ? [contratoData?.locador_id] : [];
-                              console.log('🏠 LOCADOR DO CONTRATO:', locadorId);
-                              return locadorId;
+                              
+                              return locadorIds;
                             })()}
                             readonly={isReadonly}
                           />
@@ -1106,7 +1342,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                     {/* Outras abas - implementar nas próximas etapas */}
                     <TabsContent value="datas" className="space-y-8">
-                      {/* Datas do Contrato - EXATO COMO NO CADASTRO */}
+                      {/* Datas do Termo - EXATO COMO NO CADASTRO */}
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1123,10 +1359,10 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </motion.div>
                           <div>
                             <h3 className="text-lg font-semibold text-foreground">
-                              Datas do Contrato
+                              Datas do Termo
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              Configure as datas importantes do contrato, incluindo período de vigência e cálculo automático.
+                              Configure as datas importantes do termo, incluindo período de vigência e cálculo automático.
                             </p>
                           </div>
                         </div>
@@ -1172,7 +1408,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="data_inicio">Data de Início do Contrato *</Label>
+                            <Label htmlFor="data_inicio">Data de Início do Termo *</Label>
                             <InputWithIcon
                               id="data_inicio"
                               type="date"
@@ -1199,7 +1435,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="periodo_contrato">Período do Contrato (meses)</Label>
+                            <Label htmlFor="periodo_contrato">Período do Termo (meses)</Label>
                             <Select 
                               value={contratoData?.periodo_contrato?.toString()}
                               onValueChange={(value) => {
@@ -1218,19 +1454,23 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                 <SelectValue placeholder={contratoData?.periodo_contrato ? `${contratoData?.periodo_contrato} meses` : "12 meses"} />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="indeterminado">Indeterminado</SelectItem>
                                 <SelectItem value="6">6 meses</SelectItem>
                                 <SelectItem value="12">12 meses</SelectItem>
+                                <SelectItem value="20">20 meses</SelectItem>
                                 <SelectItem value="24">24 meses</SelectItem>
+                                <SelectItem value="30">30 meses</SelectItem>
                                 <SelectItem value="36">36 meses</SelectItem>
                                 <SelectItem value="48">48 meses</SelectItem>
                                 <SelectItem value="60">60 meses</SelectItem>
+                                <SelectItem value="120">120 meses</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">Duração total do contrato</p>
+                            <p className="text-xs text-muted-foreground">Duração total do termo</p>
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="data_fim">Data de Fim do Contrato</Label>
+                            <Label htmlFor="data_fim">Data de Fim do Termo</Label>
                             <InputWithIcon
                               id="data_fim"
                               type="date"
@@ -1421,7 +1661,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         </div>
 
                         <p className="text-sm text-muted-foreground">
-                          Configure todos os valores financeiros do contrato, incluindo seguros, taxas e parcelamentos.
+                          Configure todos os valores financeiros do termo, incluindo seguros, taxas e parcelamentos.
                         </p>
 
                         {/* Valores Principais */}
@@ -2221,8 +2461,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="caucao_valor"
                                     value={contratoData?.caucao_valor || 0}
+                                    onChange={(value) => handleContratoInputChange('caucao_valor', value)}
                                     disabled={isReadonly}
-                                    onChange={!isReadonly ? (value) => handleContratoInputChange('caucao_valor', value) : undefined}
                                   />
                                 </div>
                               </div>
@@ -2300,8 +2540,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="seguro_valor_cobertura"
                                     value={contratoData?.seguro_valor_cobertura || 0}
+                                    onChange={(value) => handleContratoInputChange('seguro_valor_cobertura', value)}
                                     disabled={isReadonly}
-                                    onChange={!isReadonly ? (value) => handleContratoInputChange('seguro_valor_cobertura', value) : undefined}
                                   />
                                 </div>
 
@@ -2379,8 +2619,8 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                                   <CurrencyInput
                                     id="titulo_valor"
                                     value={contratoData?.titulo_valor || 0}
+                                    onChange={(value) => handleContratoInputChange('titulo_valor', value)}
                                     disabled={isReadonly}
-                                    onChange={!isReadonly ? (value) => handleContratoInputChange('titulo_valor', value) : undefined}
                                   />
                                 </div>
 
@@ -2981,7 +3221,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                     </div>
                   )}
 
-                  {/* Botão Cadastrar Contrato (apenas em modo cadastro) */}
+                  {/* Botão Cadastrar Termo (apenas em modo cadastro) */}
                   {(!isViewing && !isEditing) && (
                     <div className="pt-6 border-t">
                       <Button 
@@ -2997,7 +3237,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                         ) : (
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-5 h-5 text-green-600" />
-                            <span>Cadastrar Contrato</span>
+                            <span>Cadastrar Termo</span>
                           </div>
                         )}
                       </Button>

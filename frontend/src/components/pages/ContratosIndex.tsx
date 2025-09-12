@@ -174,7 +174,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
       }
     } catch (err) {
       console.error('Erro ao carregar contratos:', err);
-      setError('Erro ao carregar contratos');
+      setError('Erro ao carregar termos');
       // Dados de exemplo para desenvolvimento
       setContratos([]);
     } finally {
@@ -344,7 +344,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
         console.log(`✅ Status alterado para: ${novoStatus}`);
       } else {
         console.error('Erro ao alterar status:', await response.text());
-        alert('Erro ao alterar status do contrato');
+        alert('Erro ao alterar status do termo');
       }
     } catch (error) {
       console.error('Erro ao alterar status:', error);
@@ -406,8 +406,8 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   <FileText className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-foreground">Contratos</h1>
-                  <p className="text-muted-foreground">Gerenciamento de contratos de locação</p>
+                  <h1 className="text-3xl font-bold text-foreground">Termos</h1>
+                  <p className="text-muted-foreground">Gerenciamento de termos de locação</p>
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -416,7 +416,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   className="btn-gradient"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Novo Contrato
+                  Novo Termo
                 </Button>
               </div>
             </div>
@@ -428,7 +428,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-muted-foreground truncate">Total Contratos</p>
+                    <p className="text-sm font-medium text-muted-foreground truncate">Total Termos</p>
                     <p className="text-xl font-bold text-foreground truncate">{totalContratos}</p>
                   </div>
                   <FileText className="w-7 h-7 text-blue-500 flex-shrink-0 ml-2" />
@@ -554,7 +554,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Busca */}
                     <div>
-                      <Label className="text-sm font-medium text-foreground">Buscar Contratos</Label>
+                      <Label className="text-sm font-medium text-foreground">Buscar Termos</Label>
                       <InputWithIcon
                         icon={Search}
                         placeholder="Buscar por número, inquilino, locador..."
@@ -581,7 +581,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
 
                     {/* Total */}
                     <div>
-                      <Label className="text-sm font-medium text-foreground">Contratos Listados</Label>
+                      <Label className="text-sm font-medium text-foreground">Termos Listados</Label>
                       <div className="bg-muted/30 px-3 py-2 rounded-md">
                         <p className="text-sm font-medium text-foreground">{sortedContratos.length}</p>
                       </div>
@@ -593,7 +593,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   <div className="text-center py-12">
                     <div className="inline-flex items-center space-x-2">
                       <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      <p className="text-lg text-muted-foreground">Carregando contratos...</p>
+                      <p className="text-lg text-muted-foreground">Carregando termos...</p>
                     </div>
                   </div>
                 ) : error ? (
@@ -607,10 +607,10 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                   <div className="text-center py-12">
                     <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-foreground mb-2">
-                      {searchQuery ? 'Nenhum contrato encontrado' : 'Nenhum contrato cadastrado'}
+                      {searchQuery ? 'Nenhum termo encontrado' : 'Nenhum termo cadastrado'}
                     </h3>
                     <p className="text-muted-foreground mb-6">
-                      {searchQuery ? 'Tente buscar com outros termos' : 'Cadastre o primeiro contrato do sistema'}
+                      {searchQuery ? 'Tente buscar com outros termos' : 'Cadastre o primeiro termo do sistema'}
                     </p>
                     {!searchQuery && (
                       <Button onClick={onNavigateToCadastro} className="btn-gradient">
@@ -626,7 +626,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                         <thead className="bg-muted/50">
                           <tr>
                             <th className="px-3 py-2 text-left">
-                              <span className="font-medium text-foreground">Contrato</span>
+                              <span className="font-medium text-foreground">Termo</span>
                             </th>
                             <th className="px-3 py-2 text-left">
                               <span className="font-medium text-foreground">Imóvel</span>
@@ -738,7 +738,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                     variant="outline"
                                     onClick={() => onNavigateToDetalhes(contrato.id)}
                                     className="h-8 w-8 p-0"
-                                    title="Visualizar contrato"
+                                    title="Visualizar termo"
                                   >
                                     <Eye className="w-4 h-4" />
                                   </Button>
@@ -747,7 +747,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
                                     variant="outline"
                                     onClick={() => onNavigateToEdicao(contrato.id)}
                                     className="h-8 w-8 p-0"
-                                    title="Editar contrato"
+                                    title="Editar termo"
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>

@@ -533,7 +533,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
           return;
         }
         if (!contratoSelecionado) {
-          toast.error("Selecione um contrato");
+          toast.error("Selecione um termo");
           return;
         }
       }

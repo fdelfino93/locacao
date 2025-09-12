@@ -664,7 +664,7 @@ const StandardSearchModule: React.FC = () => {
                           {locador.contratos_ativos !== undefined && (
                             <div className="flex items-center space-x-2">
                               <TrendingUp className="w-4 h-4" />
-                              <span>{locador.contratos_ativos} contratos ativos</span>
+                              <span>{locador.contratos_ativos} termos ativos</span>
                             </div>
                           )}
                         </div>

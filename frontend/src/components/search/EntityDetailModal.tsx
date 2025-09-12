@@ -236,7 +236,7 @@ const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{data.estatisticas?.contratos_ativos || 0}</p>
-                <p className="text-sm text-muted-foreground">Contratos Ativos</p>
+                <p className="text-sm text-muted-foreground">Termos Ativos</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-amber-600">{formatCurrency(data.estatisticas?.receita_mensal_estimada || 0)}</p>
@@ -299,7 +299,7 @@ const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{data.estatisticas?.contratos_ativos || 0}</p>
-                <p className="text-sm text-muted-foreground">Contratos Ativos</p>
+                <p className="text-sm text-muted-foreground">Termos Ativos</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-amber-600">{formatCurrency(data.estatisticas?.valor_medio_aluguel || 0)}</p>
@@ -387,7 +387,7 @@ const EntityDetailModal: React.FC<EntityDetailModalProps> = ({
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">{data.estatisticas?.contratos_ativos || 0}</p>
-                <p className="text-sm text-muted-foreground">Contratos Ativos</p>
+                <p className="text-sm text-muted-foreground">Termos Ativos</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-amber-600">{formatCurrency(data.estatisticas?.valor_medio_historico || 0)}</p>

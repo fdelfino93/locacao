@@ -146,7 +146,7 @@ export const PerfilCompletoLocador: React.FC<PerfilCompletoLocadorProps> = ({
           <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">
             {estatisticas.contratos_ativos || 0}
           </p>
-          <p className="text-sm text-blue-700 dark:text-blue-300">Contratos Ativos</p>
+          <p className="text-sm text-blue-700 dark:text-blue-300">Termos Ativos</p>
           <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
             {((estatisticas.contratos_ativos || 0) / Math.max(estatisticas.total_imoveis || 1, 1) * 100).toFixed(1)}% ocupação
           </div>
@@ -459,7 +459,7 @@ export const PerfilCompletoLocador: React.FC<PerfilCompletoLocadorProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold flex items-center space-x-2">
             <FileText className="w-5 h-5" />
-            <span>Contratos Ativos ({contratos.length})</span>
+            <span>Termos Ativos ({contratos.length})</span>
           </h3>
           {contratos.length > 4 && (
             <Button variant="outline" size="sm">
@@ -564,7 +564,7 @@ export const PerfilCompletoLocador: React.FC<PerfilCompletoLocadorProps> = ({
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-sm">Contratos Ativos</span>
+            <span className="text-sm">Termos Ativos</span>
             <div className="flex items-center space-x-2">
               <div className="w-32 bg-muted rounded-full h-2">
                 <div 

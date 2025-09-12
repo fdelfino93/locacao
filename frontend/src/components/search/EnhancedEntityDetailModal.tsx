@@ -456,11 +456,11 @@ const EnhancedEntityDetailModal: React.FC<EnhancedEntityDetailModalProps> = ({
                       'total_imoveis': 'Total de Imóveis',
                       'imoveis_ocupados': 'Imóveis Ocupados',
                       'imoveis_disponiveis': 'Imóveis Disponíveis',
-                      'contratos_ativos': 'Contratos Ativos',
+                      'contratos_ativos': 'Termos Ativos',
                       'receita_mensal_bruta': 'Receita Mensal Bruta',
                       'receita_mensal_estimada': 'Receita Estimada',
                       'avaliacao_media': 'Avaliação Média',
-                      'total_contratos': 'Total de Contratos',
+                      'total_contratos': 'Total de Termos',
                       'valor_medio_aluguel': 'Valor Médio',
                       'ocupado': 'Status de Ocupação'
                     };

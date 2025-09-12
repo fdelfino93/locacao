@@ -108,7 +108,7 @@ export const HistoricoContrato: React.FC<HistoricoContratoProps> = ({ contratoId
       'valor_aluguel': 'Valor do Aluguel',
       'data_inicio': 'Data de Início',
       'data_fim': 'Data de Término',
-      'status': 'Status do Contrato',
+      'status': 'Status do Termo',
       'proximo_reajuste': 'Próximo Reajuste',
       'tempo_reajuste': 'Período de Reajuste',
       'taxa_administracao': 'Taxa de Administração',

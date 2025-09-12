@@ -5,6 +5,7 @@ import pyodbc
 import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
@@ -34,12 +35,15 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
     }
     
     query_lower = query.lower() if query else ''
-    buscar_todos = query == '*'  # Flag para buscar todos os registros
+    buscar_todos = query == '*' or query == ''  # Flag para buscar todos os registros quando for * ou vazio
+    
+    print(f"DEBUG: query='{query}', tipo='{tipo}', buscar_todos={buscar_todos}")
     
     try:
         # Buscar Locadores
         if not tipo or tipo == 'locadores':
             if buscar_todos:
+                print("DEBUG: Buscando TODOS os locadores...")
                 cursor.execute("""
                     SELECT TOP 50 
                         l.id, l.nome, l.cpf_cnpj, l.telefone, l.email, l.endereco,
@@ -94,8 +98,17 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
                     resultado['locadores'].append(locador)
         else:
                 # Para busca com filtros (query_lower != '*')
-                columns = [column[0] for column in cursor.description]
-                for row in cursor.fetchall():
+                print(f"DEBUG locadores (filtro): cursor.description = {cursor.description}")
+                if cursor.description:
+                    columns = [column[0] for column in cursor.description]
+                else:
+                    print("WARNING: cursor.description is None for locadores (filtro)!")
+                    columns = []
+                
+                rows = cursor.fetchall() if cursor.description else []
+                print(f"DEBUG locadores (filtro): found {len(rows) if rows else 0} rows")
+                
+                for row in rows:
                     locador = dict(zip(columns, row))
                     # Converter campo ativo para boolean, mantendo null como true por padrão
                     if 'ativo' in locador:
@@ -143,24 +156,38 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
                     ORDER BY l.nome
                 """, (f'%{query_lower}%',) * 4)
             
-            columns = [column[0] for column in cursor.description]
-            for row in cursor.fetchall():
+            print(f"DEBUG locatarios: cursor.description = {cursor.description}")
+            if cursor.description:
+                columns = [column[0] for column in cursor.description]
+            else:
+                print("WARNING: cursor.description is None for locatarios!")
+                columns = []
+            
+            rows = cursor.fetchall() if cursor.description else []
+            print(f"DEBUG locatarios: found {len(rows) if rows else 0} rows")
+            
+            for row in rows:
                 locatario = dict(zip(columns, row))
                 resultado['locatarios'].append(locatario)
         
         # Buscar Imóveis
         if not tipo or tipo == 'imoveis':
             if buscar_todos:
-                cursor.execute("""
-                    SELECT TOP 50 
-                        i.id, i.tipo, i.endereco, i.valor_aluguel, 
-                        i.status, i.quartos, i.banheiros,
-                        i.vagas_garagem, i.metragem_total, i.andar,
-                        l.nome as locador_nome
-                    FROM Imoveis i
-                    LEFT JOIN Locadores l ON i.id_locador = l.id
-                    ORDER BY i.endereco
-                """)
+                print("DEBUG: Buscando TODOS os imóveis...")
+                try:
+                    cursor.execute("""
+                        SELECT TOP 50 
+                            i.id, i.tipo, i.endereco, i.valor_aluguel, 
+                            i.status, i.quartos, i.banheiros,
+                            i.vagas_garagem, i.metragem_total, i.andar,
+                            l.nome as locador_nome
+                        FROM Imoveis i
+                        LEFT JOIN Locadores l ON i.id_locador = l.id
+                        ORDER BY i.endereco
+                    """)
+                except Exception as sql_error:
+                    print(f"ERROR executing imoveis SQL: {sql_error}")
+                    raise
             else:
                 cursor.execute("""
                     SELECT TOP 50 
@@ -178,8 +205,17 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
                     ORDER BY i.endereco
                 """, (f'%{query_lower}%',) * 4)
             
-            columns = [column[0] for column in cursor.description]
-            for row in cursor.fetchall():
+            print(f"DEBUG imoveis: cursor.description = {cursor.description}")
+            if cursor.description:
+                columns = [column[0] for column in cursor.description]
+            else:
+                print("WARNING: cursor.description is None for imoveis!")
+                columns = []
+            
+            rows = cursor.fetchall() if cursor.description else []
+            print(f"DEBUG imoveis: found {len(rows) if rows else 0} rows")
+            
+            for row in rows:
                 imovel = dict(zip(columns, row))
                 # Converter Decimal para float
                 if imovel.get('valor_aluguel'):
@@ -191,19 +227,24 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
         # Buscar Contratos
         if not tipo or tipo == 'contratos':
             if buscar_todos:
-                cursor.execute("""
-                    SELECT TOP 50 
-                        c.id, c.data_inicio, c.data_fim,
-                        c.vencimento_dia, c.tipo_garantia,
-                        i.endereco as imovel_endereco, i.tipo as imovel_tipo,
-                        loc.nome as locatario_nome,
-                        ldr.nome as locador_nome
-                    FROM Contratos c
-                    LEFT JOIN Imoveis i ON c.id_imovel = i.id
-                    LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
-                    LEFT JOIN Locadores ldr ON i.id_locador = ldr.id
-                    ORDER BY c.data_inicio DESC
-                """)
+                print("DEBUG: Buscando TODOS os contratos...")
+                try:
+                    cursor.execute("""
+                        SELECT TOP 50 
+                            c.id, c.data_inicio, c.data_fim,
+                            c.vencimento_dia, c.tipo_garantia,
+                            i.endereco as imovel_endereco, i.tipo as imovel_tipo,
+                            loc.nome as locatario_nome,
+                            ldr.nome as locador_nome
+                        FROM Contratos c
+                        LEFT JOIN Imoveis i ON c.id_imovel = i.id
+                        LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+                        LEFT JOIN Locadores ldr ON i.id_locador = ldr.id
+                        ORDER BY c.data_inicio DESC
+                    """)
+                except Exception as sql_error:
+                    print(f"ERROR executing contracts SQL: {sql_error}")
+                    raise
             else:
                 cursor.execute("""
                     SELECT TOP 50 
@@ -224,8 +265,17 @@ def buscar_global(query: str, tipo: Optional[str] = None) -> Dict[str, List[Dict
                     ORDER BY c.data_inicio DESC
                 """, (f'%{query_lower}%',) * 4)
             
-            columns = [column[0] for column in cursor.description]
-            for row in cursor.fetchall():
+            print(f"DEBUG contratos: cursor.description = {cursor.description}")
+            if cursor.description:
+                columns = [column[0] for column in cursor.description]
+            else:
+                print("WARNING: cursor.description is None for contratos!")
+                columns = []
+            
+            rows = cursor.fetchall() if cursor.description else []
+            print(f"DEBUG contratos: found {len(rows) if rows else 0} rows")
+            
+            for row in rows:
                 contrato = dict(zip(columns, row))
                 # Converter datas para string
                 if contrato.get('data_inicio'):
@@ -447,6 +497,4 @@ def buscar_relacionados(query: str, tipo: Optional[str] = None,
     finally:
         conn.close()
 
-# Adicionar importação de datetime
-from datetime import datetime
 

@@ -69,7 +69,7 @@ const DashboardSimple: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-blue-100 text-sm">Contratos Ativos</p>
+                  <p className="text-blue-100 text-sm">Termos Ativos</p>
                   <p className="text-2xl font-bold mt-2">{metricas.contratos_ativos}</p>
                 </div>
                 <FileText className="w-8 h-8 text-blue-200" />

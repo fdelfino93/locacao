@@ -282,18 +282,17 @@ def buscar_locatarios():
         return []
 
 def buscar_imoveis():
-    """Busca todos os imóveis da tabela Imoveis"""
+    """Busca todos os imóveis da tabela Imoveis com seus locadores da tabela N:N"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
+        
+        # Primeiro buscar todos os imóveis
         cursor.execute("SELECT * FROM Imoveis")
-        
-        # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
-        
-        # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
+        
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
@@ -302,6 +301,27 @@ def buscar_imoveis():
                     row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
                 else:
                     row_dict[columns[i]] = value
+            
+            # Buscar todos os locadores deste imóvel na tabela N:N
+            cursor.execute("""
+                SELECT locador_id, porcentagem, responsabilidade_principal 
+                FROM ImovelLocadores 
+                WHERE imovel_id = ? AND ativo = 1
+                ORDER BY responsabilidade_principal DESC, porcentagem DESC
+            """, (row_dict['id'],))
+            
+            locadores_imovel = cursor.fetchall()
+            
+            # Adicionar array de locadores ao imóvel
+            row_dict['locadores_ids'] = [loc[0] for loc in locadores_imovel]
+            
+            # Manter compatibilidade: se tem locadores na N:N, usar o principal
+            # Se não tem, usar o campo antigo id_locador
+            if locadores_imovel:
+                # Pegar o primeiro (principal) da lista N:N
+                row_dict['id_locador'] = locadores_imovel[0][0]
+            # Senão, mantém o id_locador original do SELECT *
+            
             result.append(row_dict)
         
         conn.close()
@@ -864,7 +884,7 @@ def gerar_relatorio_pdf(dados):
     return None
 
 def buscar_contratos_ativos():
-    """Busca todos os contratos para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
+    """Busca todos os contratos válidos (ativo, reajuste, vencendo) para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
     try:
         print("🔄 PRESTACAO: Iniciando busca HÍBRIDA de contratos...")
         
@@ -915,7 +935,7 @@ def buscar_contratos_ativos():
                     i.tipo as imovel_tipo
                 FROM Contratos c
                 LEFT JOIN Imoveis i ON c.id_imovel = i.id
-                WHERE c.status = 'ativo' OR c.status IS NULL
+                WHERE c.status IN ('ativo', 'reajuste', 'vencendo', 'vencido') OR c.status IS NULL
                 ORDER BY c.data_inicio DESC
             """)
             
@@ -1286,13 +1306,34 @@ def buscar_contratos():
                 c.tempo_reajuste,
                 i.endereco as imovel_endereco,
                 i.tipo as imovel_tipo,
-                i.id_locador,
-                l.nome as locador_nome,
-                loc.nome as locatario_nome
+                -- Buscar locadores atuais da tabela ImovelLocadores
+                (SELECT TOP 1 l.nome 
+                 FROM ImovelLocadores il 
+                 INNER JOIN Locadores l ON il.locador_id = l.id
+                 WHERE il.imovel_id = c.id_imovel 
+                 AND il.responsabilidade_principal = 1 
+                 AND il.ativo = 1) as locador_nome,
+                -- Buscar locatários ATUAIS da tabela ContratoLocatarios
+                (SELECT TOP 1 loc.nome 
+                 FROM ContratoLocatarios cl 
+                 INNER JOIN Locatarios loc ON cl.locatario_id = loc.id
+                 WHERE cl.contrato_id = c.id 
+                 AND cl.responsabilidade_principal = 1 
+                 AND cl.ativo = 1) as locatario_nome,
+                -- Contar total de locatários atuais
+                (SELECT COUNT(*) 
+                 FROM ContratoLocatarios cl 
+                 WHERE cl.contrato_id = c.id 
+                 AND cl.ativo = 1) as total_locatarios,
+                -- Lista de nomes dos locatários atuais (separados por vírgula)
+                STUFF((SELECT ', ' + loc2.nome 
+                       FROM ContratoLocatarios cl2 
+                       INNER JOIN Locatarios loc2 ON cl2.locatario_id = loc2.id
+                       WHERE cl2.contrato_id = c.id AND cl2.ativo = 1
+                       ORDER BY cl2.responsabilidade_principal DESC, loc2.nome
+                       FOR XML PATH('')), 1, 2, '') as todos_locatarios
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN Locadores l ON i.id_locador = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
             ORDER BY c.data_inicio DESC
         """)
         
@@ -1334,12 +1375,24 @@ def buscar_contratos_por_locador(locador_id):
                 c.taxa_administracao,
                 i.endereco as imovel_endereco,
                 i.tipo as imovel_tipo,
-                loc.nome as locatario_nome,
-                loc.cpf_cnpj as locatario_documento
+                -- Buscar locatário principal ATUAL da tabela ContratoLocatarios
+                (SELECT TOP 1 loc.nome 
+                 FROM ContratoLocatarios cl 
+                 INNER JOIN Locatarios loc ON cl.locatario_id = loc.id
+                 WHERE cl.contrato_id = c.id 
+                 AND cl.responsabilidade_principal = 1 
+                 AND cl.ativo = 1) as locatario_nome,
+                -- CPF do locatário principal atual
+                (SELECT TOP 1 loc.cpf_cnpj 
+                 FROM ContratoLocatarios cl 
+                 INNER JOIN Locatarios loc ON cl.locatario_id = loc.id
+                 WHERE cl.contrato_id = c.id 
+                 AND cl.responsabilidade_principal = 1 
+                 AND cl.ativo = 1) as locatario_documento
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
-            WHERE i.id_locador = ?
+            INNER JOIN ImovelLocadores il ON i.id = il.imovel_id
+            WHERE il.locador_id = ? AND il.ativo = 1
             ORDER BY c.data_inicio DESC
         """, (locador_id,))
         
@@ -2233,6 +2286,9 @@ def atualizar_contrato(contrato_id, **kwargs):
             'parcelas_seguro_incendio',
             'valor_fci',
             
+            # Campo de PLANO DE LOCAÇÃO
+            'id_plano_locacao',
+            
             # Campos de CORRETOR (15 novos campos do refinamento)
             'tem_corretor',
             'corretor_nome',
@@ -2680,6 +2736,11 @@ def salvar_locadores_contrato(contrato_id, locadores):
         
         # Inserir novos locadores
         for locador in locadores:
+            # Garantir que conta_bancaria_id nunca seja NULL
+            conta_bancaria_id = locador.get('conta_bancaria_id')
+            if conta_bancaria_id is None or conta_bancaria_id == 0:
+                conta_bancaria_id = 1  # ID padrão para conta sem especificação
+            
             cursor.execute("""
                 INSERT INTO ContratoLocadores 
                 (contrato_id, locador_id, conta_bancaria_id, porcentagem, responsabilidade_principal, ativo)
@@ -2687,7 +2748,7 @@ def salvar_locadores_contrato(contrato_id, locadores):
             """, (
                 contrato_id,
                 locador['locador_id'],
-                locador.get('conta_bancaria_id', 1),
+                conta_bancaria_id,
                 locador.get('porcentagem', 100.0),
                 locador.get('responsabilidade_principal', False)
             ))
@@ -4736,3 +4797,121 @@ def atualizar_formas_cobranca_locatario(cursor, locatario_id, formas_cobranca):
     except Exception as e:
         print(f"ERRO ao atualizar formas de cobranca do locatario {locatario_id}: {str(e)}")
         raise
+
+def inserir_contrato_completo(**kwargs):
+    """Insere um novo contrato com todos os campos do ContratoCreate (baseado em atualizar_contrato)"""
+    try:
+        print(f"=== REPOSITORIES: Inserindo novo contrato completo ===")
+        print(f"Campos recebidos: {list(kwargs.keys())}")
+        
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # CAMPOS INSERÍVEIS - COPIADOS EXATAMENTE DO atualizar_contrato
+        campos_inseríveis = [
+            # Campos originais
+            'id_locatario', 'id_imovel', 'valor_aluguel', 'data_inicio', 
+            'data_fim', 'data_vencimento', 'tipo_garantia',
+            'status', 'valor_condominio', 'valor_iptu', 'valor_seguro',
+            'percentual_reajuste', 'indice_reajuste', 'prazo_reajuste',
+            'valor_multa_rescisao', 'valor_deposito_caucao', 'prazo_pagamento',
+            'dia_vencimento', 'forma_pagamento', 'banco_pagamento',
+            'agencia_pagamento', 'conta_pagamento',
+            
+            # Campos que JA EXISTEM no banco
+            'data_assinatura', 'ultimo_reajuste', 'proximo_reajuste',
+            'renovacao_automatica', 'vencimento_dia', 'taxa_administracao',
+            'fundo_conservacao', 'bonificacao', 'valor_seguro_fianca',
+            'valor_seguro_incendio', 'seguro_fianca_inicio', 'seguro_fianca_fim',
+            'seguro_incendio_inicio', 'seguro_incendio_fim', 'percentual_multa_atraso',
+            'retido_fci', 'retido_iptu', 'retido_condominio', 'retido_seguro_fianca',
+            'retido_seguro_incendio', 'antecipa_condominio', 'antecipa_seguro_fianca',
+            'antecipa_seguro_incendio',
+            
+            # Campos CRIADOS no banco 
+            'data_entrega_chaves',
+            'proximo_reajuste_automatico',
+            'periodo_contrato',
+            'tempo_renovacao',
+            'tempo_reajuste',
+            'data_inicio_iptu',
+            'data_fim_iptu',
+            'parcelas_iptu',
+            'parcelas_seguro_fianca',
+            'parcelas_seguro_incendio',
+            'valor_fci',
+            
+            # Campo de PLANO DE LOCAÇÃO
+            'id_plano_locacao',
+            
+            # Campos de CORRETOR
+            'tem_corretor',
+            'corretor_nome',
+            'corretor_creci',
+            'corretor_cpf',
+            'corretor_telefone',
+            'corretor_email',
+            
+            # Campos de OBRIGAÇÕES ADICIONAIS
+            'obrigacao_manutencao',
+            'obrigacao_pintura',
+            'obrigacao_jardim',
+            'obrigacao_limpeza',
+            'obrigacao_pequenos_reparos',
+            'obrigacao_vistoria',
+            
+            # Campos de MULTAS ESPECÍFICAS
+            'multa_locador',
+            'multa_locatario',
+            
+            # Campos ADICIONAIS que EXISTEM no banco
+            'clausulas_adicionais',
+            'tipo_plano_locacao',
+            
+            # Campos de antecipação/retenção adicionais (confirmados na tabela)
+            'antecipa_iptu', 'antecipa_taxa_lixo', 'retido_taxa_lixo',
+            'valor_taxa_lixo', 'valor_taxa_administracao', 'valor_fundo_reserva'
+        ]
+        
+        # Filtrar apenas campos válidos
+        campos_para_inserir = {}
+        for campo, valor in kwargs.items():
+            if campo in campos_inseríveis:
+                campos_para_inserir[campo] = valor
+            else:
+                print(f"AVISO: Campo '{campo}' ignorado (não está na lista de inseríveis)")
+        
+        if not campos_para_inserir:
+            print("ERRO: Nenhum campo válido para inserir")
+            return {"success": False, "message": "Nenhum campo válido fornecido"}
+        
+        # Garantir campos obrigatórios com valores padrão
+        if 'status' not in campos_para_inserir:
+            campos_para_inserir['status'] = 'ativo'
+        
+        # Construir e executar INSERT
+        colunas = list(campos_para_inserir.keys())
+        placeholders = ', '.join(['?' for _ in colunas])
+        colunas_str = ', '.join([f'[{col}]' for col in colunas])
+        
+        query = f"INSERT INTO Contratos ({colunas_str}) VALUES ({placeholders})"
+        valores = list(campos_para_inserir.values())
+        
+        print(f"Executando INSERT com {len(campos_para_inserir)} campos")
+        cursor.execute(query, valores)
+        
+        # Obter o ID do contrato inserido (usando @@IDENTITY como nos imóveis)
+        cursor.execute("SELECT @@IDENTITY")
+        contrato_id = cursor.fetchone()[0]
+        
+        conn.commit()
+        conn.close()
+        
+        print(f"SUCCESS: Contrato criado com ID {contrato_id}")
+        return {"success": True, "id": int(contrato_id), "message": "Contrato criado com sucesso"}
+        
+    except Exception as e:
+        print(f"ERRO ao inserir contrato completo: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Erro ao inserir contrato: {str(e)}"}

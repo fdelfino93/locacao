@@ -37,9 +37,9 @@ export const FormNavigation: React.FC<FormNavigationProps> = ({
     },
     {
       id: 'contrato' as FormType,
-      label: 'Contrato',
+      label: 'Termo',
       icon: FileText,
-      description: 'Contratos de locação',
+      description: 'Termos de locação',
       color: 'from-primary to-tertiary',
     },
     {

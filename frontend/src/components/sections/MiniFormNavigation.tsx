@@ -40,7 +40,7 @@ export const MiniFormNavigation: React.FC<MiniFormNavigationProps> = ({
     },
     {
       id: 'contrato' as FormType,
-      label: 'Contrato',
+      label: 'Termo',
       icon: FileText,
     },
     {

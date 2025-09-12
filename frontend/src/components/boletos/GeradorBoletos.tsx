@@ -98,7 +98,7 @@ export const GeradorBoletos: React.FC = () => {
     }
 
     if (modoGeracao === 'individual' && !contratoIndividual) {
-      toast.error('Selecione um contrato');
+      toast.error('Selecione um termo');
       return;
     }
 
@@ -304,7 +304,7 @@ export const GeradorBoletos: React.FC = () => {
             {/* Seleção de Contrato Individual */}
             {modoGeracao === 'individual' && (
               <div className="space-y-2">
-                <Label>Selecionar Contrato</Label>
+                <Label>Selecionar Termo</Label>
                 <Select value={contratoIndividual?.toString() || ''} onValueChange={(value) => setContratoIndividual(Number(value))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Escolha um contrato" />

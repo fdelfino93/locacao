@@ -168,15 +168,15 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Card 2 - Contratos Ativos */}
+              {/* Card 2 - Termos Ativos */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-2xl p-6 border border-green-200 dark:border-green-800 shadow-lg hover:shadow-xl transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-green-600 dark:text-green-400">Contratos Ativos</p>
+                    <p className="text-sm font-medium text-green-600 dark:text-green-400">Termos Ativos</p>
                     <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-2">{contratosAtivos}</p>
                     <div className="flex items-center mt-2 text-xs text-green-700 dark:text-green-300">
                       <Activity className="w-3 h-3 mr-1" />
-                      {totalContratos > 0 ? `${Math.round((contratosAtivos/totalContratos)*100)}% ativos` : 'Nenhum contrato'}
+                      {totalContratos > 0 ? `${Math.round((contratosAtivos/totalContratos)*100)}% ativos` : 'Nenhum termo'}
                     </div>
                   </div>
                   <div className="p-3 bg-green-500 rounded-xl shadow-lg">
@@ -382,7 +382,7 @@ const Dashboard: React.FC = () => {
                     
                     return (
                       <div className="space-y-4">
-                        {/* Contratos Vencendo */}
+                        {/* Termos Vencendo */}
                         {contratosVencendoLista.slice(0, 3).map((contrato) => (
                           <div key={`contrato-${contrato.id}`} className="flex items-start space-x-4 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl">
                             <div className="w-8 h-8 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0">

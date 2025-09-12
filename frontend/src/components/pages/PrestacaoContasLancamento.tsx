@@ -23,7 +23,7 @@ import type { CalculoPrestacaoRequest, CalculoPrestacaoResponse } from "@/types/
 
 
 // Configuração da URL base da API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/api';
 
 export const PrestacaoContasLancamento: React.FC = () => {
   // Estados dos dados da transferência
@@ -229,22 +229,32 @@ export const PrestacaoContasLancamento: React.FC = () => {
     setLoadingContratos(true);
     
     try {
-      console.log('🔍 Buscando contratos ativos da API...');
+      const url = `${API_BASE_URL}/prestacao-contas/contratos-ativos`;
+      console.log('🔍 Buscando contratos ativos da API:', url);
       
-      const response = await fetch(`${API_BASE_URL}/prestacao-contas/contratos-ativos`);
+      const response = await fetch(url);
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Resposta de erro da API:', errorText);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
-      console.log('✅ Contratos carregados da API:', data.data?.length || 0);
+      console.log('✅ Resposta completa da API:', data);
+      console.log('✅ Contratos carregados:', data.data?.length || 0, 'contratos');
       
-      setContratos(data.data || []);
+      if (data.data && Array.isArray(data.data)) {
+        setContratos(data.data);
+        console.log('✅ Contratos definidos no estado:', data.data);
+      } else {
+        console.warn('⚠️ Formato de dados inesperado:', data);
+        setContratos([]);
+      }
       
     } catch (error) {
       console.error('❌ Erro ao carregar contratos:', error);
-      toast.error("Erro ao carregar contratos. Verifique a conexão com o banco de dados.");
+      toast.error("Erro ao carregar contratos. Verifique a conexão com o servidor.");
       setContratos([]);
     } finally {
       setLoadingContratos(false);
@@ -639,7 +649,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
           return;
         }
         if (!contratoSelecionado) {
-          toast.error("Selecione um contrato");
+          toast.error("Selecione um termo");
           return;
         }
         // Os dados de entrada/saída serão puxados automaticamente do servidor
@@ -870,7 +880,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         <div>
                           <h2 className="text-xl font-bold text-foreground">
                             <span className="text-primary mr-2">1.</span>
-                            Selecionar Contrato
+                            Selecionar Termo
                           </h2>
                           <p className="text-sm text-muted-foreground mt-1">Escolha o contrato para criar a prestação de contas</p>
                         </div>

@@ -546,6 +546,58 @@ class ContratoCreate(BaseModel):
     data_caucao_dev: Optional[date] = None
     numero_contrato: str = ""
     status: str = "ativo"
+    
+    # Campos monetários adicionais
+    valor_condominio: float = 0.0
+    valor_fci: float = 0.0
+    bonificacao: float = 0.0
+    valor_seguro_fianca: float = 0.0
+    valor_seguro_incendio: float = 0.0
+    valor_iptu: float = 0.0
+    seguro_valor_cobertura: float = 0.0
+    titulo_valor: float = 0.0
+    
+    # Campos de datas e prazos
+    data_assinatura: Optional[date] = None
+    periodo_contrato: Optional[int] = None
+    ultimo_reajuste: Optional[date] = None
+    proximo_reajuste: Optional[date] = None
+    
+    # CAMPOS DE DATAS DE SEGUROS E IPTU (FALTAVAM!)
+    seguro_fianca_inicio: Optional[date] = None
+    seguro_fianca_fim: Optional[date] = None
+    seguro_incendio_inicio: Optional[date] = None
+    seguro_incendio_fim: Optional[date] = None
+    data_inicio_iptu: Optional[date] = None
+    data_fim_iptu: Optional[date] = None
+    
+    # CAMPOS DE ANTECIPAÇÃO (CHECKBOXES - FALTAVAM!)
+    antecipa_condominio: bool = False
+    antecipa_seguro_fianca: bool = False
+    antecipa_seguro_incendio: bool = False
+    antecipa_iptu: bool = False
+    antecipa_taxa_lixo: bool = False
+    
+    # CAMPOS DE RETENÇÃO (CHECKBOXES - FALTAVAM!)
+    retido_fci: bool = False
+    retido_condominio: bool = False
+    retido_seguro_fianca: bool = False
+    retido_seguro_incendio: bool = False
+    retido_iptu: bool = False
+    retido_taxa_lixo: bool = False
+    
+    # Campos de cláusulas e observações
+    clausulas_adicionais: str = ""
+    
+    # Campos de multas e taxas
+    multa_atraso: float = 0.0
+    juros_atraso: float = 0.0
+    
+    # Campos de reajuste
+    tempo_reajuste: int = 12
+    indice_reajuste: str = 'IPCA'
+    percentual_reajuste: float = 0.0
+    proximo_reajuste_automatico: bool = False
 
 class ContratoUpdate(BaseModel):
     id_locatario: Optional[int] = None
@@ -609,6 +661,9 @@ class ContratoUpdate(BaseModel):
     parcelas_seguro_fianca: Optional[int] = None
     parcelas_seguro_incendio: Optional[int] = None
     valor_fci: Optional[float] = None
+    
+    # Campos de PLANO DE LOCAÇÃO
+    id_plano_locacao: Optional[int] = None
     
     # Campos de CORRETOR (6 campos)
     tem_corretor: Optional[bool] = None
@@ -1102,37 +1157,24 @@ async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
 @app.post("/api/contratos")
 async def criar_contrato(contrato: ContratoCreate):
     try:
-        # Chamar inserir_contrato com os parâmetros na ordem esperada
-        novo_contrato = inserir_contrato(
-            contrato.id_imovel,
-            contrato.id_locatario,  # Note: id_locatario -> id_inquilino
-            contrato.data_inicio,
-            contrato.data_fim,
-            contrato.taxa_administracao,
-            0.0,  # fundo_conservacao
-            "anual",  # tipo_reajuste
-            0.0,  # percentual_reajuste
-            contrato.vencimento_dia,
-            False,  # renovacao_automatica
-            False,  # seguro_obrigatorio
-            "",  # clausulas_adicionais
-            contrato.tipo_plano_locacao,
-            str(contrato.valor_aluguel),  # valores_contrato
-            None,  # data_vigencia_segfianca
-            None,  # data_vigencia_segincendio
-            None,  # data_assinatura
-            None,  # ultimo_reajuste
-            None,  # proximo_reajuste
-            contrato.antecipacao_encargos,
-            contrato.aluguel_garantido,
-            contrato.mes_de_referencia,
-            contrato.tipo_garantia,
-            0.0,  # bonificacao
-            contrato.retidos,
-            contrato.info_garantias,
-        )
-        return {"data": novo_contrato, "success": True}
+        print(f"\n=== INICIANDO CRIAÇÃO DE NOVO CONTRATO ===")
+        dados_recebidos = contrato.dict(exclude_none=True)
+        print(f"Dados recebidos do frontend:")
+        for campo, valor in dados_recebidos.items():
+            print(f"  - {campo}: {valor}")
+        print(f"Total de campos enviados: {len(dados_recebidos)}")
+        
+        from repositories_adapter import inserir_contrato_completo
+        # Usar todos os campos do ContratoCreate (igual ao PUT)
+        resultado = inserir_contrato_completo(**dados_recebidos)
+        
+        if resultado.get('success'):
+            return {"id": resultado.get('id'), "success": True}
+        else:
+            raise HTTPException(status_code=500, detail=resultado.get('message', 'Erro ao criar contrato'))
+            
     except Exception as e:
+        print(f"ERRO na criação de contrato: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar contrato: {str(e)}")
 
 @app.get("/api/contratos")
@@ -1305,7 +1347,7 @@ async def cancelar_fatura(fatura_id: int):
 
 @app.get("/api/prestacao-contas/contratos-ativos")
 async def listar_contratos_ativos_prestacao():
-    """Lista todos os contratos ativos para seleção na prestação de contas"""
+    """Lista todos os contratos válidos (ativo, reajuste, vencendo) para seleção na prestação de contas"""
     try:
         from repositories_adapter import buscar_contratos_ativos
         contratos = buscar_contratos_ativos()
@@ -1432,7 +1474,8 @@ async def buscar_dados(
 ):
     """Endpoint para busca global com filtros relacionais"""
     try:
-        if not query or (len(query) < 2 and query != '*'):
+        # Permitir busca vazia ou com * para listar todos
+        if query is None or (len(query) < 2 and query != '*' and query != ''):
             return {"data": {"locadores": [], "locatarios": [], "imoveis": [], "contratos": []}, "success": True}
         
         # Se houver filtros relacionais, usar busca específica

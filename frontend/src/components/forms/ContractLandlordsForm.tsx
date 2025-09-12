@@ -45,6 +45,25 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
     setSomaPercentual(soma);
   }, [locadores]);
 
+  // Carregar contas bancárias para locadores existentes no modo edição
+  useEffect(() => {
+    console.log('🔍 useEffect contas bancárias disparado:');
+    console.log('readonly:', readonly);
+    console.log('locadores.length:', locadores.length);
+    console.log('locadores:', locadores);
+    
+    if (locadores.length > 0) {
+      // Carregar contas bancárias para todos os locadores que têm ID válido
+      locadores.forEach((locador, index) => {
+        console.log(`🔍 Verificando locador ${index}:`, locador);
+        if (locador.locador_id && locador.locador_id > 0) {
+          console.log(`📞 Carregando contas para locador ${locador.locador_id}`);
+          carregarContasBancarias(locador.locador_id);
+        }
+      });
+    }
+  }, [locadores]);
+
   const carregarLocadoresAtivos = async () => {
     try {
       setLoading(true);
@@ -64,23 +83,44 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   };
 
   const carregarContasBancarias = async (locadorId: number) => {
+    console.log(`🏦 CARREGANDO contas bancárias para locador ${locadorId}`);
     try {
-      const response = await fetch(`/api/locadores/${locadorId}/contas-bancarias`);
+      // Usar URL absoluta para garantir que funcione
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/locadores/${locadorId}/contas-bancarias`);
+      
       if (response.ok) {
-        const data = await response.json();
+        const result = await response.json();
+        // A API retorna {data: [...], success: true}, então precisamos acessar result.data
+        const contas = result.data || [];
+        
+        // Criar descrição para cada conta se não existir
+        const contasFormatadas = contas.map((conta: any) => ({
+          ...conta,
+          descricao: conta.descricao || 
+            (conta.tipo_recebimento === 'PIX' && conta.chave_pix ? 
+              `PIX - ${conta.chave_pix}` : 
+              conta.tipo_recebimento === 'TED' && conta.banco ? 
+              `TED - ${conta.banco} Ag: ${conta.agencia || ''} CC: ${conta.conta || ''}` :
+              `${conta.tipo_recebimento || 'Conta'} ${conta.principal ? '(Principal)' : ''}`)
+        }));
+        
         setContasBancarias(prev => ({
           ...prev,
-          [locadorId]: Array.isArray(data) ? data : []
+          [locadorId]: contasFormatadas
         }));
+        
+        console.log(`Contas bancárias carregadas para locador ${locadorId}:`, contasFormatadas.length);
       } else {
         // Locador sem contas bancárias cadastradas ou endpoint não existe
+        console.warn(`Sem contas bancárias para locador ${locadorId}`);
         setContasBancarias(prev => ({
           ...prev,
           [locadorId]: []
         }));
       }
     } catch (error) {
-      console.error('Fetch falha ao carregar:', error);
+      console.error('Erro ao carregar contas bancárias:', error);
       // Em caso de erro, definir array vazio para não quebrar a interface
       setContasBancarias(prev => ({
         ...prev,
@@ -93,7 +133,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
     e?.preventDefault(); // Prevenir submit do formulário
     const novoLocador: ContratoLocador = {
       locador_id: 0,
-      conta_bancaria_id: 0,
+      conta_bancaria_id: 1,
       porcentagem: 0,
       responsabilidade_principal: locadores.length === 0 // Primeiro locador é sempre principal
     };
@@ -115,7 +155,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
 
     // Se mudou o locador, resetar a conta bancária e carregar novas contas
     if (campo === 'locador_id') {
-      novosLocadores[index].conta_bancaria_id = 0;
+      novosLocadores[index].conta_bancaria_id = 1;
       if (valor > 0) {
         carregarContasBancarias(valor);
       }
@@ -172,7 +212,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
 
     // Verificar se todos os campos estão preenchidos
     const temCamposVazios = locadores.some(l => 
-      l.locador_id === 0 || l.conta_bancaria_id === 0 || l.porcentagem <= 0
+      l.locador_id === 0 || l.porcentagem <= 0
     );
 
     if (temCamposVazios) {
