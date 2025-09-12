@@ -464,7 +464,21 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
           'cancelada': 'Cancelada'
         };
         
-        toast.success(`Fatura ${fatura.numero_fatura} alterada para ${statusLabels[novoStatus as keyof typeof statusLabels]}!`);
+        // Se tiver acréscimos calculados, mostrar mensagem detalhada
+        if (data.acrescimos && data.acrescimos.total_acrescimo > 0) {
+          const valorAcrescimos = new Intl.NumberFormat('pt-BR', { 
+            style: 'currency', 
+            currency: 'BRL' 
+          }).format(data.acrescimos.total_acrescimo);
+          
+          toast.success(
+            `Fatura ${fatura.numero_fatura} alterada para ${statusLabels[novoStatus as keyof typeof statusLabels]}! ` +
+            `Acréscimos calculados: ${valorAcrescimos} (${data.acrescimos.dias_atraso} dias de atraso)`
+          );
+        } else {
+          toast.success(`Fatura ${fatura.numero_fatura} alterada para ${statusLabels[novoStatus as keyof typeof statusLabels]}!`);
+        }
+        
         buscarFaturas(); // Recarregar lista
       } else {
         throw new Error(data.message || 'Erro ao alterar status da fatura');
@@ -916,7 +930,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                       {fatura.imovel_endereco || 'Endereço não informado'}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                      Contrato #{fatura.contrato_numero}
+                                      Termo #{fatura.contrato_numero}
                                     </p>
                                   </div>
                                 </td>

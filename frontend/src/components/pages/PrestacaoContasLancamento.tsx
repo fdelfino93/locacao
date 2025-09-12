@@ -172,11 +172,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
   // Reset tipo de lançamento quando contrato muda e carrega valores do contrato
   useEffect(() => {
     if (contratoSelecionado) {
-      // Se não for primeira prestação e está em entrada, muda para mensal
-      if (!contratoSelecionado.primeira_prestacao && tipoLancamento === 'entrada') {
-        setTipoLancamento('mensal');
-      }
-      
       // Carrega valores do contrato
       if (contratoSelecionado.dia_vencimento) {
         setDiaVencimento(contratoSelecionado.dia_vencimento);
@@ -1228,20 +1223,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </TabsList>
 
                           <TabsContent value="entrada" className="space-y-4 mt-0">
-                            {!contratoSelecionado?.primeira_prestacao ? (
-                              <div className="p-8 text-center">
-                                <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800 max-w-md mx-auto">
-                                  <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
-                                  <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                                    Entrada não disponível
-                                  </h3>
-                                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                                    Este contrato já teve prestações anteriores. A opção de entrada só está disponível para a primeira prestação de um contrato.
-                                  </p>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                               <div>
                                 <Label className="text-sm font-medium text-foreground flex items-center space-x-2 mb-2">
@@ -1312,8 +1293,6 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 <strong>Entrada:</strong> Será calculado baseado na data de entrada e tipo de cobrança selecionado
                               </p>
                             </div>
-                              </>
-                            )}
                           </TabsContent>
 
                           <TabsContent value="mensal" className="space-y-4 mt-0">

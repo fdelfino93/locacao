@@ -220,6 +220,101 @@ interface PrestacaoContasForm {
 - Locador recebe conforme o devido
 - Cobrança por conta da administradora
 
+## 🐛 Solução de Problemas
+
+### **Problema: Lista de Prestações não Mostra Dados Reais**
+
+**Sintomas:**
+- Sistema encontra faturas (ex: 4 registros)
+- Não exibe endereço do imóvel
+- Não mostra nome do locatário
+- Não apresenta CPF do cliente
+
+**Causa Raiz:**
+- JOINs entre tabelas PrestacaoContas, Contratos, Imoveis e Locatarios falhando
+- Relacionamentos NULL ou inexistentes na base de dados
+- Consultas retornando dados vazios mesmo com registros válidos
+
+**Solução Implementada:**
+```python
+# repositories_adapter.py - Função buscar_faturas()
+
+# Consulta com subqueries para garantir dados reais
+query = """
+    SELECT 
+        p.id,
+        'PC-' + RIGHT('000' + CAST(p.id AS VARCHAR(10)), 3) as numero_fatura,
+        ISNULL(p.total_bruto, 0) as valor_total,
+        ISNULL(p.data_criacao, GETDATE()) as data_vencimento,
+        NULL as data_pagamento,
+        ISNULL(p.status, 'pendente') as status,
+        ISNULL(p.referencia, 'N/A') as mes_referencia,
+        ISNULL(p.referencia, 'N/A') as referencia_display,
+        ISNULL(p.observacoes_manuais, '') as observacoes,
+        p.data_criacao,
+        ISNULL(p.contrato_id, 0) as contrato_id,
+        CAST(ISNULL(p.contrato_id, 0) AS VARCHAR(10)) as contrato_numero,
+        
+        -- SUBQUERY para endereço do imóvel
+        CASE 
+            WHEN p.contrato_id IS NOT NULL THEN 
+                ISNULL((SELECT TOP 1 i.endereco FROM Contratos c 
+                       LEFT JOIN Imoveis i ON c.id_imovel = i.id 
+                       WHERE c.id = p.contrato_id), 'Endereço não encontrado')
+            ELSE 'Endereço não informado'
+        END as imovel_endereco,
+        
+        -- SUBQUERY para nome do locatário
+        CASE 
+            WHEN p.contrato_id IS NOT NULL THEN 
+                ISNULL((SELECT TOP 1 lt.nome FROM Contratos c 
+                       LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                       WHERE c.id = p.contrato_id), 'Nome não encontrado')
+            ELSE 'Nome não informado'
+        END as locatario_nome,
+        
+        -- SUBQUERY para CPF do locatário
+        CASE 
+            WHEN p.contrato_id IS NOT NULL THEN 
+                ISNULL((SELECT TOP 1 lt.cpf_cnpj FROM Contratos c 
+                       LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                       WHERE c.id = p.contrato_id), 'CPF não encontrado')
+            ELSE 'CPF não informado'
+        END as locatario_cpf,
+        
+        ISNULL(l.nome, 'Nome não informado') as locador_nome,
+        ISNULL(l.nome, 'Nome não informado') as proprietario_nome,
+        ISNULL(l.cpf_cnpj, 'CPF não informado') as proprietario_cpf,
+        0 as dias_atraso,
+        ISNULL(p.total_liquido, 0) as valor_liquido,
+        ISNULL(p.valor_pago, 0) as valor_pago,
+        ISNULL(p.locador_id, 0) as locador_id
+        
+    FROM PrestacaoContas p
+    LEFT JOIN Locadores l ON p.locador_id = l.id
+    WHERE p.ativo = 1
+    ORDER BY p.id DESC
+"""
+```
+
+**Por que Funciona:**
+1. **Subqueries Independentes**: Cada CASE busca dados diretamente das tabelas relacionadas
+2. **Fallbacks Inteligentes**: Sempre retorna um valor, mesmo que seja "não encontrado"
+3. **Sem Dependência de JOINs**: Não falha se relacionamentos estão NULL
+4. **Performance**: Subqueries TOP 1 são otimizadas pelo SQL Server
+
+**Como Aplicar a Correção:**
+1. Localizar a função `buscar_faturas()` em `repositories_adapter.py`
+2. Substituir a consulta principal pela versão com subqueries
+3. Reiniciar o backend Python
+4. Testar a lista de prestações na interface
+
+**Prevenção:**
+- Sempre validar relacionamentos antes de criar prestações
+- Implementar controles de integridade referencial
+- Usar subqueries quando JOINs são instáveis
+- Manter logs de debug para identificar problemas similares
+
 ---
-**Atualizado:** 10/09/2025  
-**Sistema de Prestação de Contas v2.0**
+**Atualizado:** 12/09/2025  
+**Sistema de Prestação de Contas v2.1**

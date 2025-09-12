@@ -1911,7 +1911,180 @@ async def calcular_prestacao_contrato(request: dict):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro no cálculo: {str(e)}")
 
+# === CÁLCULO DE ACRÉSCIMOS PARA PRESTAÇÃO DE CONTAS ===
 
+def calcular_acrescimos_prestacao(valor_original: float, dias_atraso: int, percentual_multa_contrato: float) -> dict:
+    """
+    Calcula acréscimos por atraso para prestação de contas:
+    - Juros de mora: 1% ao mês (proporcional por dia)
+    - Multa: percentual definido no contrato sobre o valor em atraso
+    """
+    if dias_atraso <= 0:
+        return {
+            'juros': 0.0,
+            'multa': 0.0,
+            'total_acrescimo': 0.0,
+            'dias_atraso': 0
+        }
+    
+    # Juros de mora: 1% ao mês (0.033% ao dia aproximadamente)
+    juros_diario = 0.01 / 30  # 1% / 30 dias = 0.000333
+    juros = valor_original * juros_diario * dias_atraso
+    
+    # Multa: percentual do contrato sobre o valor em atraso
+    multa_decimal = percentual_multa_contrato / 100  # Converte % para decimal
+    multa = valor_original * multa_decimal
+    
+    total_acrescimo = juros + multa
+    
+    return {
+        'juros': round(juros, 2),
+        'multa': round(multa, 2),
+        'total_acrescimo': round(total_acrescimo, 2),
+        'dias_atraso': dias_atraso,
+        'percentual_multa_usado': percentual_multa_contrato
+    }
+
+@app.put("/api/faturas/{fatura_id}/calcular-acrescimos")
+async def calcular_acrescimos_fatura(fatura_id: int):
+    """
+    Calcula e atualiza acréscimos por atraso para uma prestação de contas específica
+    """
+    try:
+        # Buscar dados da fatura e contrato
+        from repositories_adapter import buscar_fatura_por_id, buscar_contrato_por_id
+        
+        fatura = buscar_fatura_por_id(fatura_id)
+        if not fatura:
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+        
+        # Se não tem contrato_id, não pode calcular
+        if not fatura.get('contrato_id'):
+            raise HTTPException(status_code=400, detail="Fatura sem contrato associado")
+        
+        contrato = buscar_contrato_por_id(fatura['contrato_id'])
+        if not contrato:
+            raise HTTPException(status_code=404, detail="Contrato não encontrado")
+        
+        # Calcular dias de atraso baseado na data de vencimento
+        from datetime import datetime, date
+        
+        data_vencimento = fatura.get('data_vencimento')
+        if isinstance(data_vencimento, str):
+            data_vencimento = datetime.fromisoformat(data_vencimento).date()
+        elif isinstance(data_vencimento, datetime):
+            data_vencimento = data_vencimento.date()
+        
+        hoje = date.today()
+        dias_atraso = (hoje - data_vencimento).days if hoje > data_vencimento else 0
+        
+        # Pegar percentual de multa do contrato
+        percentual_multa = float(contrato.get('percentual_multa_atraso', 2.0))  # Default 2%
+        
+        # Calcular acréscimos
+        valor_original = float(fatura.get('valor_total', 0))
+        acrescimos = calcular_acrescimos_prestacao(valor_original, dias_atraso, percentual_multa)
+        
+        # Atualizar fatura na base de dados
+        from repositories_adapter import get_conexao
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        novo_valor_total = valor_original + acrescimos['total_acrescimo']
+        
+        cursor.execute("""
+            UPDATE PrestacaoContas 
+            SET 
+                valor_acrescimos = ?,
+                dias_atraso = ?,
+                valor_total_com_acrescimos = ?,
+                data_calculo_acrescimos = GETDATE()
+            WHERE id = ?
+        """, (acrescimos['total_acrescimo'], dias_atraso, novo_valor_total, fatura_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True,
+            "message": f"Acréscimos calculados para {dias_atraso} dias de atraso",
+            "data": {
+                "fatura_id": fatura_id,
+                "valor_original": valor_original,
+                "dias_atraso": dias_atraso,
+                "acrescimos": acrescimos,
+                "valor_total_novo": novo_valor_total
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao calcular acréscimos: {str(e)}")
+
+@app.put("/api/faturas/{fatura_id}/status")
+async def alterar_status_fatura(fatura_id: int, request: Request):
+    """
+    Altera status de uma fatura e calcula acréscimos automaticamente se for 'em_atraso'
+    """
+    try:
+        data = await request.json()
+        novo_status = data.get('status')
+        
+        if not novo_status:
+            raise HTTPException(status_code=400, detail="Status é obrigatório")
+        
+        # Atualizar status na base de dados
+        from repositories_adapter import get_conexao
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Se mudando para 'paga', definir data_pagamento
+        if novo_status == 'paga':
+            cursor.execute("""
+                UPDATE PrestacaoContas 
+                SET status = ?, data_pagamento = GETDATE()
+                WHERE id = ?
+            """, (novo_status, fatura_id))
+        else:
+            cursor.execute("""
+                UPDATE PrestacaoContas 
+                SET status = ?
+                WHERE id = ?
+            """, (novo_status, fatura_id))
+        
+        conn.commit()
+        conn.close()
+        
+        # Se status é 'em_atraso', calcular acréscimos automaticamente
+        if novo_status == 'em_atraso':
+            try:
+                resultado_acrescimos = await calcular_acrescimos_fatura(fatura_id)
+                return {
+                    "success": True,
+                    "message": f"Status alterado para '{novo_status}' e acréscimos calculados",
+                    "acrescimos": resultado_acrescimos.get('data', {})
+                }
+            except Exception as e:
+                # Se falhar ao calcular acréscimos, pelo menos o status foi alterado
+                return {
+                    "success": True,
+                    "message": f"Status alterado para '{novo_status}', mas erro ao calcular acréscimos: {str(e)}"
+                }
+        
+        return {
+            "success": True,
+            "message": f"Status alterado para '{novo_status}'"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao alterar status: {str(e)}")
 
 
 if __name__ == "__main__":

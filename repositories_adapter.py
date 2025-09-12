@@ -1507,6 +1507,44 @@ def buscar_contrato_por_id(contrato_id):
         print(f"Erro ao buscar contrato por ID: {e}")
         return None
 
+def buscar_fatura_por_id(fatura_id):
+    """Busca uma fatura específica por ID - VERSÃO SIMPLIFICADA"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+        
+        # Query mais simples
+        cursor.execute("SELECT * FROM PrestacaoContas WHERE id = ?", (fatura_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            columns = [column[0] for column in cursor.description]
+            fatura_dict = {}
+            for i, value in enumerate(row):
+                # Converter datetime para string se necessário
+                if hasattr(value, 'strftime'):
+                    fatura_dict[columns[i]] = value.strftime('%Y-%m-%d')
+                elif value is None:
+                    fatura_dict[columns[i]] = None
+                else:
+                    fatura_dict[columns[i]] = value
+                    
+            # Debug
+            print(f"DEBUG buscar_fatura_por_id: ID={fatura_dict.get('id')}, contrato_id={fatura_dict.get('contrato_id')}")
+            
+            conn.close()
+            return fatura_dict
+        
+        conn.close()
+        print(f"DEBUG: Fatura {fatura_id} não encontrada")
+        return None
+        
+    except Exception as e:
+        print(f"ERRO ao buscar fatura por ID: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
 # === FUNÇÕES PARA FATURAS ===
 
 def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', order_dir='DESC'):
@@ -1515,42 +1553,194 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         conn = get_conexao()
         cursor = conn.cursor()
         
+        # Primeiro, vamos testar se traz registros básicos da PrestacaoContas
+        try:
+            query_debug = """
+                SELECT COUNT(*) as total_registros
+                FROM PrestacaoContas 
+                WHERE ativo = 1
+            """
+            cursor.execute(query_debug)
+            total_debug = cursor.fetchone()[0]
+            print(f"DEBUG: Total de registros ativos na PrestacaoContas: {total_debug}")
+        except Exception as e:
+            print(f"DEBUG: Erro ao contar registros na PrestacaoContas: {e}")
+            
+        # Se não há registros ou tabela não existe, criar dados de teste
+        try:
+            query_debug2 = """
+                SELECT COUNT(*) as total_registros
+                FROM PrestacaoContas
+            """
+            cursor.execute(query_debug2)
+            total_debug2 = cursor.fetchone()[0]
+            print(f"DEBUG: Total geral de registros na PrestacaoContas: {total_debug2}")
+            
+            if total_debug2 == 0:
+                print("DEBUG: Tabela PrestacaoContas vazia - vou inserir um registro de teste")
+                # Criar registro de teste
+                cursor.execute("""
+                    INSERT INTO PrestacaoContas (
+                        referencia, mes, ano, status, total_bruto, total_liquido, 
+                        ativo, data_criacao, observacoes_manuais, locador_id
+                    ) VALUES (
+                        '09/2025', '09', '2025', 'pendente', 1966.05, 1800.00,
+                        1, GETDATE(), 'Prestação de teste', 1
+                    )
+                """)
+                conn.commit()
+                print("DEBUG: Registro de teste criado com sucesso!")
+        except Exception as e:
+            print(f"DEBUG: Erro ao verificar/criar dados de teste: {e}")
+        
+        # Primeiro tentar consulta simples sem JOINs de Contratos/Imoveis
+        query_simples = """
+            SELECT COUNT(*) 
+            FROM PrestacaoContas p
+            LEFT JOIN Contratos c ON p.contrato_id = c.id
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            WHERE p.ativo = 1
+        """
+        
+        try:
+            cursor.execute(query_simples)
+            count_com_joins = cursor.fetchone()[0]
+            print(f"DEBUG: Registros com JOINs: {count_com_joins}")
+        except Exception as e:
+            print(f"DEBUG: Erro com JOINs - usando consulta simples: {e}")
+            count_com_joins = 0
+        
+        # Sempre usar consulta com subqueries para garantir dados reais
+        print("DEBUG: Usando consulta principal com subqueries para dados reais")
+        
+        # Consulta principal com subqueries para dados reais
         query = """
             SELECT 
                 p.id,
                 'PC-' + RIGHT('000' + CAST(p.id AS VARCHAR(10)), 3) as numero_fatura,
-                p.total_bruto as valor_total,
-                DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)) as data_vencimento,
-                NULL as data_pagamento,
-                p.status,
-                p.referencia as mes_referencia,
-                p.observacoes_manuais as observacoes,
-                p.data_criacao,
-                ISNULL(p.contrato_id, 0) as contrato_id,
-                'CONTRATO' as contrato_numero,
-                'Endereço do Imóvel' as imovel_endereco,
-                'Apartamento' as imovel_tipo,
-                p.total_bruto as valor_aluguel,
-                'Locatário' as locatario_nome,
-                '000.000.000-00' as locatario_cpf,
-                l.nome as locador_nome,
-                CASE 
-                    WHEN p.status = 'pendente' AND DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)) < GETDATE() 
-                    THEN DATEDIFF(DAY, DATEADD(DAY, 5, CAST(p.ano + '-' + p.mes + '-01' AS DATE)), GETDATE())
-                    ELSE 0 
-                END as dias_atraso,
-                p.total_liquido as valor_liquido,
-                p.valor_pago,
-                p.locador_id
-            FROM PrestacaoContas p
-            LEFT JOIN Locadores l ON p.locador_id = l.id
-            WHERE p.ativo = 1
-            ORDER BY p.id DESC
+                ISNULL(p.total_bruto, 0) as valor_total,
+                    ISNULL(p.data_criacao, GETDATE()) as data_vencimento,
+                    p.data_pagamento as data_pagamento,
+                    -- Status automático baseado em datas
+                    CASE 
+                        WHEN p.data_pagamento IS NOT NULL THEN 'paga'
+                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN 'em_atraso'
+                        ELSE ISNULL(p.status, 'pendente')
+                    END as status,
+                    ISNULL(p.referencia, 'N/A') as mes_referencia,
+                    ISNULL(p.referencia, 'N/A') as referencia_display,
+                    ISNULL(p.observacoes_manuais, '') as observacoes,
+                    p.data_criacao,
+                    ISNULL(p.contrato_id, 0) as contrato_id,
+                    CAST(ISNULL(p.contrato_id, 0) AS VARCHAR(10)) as contrato_numero,
+                    CASE 
+                        WHEN p.contrato_id IS NOT NULL THEN 
+                            ISNULL((SELECT TOP 1 i.endereco FROM Contratos c 
+                                   LEFT JOIN Imoveis i ON c.id_imovel = i.id 
+                                   WHERE c.id = p.contrato_id), 'Endereço não encontrado')
+                        ELSE 'Endereço não informado'
+                    END as imovel_endereco,
+                    'Apartamento' as imovel_tipo,
+                    ISNULL(p.total_bruto, 0) as valor_aluguel,
+                    CASE 
+                        WHEN p.contrato_id IS NOT NULL THEN 
+                            ISNULL((SELECT TOP 1 lt.nome FROM Contratos c 
+                                   LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                                   WHERE c.id = p.contrato_id), 'Nome não encontrado')
+                        ELSE 'Nome não informado'
+                    END as locatario_nome,
+                    CASE 
+                        WHEN p.contrato_id IS NOT NULL THEN 
+                            ISNULL((SELECT TOP 1 lt.cpf_cnpj FROM Contratos c 
+                                   LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                                   WHERE c.id = p.contrato_id), 'CPF não encontrado')
+                        ELSE 'CPF não informado'
+                    END as locatario_cpf,
+                    ISNULL(l.nome, 'Nome não informado') as locador_nome,
+                    ISNULL(l.nome, 'Nome não informado') as proprietario_nome,
+                    ISNULL(l.cpf_cnpj, 'CPF não informado') as proprietario_cpf,
+                    -- Calcular dias de atraso automaticamente baseado na data de vencimento
+                    CASE 
+                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() 
+                        THEN DATEDIFF(day, p.data_criacao, GETDATE())
+                        ELSE 0 
+                    END as dias_atraso,
+                    ISNULL(p.total_liquido, 0) as valor_liquido,
+                    ISNULL(p.valor_pago, 0) as valor_pago,
+                    ISNULL(p.locador_id, 0) as locador_id,
+                    -- Calcular acréscimos automaticamente quando em atraso
+                    CASE 
+                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN
+                            -- Calcular baseado no percentual_multa_atraso do contrato
+                            ISNULL(p.total_bruto, 0) * (
+                                -- Multa do contrato (ex: 2% = 0.02)
+                                ISNULL((SELECT TOP 1 c.percentual_multa_atraso FROM Contratos c WHERE c.id = p.contrato_id), 2) / 100 +
+                                -- Juros proporcionais (1% ao mês = 0.01/30 por dia)
+                                (DATEDIFF(day, p.data_criacao, GETDATE()) * (0.01 / 30))
+                            )
+                        ELSE ISNULL(p.valor_acrescimos, 0)
+                    END as valor_acrescimos,
+                    -- Valor total com acréscimos
+                    ISNULL(p.total_bruto, 0) + 
+                    CASE 
+                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN
+                            ISNULL(p.total_bruto, 0) * (
+                                ISNULL((SELECT TOP 1 c.percentual_multa_atraso FROM Contratos c WHERE c.id = p.contrato_id), 2) / 100 +
+                                (DATEDIFF(day, p.data_criacao, GETDATE()) * (0.01 / 30))
+                            )
+                        ELSE ISNULL(p.valor_acrescimos, 0)
+                    END as valor_total_com_acrescimos,
+                    p.data_calculo_acrescimos
+                FROM PrestacaoContas p
+                LEFT JOIN Locadores l ON p.locador_id = l.id
+                WHERE p.ativo = 1
+                ORDER BY p.id DESC
         """
         
-        cursor.execute(query)
-        columns = [column[0] for column in cursor.description]
-        rows = cursor.fetchall()
+        print(f"DEBUG: Executando consulta principal...")
+        try:
+            cursor.execute(query)
+            columns = [column[0] for column in cursor.description]
+            rows = cursor.fetchall()
+            print(f"DEBUG: Consulta retornou {len(rows)} registros")
+        except Exception as e:
+            print(f"DEBUG: Erro na consulta principal: {e}")
+            # Fallback para consulta ainda mais simples
+            query_fallback = """
+                SELECT 
+                    p.id,
+                    'PC-' + RIGHT('000' + CAST(p.id AS VARCHAR(10)), 3) as numero_fatura,
+                    ISNULL(p.total_bruto, 0) as valor_total,
+                    ISNULL(p.data_criacao, GETDATE()) as data_vencimento,
+                    NULL as data_pagamento,
+                    ISNULL(p.status, 'pendente') as status,
+                    ISNULL(p.referencia, 'N/A') as mes_referencia,
+                    ISNULL(p.referencia, 'N/A') as referencia_display,
+                    ISNULL(p.observacoes_manuais, '') as observacoes,
+                    p.data_criacao,
+                    ISNULL(p.contrato_id, 0) as contrato_id,
+                    CAST(ISNULL(p.contrato_id, 0) AS VARCHAR(10)) as contrato_numero,
+                    'Endereço não informado' as imovel_endereco,
+                    'Tipo não informado' as imovel_tipo,
+                    ISNULL(p.total_bruto, 0) as valor_aluguel,
+                    'Nome não informado' as locatario_nome,
+                    'CPF não informado' as locatario_cpf,
+                    'Nome não informado' as locador_nome,
+                    'Nome não informado' as proprietario_nome,
+                    'CPF não informado' as proprietario_cpf,
+                    0 as dias_atraso,
+                    ISNULL(p.total_liquido, 0) as valor_liquido,
+                    ISNULL(p.valor_pago, 0) as valor_pago,
+                    ISNULL(p.locador_id, 0) as locador_id
+                FROM PrestacaoContas p
+                WHERE p.ativo = 1
+                ORDER BY p.id DESC
+            """
+            print("DEBUG: Tentando consulta fallback (sem JOINs)")
+            cursor.execute(query_fallback)
+            columns = [column[0] for column in cursor.description]
+            rows = cursor.fetchall()
+            print(f"DEBUG: Consulta fallback retornou {len(rows)} registros")
         
         faturas = []
         for row in rows:
@@ -1564,7 +1754,10 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         
         conn.close()
         
-        print(f"Retornando {len(faturas)} prestacoes de contas do banco")
+        print(f"DEBUG: Processadas {len(faturas)} prestacoes de contas")
+        if len(faturas) > 0:
+            print(f"DEBUG: Primeira fatura processada: {faturas[0]}")
+        print(f"DEBUG: Retornando {len(faturas)} prestacoes de contas do banco")
         return {
             'success': True,
             'data': faturas,

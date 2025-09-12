@@ -59,7 +59,7 @@ const SearchModernPro: React.FC = () => {
     { value: 'locadores', label: 'Locadores', icon: Users, color: 'bg-blue-500' },
     { value: 'locatarios', label: 'Locatários', icon: UserCheck, color: 'bg-green-500' },
     { value: 'imoveis', label: 'Imóveis', icon: Home, color: 'bg-purple-500' },
-    { value: 'contratos', label: 'Contratos', icon: FileText, color: 'bg-amber-500' }
+    { value: 'contratos', label: 'Termos', icon: FileText, color: 'bg-amber-500' }
   ];
 
   // Buscar dados da nova API
@@ -138,7 +138,7 @@ const SearchModernPro: React.FC = () => {
             allResults.push({
               id: item.id,
               tipo: 'contrato',
-              titulo: `Contrato ${item.numero_contrato || item.id}`,
+              titulo: `Termo ${item.numero_contrato || item.id}`,
               subtitulo: `${item.locatario_nome || 'Locatário'} → ${item.imovel_endereco || 'Imóvel'}`,
               status: item.status || 'ativo',
               tags: [item.data_inicio, item.data_fim].filter(Boolean),
@@ -207,7 +207,7 @@ const SearchModernPro: React.FC = () => {
       
       // Buscar imóveis relacionados
       if (result.tipo === 'locador') {
-        const url = `http://localhost:8000/api/busca?query=*&tipo=imoveis&locador_id=${result.id}`;
+        const url = `/api/busca?query=*&tipo=imoveis&locador_id=${result.id}`;
         console.log('🏠 Fetching imoveis for locador:', url);
         promises.push(
           fetch(url)
@@ -223,7 +223,7 @@ const SearchModernPro: React.FC = () => {
       
       // Buscar locadores relacionados (para imóveis)
       if (result.tipo === 'imovel') {
-        const url = `http://localhost:8000/api/busca?query=*&tipo=locadores&imovel_id=${result.id}`;
+        const url = `/api/busca?query=*&tipo=locadores&imovel_id=${result.id}`;
         console.log('👥 Fetching locadores for imovel:', url);
         promises.push(
           fetch(url)
@@ -239,7 +239,7 @@ const SearchModernPro: React.FC = () => {
       
       // Buscar contratos relacionados
       if (result.tipo === 'locador') {
-        const url = `http://localhost:8000/api/busca?query=*&tipo=contratos&locador_id=${result.id}`;
+        const url = `/api/busca?query=*&tipo=contratos&locador_id=${result.id}`;
         console.log('📋 Fetching contratos for locador:', url);
         promises.push(
           fetch(url)
@@ -250,7 +250,7 @@ const SearchModernPro: React.FC = () => {
             })
         );
       } else if (result.tipo === 'locatario') {
-        const url = `http://localhost:8000/api/busca?query=*&tipo=contratos&locatario_id=${result.id}`;
+        const url = `/api/busca?query=*&tipo=contratos&locatario_id=${result.id}`;
         console.log('📋 Fetching contratos for locatario:', url);
         promises.push(
           fetch(url)
@@ -261,7 +261,7 @@ const SearchModernPro: React.FC = () => {
             })
         );
       } else if (result.tipo === 'imovel') {
-        const url = `http://localhost:8000/api/busca?query=*&tipo=contratos&imovel_id=${result.id}`;
+        const url = `/api/busca?query=*&tipo=contratos&imovel_id=${result.id}`;
         console.log('📋 Fetching contratos for imovel:', url);
         promises.push(
           fetch(url)
@@ -274,7 +274,7 @@ const SearchModernPro: React.FC = () => {
       } else if (result.tipo === 'contrato') {
         // Para contratos, buscar outros contratos relacionados (mesmo locador/locatário)
         if (result.metadata?.locador_id) {
-          const url = `http://localhost:8000/api/busca?query=*&tipo=contratos&locador_id=${result.metadata.locador_id}`;
+          const url = `/api/busca?query=*&tipo=contratos&locador_id=${result.metadata.locador_id}`;
           console.log('📋 Fetching contratos for contrato (by locador):', url);
           promises.push(
             fetch(url)
@@ -485,7 +485,7 @@ const SearchModernPro: React.FC = () => {
             {searchStats.contratos > 0 && (
               <Badge variant="outline" className="px-3 py-1">
                 <FileText className="w-3 h-3 mr-1" />
-                {searchStats.contratos} contratos
+                {searchStats.contratos} termos
               </Badge>
             )}
           </motion.div>
@@ -724,7 +724,7 @@ const SearchModernPro: React.FC = () => {
                                     {getCardIcon()}
                                   </div>
                                   <div>
-                                    <h3 className="text-lg font-semibold text-foreground">Contrato #{result.metadata.id}</h3>
+                                    <h3 className="text-lg font-semibold text-foreground">Termo #{result.metadata.id}</h3>
                                     <p className="text-sm text-muted-foreground">{result.metadata.locatario_nome || 'Locatário não informado'}</p>
                                   </div>
                                 </div>
@@ -842,8 +842,8 @@ const SearchModernPro: React.FC = () => {
                       >
                         <FileText className="w-5 h-5 text-amber-600" />
                         <div className="text-left">
-                          <p className="font-medium">Todos os Contratos</p>
-                          <p className="text-xs text-muted-foreground">Ver todos os contratos</p>
+                          <p className="font-medium">Todos os Termos</p>
+                          <p className="text-xs text-muted-foreground">Ver todos os termos</p>
                         </div>
                       </Button>
 
@@ -912,9 +912,6 @@ const SearchModernPro: React.FC = () => {
               className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
               onClick={() => {
                 setSelectedResult(null);
-                setSearchQuery('');
-                setSelectedFilter('todos');
-                setSearchResults([]);
               }}
             >
               <motion.div
@@ -942,9 +939,6 @@ const SearchModernPro: React.FC = () => {
                       size="sm"
                       onClick={() => {
                         setSelectedResult(null);
-                        setSearchQuery('');
-                        setSelectedFilter('todos');
-                        setSearchResults([]);
                       }}
                       className="text-primary-foreground hover:bg-primary-foreground/10"
                     >
@@ -1013,7 +1007,7 @@ const SearchModernPro: React.FC = () => {
                           className="flex items-center space-x-2 py-4 px-1 border-b-2 data-[state=active]:border-primary data-[state=inactive]:border-transparent transition-colors bg-transparent rounded-none"
                         >
                           <FileText className="w-4 h-4" />
-                          <span>Contratos</span>
+                          <span>Termos</span>
                         </TabsTrigger>
                       )}
                       <TabsTrigger 
@@ -1552,14 +1546,14 @@ const SearchModernPro: React.FC = () => {
                       </div>
                     </TabsContent>
 
-                    {/* Aba Contratos */}
+                    {/* Aba Termos */}
                     <TabsContent value="contratos" className="p-6 mt-0">
                       <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Contratos Relacionados</h3>
+                        <h3 className="font-semibold text-lg">Termos Relacionados</h3>
                         {relatedData.isLoading ? (
                           <div className="text-center py-12">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                            <p className="text-muted-foreground">Carregando contratos...</p>
+                            <p className="text-muted-foreground">Carregando termos...</p>
                           </div>
                         ) : relatedData.contratos.length > 0 ? (
                           <div className="space-y-4">
@@ -1590,7 +1584,7 @@ const SearchModernPro: React.FC = () => {
                                     <div className="flex items-start justify-between">
                                       <div className="flex items-center space-x-2">
                                         <FileText className="w-4 h-4 text-amber-600" />
-                                        <h4 className="font-medium text-sm">Contrato #{contrato.id}</h4>
+                                        <h4 className="font-medium text-sm">Termo #{contrato.id}</h4>
                                       </div>
                                       <div className="flex items-center space-x-2">
                                         <Badge variant={contrato.status === 'ATIVO' ? 'default' : 'secondary'}>
@@ -1649,7 +1643,7 @@ const SearchModernPro: React.FC = () => {
                         ) : (
                           <div className="text-center py-12 text-muted-foreground">
                             <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                            <p>Nenhum contrato encontrado</p>
+                            <p>Nenhum termo encontrado</p>
                           </div>
                         )}
                       </div>

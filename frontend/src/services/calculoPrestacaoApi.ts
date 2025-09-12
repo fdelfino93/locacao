@@ -76,7 +76,7 @@ class CalculoPrestacaoApiService {
       console.log('📊 Enviando dados para cálculo:', dados);
       
       const response = await this.request<CalculoPrestacaoResponse>(
-        '/contratos/calcular-prestacao',
+        '/api/contratos/calcular-prestacao',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -98,7 +98,7 @@ class CalculoPrestacaoApiService {
       console.log('💾 Salvando prestação de contas:', dados);
       
       const response = await this.request<{id: number; message: string}>(
-        '/prestacoes-contas',
+        '/api/prestacoes-contas',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -120,7 +120,7 @@ class CalculoPrestacaoApiService {
       console.log('📋 Gerando boleto:', dados);
       
       const response = await this.request<BoletoResponse>(
-        '/boletos/gerar',
+        '/api/boletos/gerar',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -140,7 +140,7 @@ class CalculoPrestacaoApiService {
   async buscarHistoricoPrestacoes(contratoId: number): Promise<PrestacaoContasSalvar[]> {
     try {
       const response = await this.request<{data: PrestacaoContasSalvar[]}>(
-        `/prestacoes-contas?contrato_id=${contratoId}`
+        `/api/prestacoes-contas?contrato_id=${contratoId}`
       );
       
       return response.data || [];
