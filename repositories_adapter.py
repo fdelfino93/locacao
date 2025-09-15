@@ -1609,8 +1609,15 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
                 ISNULL(p.total_bruto, 0) as valor_total,
                     ISNULL(p.data_criacao, GETDATE()) as data_vencimento,
                     p.data_pagamento as data_pagamento,
-                    -- Status automático baseado em datas
+                    -- Status baseado em datas e prestações lançadas
                     CASE
+                        WHEN p.data_pagamento IS NOT NULL AND EXISTS (
+                            SELECT 1 FROM PrestacaoContas pc2
+                            WHERE pc2.contrato_id = p.contrato_id
+                            AND pc2.mes = RIGHT('0' + CAST(MONTH(p.data_criacao) AS VARCHAR(2)), 2)
+                            AND pc2.ano = CAST(YEAR(p.data_criacao) AS VARCHAR(4))
+                            AND pc2.ativo = 1
+                        ) THEN 'lancada'
                         WHEN p.data_pagamento IS NOT NULL THEN 'paga'
                         WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN 'em_atraso'
                         ELSE ISNULL(p.status, 'pendente')
@@ -3662,7 +3669,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         cursor.execute("""
             SELECT COUNT(*)
             FROM PrestacaoContas
-            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1
+            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1 AND status = 'lancada'
         """, (contrato_id, f"{mes:02d}", str(ano)))
 
         prestacao_existente = cursor.fetchone()[0]
