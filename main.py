@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, Union, List
 from datetime import date
 import os
+import json
 from dotenv import load_dotenv
 
 # Importar repositórios existentes via adapter
@@ -11,7 +12,7 @@ from repositories_adapter import (
     inserir_locador, buscar_locadores, atualizar_locador,
     inserir_locatario, buscar_locatarios, atualizar_locatario, buscar_locatario_por_id,
     inserir_imovel, buscar_imoveis, atualizar_imovel,
-    inserir_contrato, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
+    inserir_contrato_completo, buscar_contratos, buscar_contratos_por_locador, buscar_contrato_por_id,
     buscar_faturas, buscar_estatisticas_faturas, buscar_fatura_por_id, gerar_boleto_fatura,
     buscar_historico_contrato, registrar_mudanca_contrato, listar_planos_locacao,
     salvar_dados_bancarios_corretor, buscar_dados_bancarios_corretor,
@@ -691,9 +692,8 @@ async def criar_locador(locador: LocadorCreate):
     try:
         print(f"Criando novo locador: {locador.nome}")
         
-        # Usar novo repository v2 com dados completos
-        from locacao.repositories.locador_repository_v2 import inserir_locador_v2
-        resultado = inserir_locador_v2(locador.dict(exclude_none=True))
+        # Usar adapter
+        resultado = inserir_locador(locador.dict(exclude_none=True))
         
         if resultado.get("success"):
             return {"data": {"id": resultado["id"]}, "success": True, "message": resultado["message"]}
@@ -761,9 +761,9 @@ async def buscar_locador_por_id(locador_id: int):
     try:
         print(f"Buscando locador completo ID: {locador_id}")
         
-        # Usar novo repository v2 com dados completos
-        from locacao.repositories.locador_repository_v2 import buscar_locador_completo
-        locador = buscar_locador_completo(locador_id)
+        # Buscar locador específico (implementação simples)
+        locadores = buscar_locadores()
+        locador = next((l for l in locadores if l.get('id') == locador_id), None)
         
         if not locador:
             raise HTTPException(status_code=404, detail="Locador não encontrado")
@@ -780,9 +780,8 @@ async def listar_locadores():
     try:
         print("Listando locadores")
         
-        # Usar novo repository v2
-        from locacao.repositories.locador_repository_v2 import listar_locadores
-        locadores = listar_locadores()
+        # Usar adapter
+        locadores = buscar_locadores()
         return {"data": locadores, "success": True}
     except Exception as e:
         print(f"Erro ao listar locadores: {e}")
@@ -1102,7 +1101,7 @@ async def buscar_imovel_por_id(imovel_id: int):
         
         # ✅ CORREÇÃO: Buscar múltiplos locadores do imóvel
         try:
-            from locacao.repositories.imovel_repository import get_conexao
+            from repositories_adapter import get_conexao
             with get_conexao() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -1356,22 +1355,6 @@ async def listar_contratos_ativos_prestacao():
         print(f"Erro ao buscar contratos ativos: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos ativos: {str(e)}")
 
-class AlterarStatusRequest(BaseModel):
-    status: str
-    motivo: Optional[str] = None
-
-@app.put("/api/faturas/{fatura_id}/status")
-async def alterar_status_fatura(fatura_id: int, request: AlterarStatusRequest):
-    try:
-        from repositories_adapter import alterar_status_fatura
-        resultado = alterar_status_fatura(fatura_id, request.status, request.motivo)
-        
-        if resultado:
-            return {"message": f"Status da fatura {fatura_id} alterado para {request.status}", "success": True}
-        else:
-            raise HTTPException(status_code=404, detail="Fatura não encontrada")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao alterar status da fatura: {str(e)}")
 
 # Endpoints do Dashboard
 @app.get("/api/dashboard/metricas")
@@ -1427,6 +1410,9 @@ class PrestacaoContasRequest(BaseModel):
 async def salvar_prestacao_contas(request: PrestacaoContasRequest):
     """Endpoint para salvar prestação de contas"""
     try:
+        import traceback
+        print(f"REQUEST DATA: {request.model_dump()}")
+
         from repositories_adapter import salvar_prestacao_contas
         resultado = salvar_prestacao_contas(
             contrato_id=request.contrato_id,
@@ -1441,7 +1427,9 @@ async def salvar_prestacao_contas(request: PrestacaoContasRequest):
         )
         return {"success": True, "data": resultado, "message": "Prestação de contas salva com sucesso"}
     except Exception as e:
-        print(f"Erro ao salvar prestação de contas: {str(e)}")
+        print(f"ERRO COMPLETO ao salvar prestacao de contas:")
+        print(f"   Erro: {str(e)}")
+        print(f"   Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar prestação de contas: {str(e)}")
 
 @app.get("/api/dashboard/completo")
@@ -2030,7 +2018,8 @@ async def alterar_status_fatura(fatura_id: int, request: Request):
     Altera status de uma fatura e calcula acréscimos automaticamente se for 'em_atraso'
     """
     try:
-        data = await request.json()
+        body = await request.body()
+        data = json.loads(body.decode('utf-8'))
         novo_status = data.get('status')
         
         if not novo_status:
@@ -2085,6 +2074,78 @@ async def alterar_status_fatura(fatura_id: int, request: Request):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao alterar status: {str(e)}")
+
+@app.put("/api/faturas/{fatura_id}/pagamento")
+async def registrar_pagamento_fatura(fatura_id: int, request: Request):
+    """
+    Registra o pagamento de uma fatura, alterando status para 'paga' e definindo data de pagamento
+    """
+    try:
+        body = await request.body()
+        data = json.loads(body.decode('utf-8'))
+
+        data_pagamento = data.get('data_pagamento')
+        valor_pago = data.get('valor_pago')
+        forma_pagamento = data.get('forma_pagamento')
+        observacoes = data.get('observacoes', '')
+
+        if not data_pagamento:
+            raise HTTPException(status_code=400, detail="Data de pagamento é obrigatória")
+
+        if not valor_pago or valor_pago <= 0:
+            raise HTTPException(status_code=400, detail="Valor pago deve ser maior que zero")
+
+        if not forma_pagamento:
+            raise HTTPException(status_code=400, detail="Forma de pagamento é obrigatória")
+
+        # Atualizar fatura no banco de dados
+        from repositories_adapter import get_conexao
+        conn = get_conexao()
+        cursor = conn.cursor()
+
+        # Atualizar status para 'paga' e definir data e valor de pagamento
+        cursor.execute("""
+            UPDATE PrestacaoContas
+            SET status = 'paga',
+                data_pagamento = CAST(? AS DATE),
+                valor_pago = ?
+            WHERE id = ?
+        """, (data_pagamento, valor_pago, fatura_id))
+
+        # Verificar se a fatura foi encontrada e atualizada
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Fatura não encontrada")
+
+        # Registrar observações se fornecidas
+        if observacoes:
+            cursor.execute("""
+                INSERT INTO LancamentosPrestacaoContas
+                (prestacao_id, tipo, descricao, valor, data_lancamento)
+                VALUES (?, 'PAGAMENTO', ?, ?, GETDATE())
+            """, (fatura_id, f"Pagamento via {forma_pagamento}: {observacoes}", valor_pago))
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": f"Pagamento registrado com sucesso! Fatura {fatura_id} marcada como paga.",
+            "data": {
+                "fatura_id": fatura_id,
+                "data_pagamento": data_pagamento,
+                "valor_pago": valor_pago,
+                "forma_pagamento": forma_pagamento,
+                "novo_status": "paga"
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao registrar pagamento: {str(e)}")
 
 
 if __name__ == "__main__":

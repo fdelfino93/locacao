@@ -41,7 +41,7 @@ def buscar_locador_por_nome(nome):
 
 def importar_imoveis():
     # Ler a planilha
-    df = pd.read_excel('C:/Users/matheus/Documents/Locacao/Locacao/imovel.xlsx')
+    df = pd.read_excel('imovel.xlsx')
     
     print("=" * 70)
     print("INICIANDO IMPORTAÇÃO DE IMÓVEIS")

@@ -37,7 +37,7 @@ def obter_locadores_contrato_unificado(contrato_id):
                 return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_nn]
             
             # 2. FALLBACK para estrutura antiga (via Imoveis)
-            print(f"⚠️ Contrato {contrato_id}: usando fallback via Imoveis.id_locador")
+            # print(f"AVISO: Contrato {contrato_id}: usando fallback via Imoveis.id_locador")
             cursor.execute("""
                 SELECT 
                     l.id as locador_id,
@@ -90,7 +90,7 @@ def obter_locatarios_contrato_unificado(contrato_id):
                 return [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_nn]
             
             # 2. FALLBACK para FK antiga
-            print(f"⚠️ Contrato {contrato_id}: usando fallback via Contratos.id_locatario")
+            # print(f"AVISO: Contrato {contrato_id}: usando fallback via Contratos.id_locatario")
             cursor.execute("""
                 SELECT 
                     l.id as locatario_id,
@@ -245,38 +245,26 @@ def buscar_locadores():
         return []
 
 def buscar_locatarios():
-    """Busca todos os locatários usando repository v4 (com múltiplos contatos)"""
+    """Busca todos os locatários da tabela Locatarios"""
     try:
-        # Usar repository v4 que retorna dados completos com contatos
-        locatarios = buscar_locatarios_v4()
-        print(f"ADAPTER: {len(locatarios)} locatarios encontrados via v4")
-        return locatarios
-    except Exception as e:
-        print(f"ADAPTER: Erro no v4, usando fallback: {e}")
-        # Fallback para busca simples
-        try:
-            conn = get_conexao()
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM Locatarios ORDER BY nome")
-            
-            # Obter nomes das colunas
-            columns = [column[0] for column in cursor.description]
-            
-            # Converter resultados para lista de dicionarios
-            rows = cursor.fetchall()
-            result = []
-            for row in rows:
-                row_dict = {}
-                for i, value in enumerate(row):
-                    row_dict[columns[i]] = value
-                result.append(row_dict)
-            
-            conn.close()
-            print(f"ADAPTER: {len(result)} locatarios via fallback")
-            return result
-        except Exception as e2:
-            print(f"ADAPTER: Fallback também falhou: {e2}")
-            return []
+        conn = get_conexao()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM Locatarios ORDER BY nome")
+
+        # Obter nomes das colunas
+        columns = [column[0] for column in cursor.description]
+
+        # Converter resultados para lista de dicionarios
+        rows = cursor.fetchall()
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[columns[i]] = value
+            result.append(row_dict)
+
+        conn.close()
+        return result
     except Exception as e:
         print(f"Erro ao buscar locatarios: {e}")
         return []
@@ -330,16 +318,16 @@ def buscar_imoveis():
         print(f"Erro ao buscar imóveis: {e}")
         return []
 
-# Funçoes de insercao (usar as existentes)
-from locacao.repositories.cliente_repository import inserir_cliente
-from locacao.repositories.inquilino_repository import inserir_inquilino
-from locacao.repositories.locatario_repository_v4_final import (
-    inserir_locatario_v4, 
-    buscar_locatario_completo, 
-    buscar_inquilinos as buscar_locatarios_v4
-)  
-from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
-from locacao.repositories.contrato_repository import inserir_contrato
+# Funçoes de insercao (usar as existentes) - TEMPORARIAMENTE COMENTADO
+# from locacao.repositories.cliente_repository import inserir_cliente
+# from locacao.repositories.inquilino_repository import inserir_inquilino
+# from locacao.repositories.locatario_repository_v4_final import (
+#     inserir_locatario_v4, 
+#     buscar_locatario_completo, 
+#     buscar_inquilinos as buscar_locatarios_v4
+# )  
+# from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
+# from locacao.repositories.contrato_repository import inserir_contrato
 
 def inserir_cliente(**kwargs):
     """Insere um cliente (locador) na tabela Locadores com todos os campos suportados"""
@@ -886,7 +874,7 @@ def gerar_relatorio_pdf(dados):
 def buscar_contratos_ativos():
     """Busca todos os contratos válidos (ativo, reajuste, vencendo) para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
     try:
-        print("🔄 PRESTACAO: Iniciando busca HÍBRIDA de contratos...")
+        # print("PRESTACAO: Iniciando busca HIBRIDA de contratos...")
         
         with get_conexao() as conn:
             cursor = conn.cursor()
@@ -1613,16 +1601,16 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         # Sempre usar consulta com subqueries para garantir dados reais
         print("DEBUG: Usando consulta principal com subqueries para dados reais")
         
-        # Consulta principal com subqueries para dados reais
+        # Consulta principal otimizada com LEFT JOIN
         query = """
-            SELECT 
+            SELECT
                 p.id,
                 'PC-' + RIGHT('000' + CAST(p.id AS VARCHAR(10)), 3) as numero_fatura,
                 ISNULL(p.total_bruto, 0) as valor_total,
                     ISNULL(p.data_criacao, GETDATE()) as data_vencimento,
                     p.data_pagamento as data_pagamento,
                     -- Status automático baseado em datas
-                    CASE 
+                    CASE
                         WHEN p.data_pagamento IS NOT NULL THEN 'paga'
                         WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN 'em_atraso'
                         ELSE ISNULL(p.status, 'pendente')
@@ -2223,19 +2211,20 @@ def atualizar_locatario(locatario_id, **kwargs):
             atualizar_endereco_locatario(cursor, locatario_id, kwargs['endereco_estruturado'])
         
         # Atualizar formas de cobrança se fornecidas
-        print(f"🔍 DEBUG: Verificando formas de cobrança em kwargs...")
-        print(f"🔍 'forma_envio_boleto' in kwargs: {'forma_envio_boleto' in kwargs}")
-        print(f"🔍 'formas_envio_cobranca' in kwargs: {'formas_envio_cobranca' in kwargs}")
+        # print(f"DEBUG: Verificando formas de cobranca em kwargs...")
+        # print(f"'forma_envio_boleto' in kwargs: {'forma_envio_boleto' in kwargs}")
+        # print(f"'formas_envio_cobranca' in kwargs: {'formas_envio_cobranca' in kwargs}")
         if 'formas_envio_cobranca' in kwargs:
-            print(f"🔍 kwargs['formas_envio_cobranca']: {kwargs['formas_envio_cobranca']}")
-            print(f"🔍 tipo: {type(kwargs['formas_envio_cobranca'])}")
+            # print(f"kwargs['formas_envio_cobranca']: {kwargs['formas_envio_cobranca']}")
+            # print(f"tipo: {type(kwargs['formas_envio_cobranca'])}")
+            pass
         
         # Priorizar formas_envio_cobranca se existir e tiver dados, senão usar forma_envio_boleto
         if 'formas_envio_cobranca' in kwargs and kwargs['formas_envio_cobranca']:
-            print(f"🔍 USANDO formas_envio_cobranca: {kwargs['formas_envio_cobranca']}")
+            # print(f"USANDO formas_envio_cobranca: {kwargs['formas_envio_cobranca']}")
             atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['formas_envio_cobranca'])
         elif 'forma_envio_boleto' in kwargs and kwargs['forma_envio_boleto']:
-            print(f"🔍 USANDO forma_envio_boleto: {kwargs['forma_envio_boleto']}")
+            # print(f"USANDO forma_envio_boleto: {kwargs['forma_envio_boleto']}")
             atualizar_formas_cobranca_locatario(cursor, locatario_id, kwargs['forma_envio_boleto'])
         
         conn.commit()
@@ -3657,14 +3646,45 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             raise Exception(f"Contrato {contrato_id} não encontrado ou sem locador")
         
         locador_id = resultado_contrato[0]
-        
+
+        # VALIDACAO 1: Verificar se já existe prestação LANCADA para este contrato no mesmo mês
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM PrestacaoContas
+            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1 AND status = 'lancada'
+        """, (contrato_id, f"{mes:02d}", str(ano)))
+
+        prestacao_lancada_existente = cursor.fetchone()[0]
+        if prestacao_lancada_existente > 0:
+            raise Exception(f"Já existe uma prestação LANÇADA para o contrato {contrato_id} no mês {mes:02d}/{ano}. Prestações lançadas são IMUTÁVEIS e não podem ser alteradas.")
+
+        # VALIDACAO 2: Verificar se já existe prestação para este contrato no mesmo mês
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM PrestacaoContas
+            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1
+        """, (contrato_id, f"{mes:02d}", str(ano)))
+
+        prestacao_existente = cursor.fetchone()[0]
+        if prestacao_existente > 0:
+            raise Exception("FATURA JÁ LANÇADA")
+
+        # VALIDACAO 2: Buscar faturas relacionadas ao contrato para marcar como "Lancada"
+        cursor.execute("""
+            SELECT id, numero_fatura, status
+            FROM Faturas
+            WHERE contrato_id = ? AND mes_referencia LIKE ? AND ativo = 1
+        """, (contrato_id, f"%{mes:02d}/{ano}%"))
+
+        faturas_relacionadas = cursor.fetchall()
+
         # Configurar estrutura da tabela para histórico completo (sempre criar nova prestação)
         try:
             cursor.execute("SELECT contrato_id FROM PrestacaoContas WHERE 1=0")
             tem_contrato_id = True
             print("Campo contrato_id já existe")
         except:
-            print("⚠️ Campo contrato_id não existe na tabela PrestacaoContas - adicionando...")
+            # print("AVISO: Campo contrato_id nao existe na tabela PrestacaoContas - adicionando...")
             try:
                 cursor.execute("ALTER TABLE PrestacaoContas ADD contrato_id INT")
                 print("Campo contrato_id adicionado")
@@ -3691,13 +3711,13 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         
         conn.commit()
         
-        # NOVO COMPORTAMENTO: Sempre criar nova prestação (histórico completo)
-        print(f"📝 HISTÓRICO COMPLETO: Sempre criando nova prestação para contrato {contrato_id} em {mes:02d}/{ano}")
-        print(f"💡 Cada lançamento será um registro único - histórico preservado")
+        # NOVO COMPORTAMENTO: Sempre criar nova prestacao (historico completo)
+        # print(f"HISTORICO COMPLETO: Sempre criando nova prestacao para contrato {contrato_id} em {mes:02d}/{ano}")
+        # print(f"Cada lancamento sera um registro unico - historico preservado")
         
         # Inserir nova prestação com contrato_id
         if tem_contrato_id:
-            print(f"➕ Criando nova prestação para contrato {contrato_id}")
+            # print(f"Criando nova prestacao para contrato {contrato_id}")
             cursor.execute("""
             INSERT INTO PrestacaoContas (
                 locador_id, contrato_id, mes, ano, referencia, valor_pago, valor_vencido, 
@@ -3722,7 +3742,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             ))
         else:
             # Fallback para versão sem contrato_id
-            print(f"➕ Criando nova prestação (fallback - sem contrato_id)")
+            # print(f"Criando nova prestacao (fallback - sem contrato_id)")
             cursor.execute("""
             INSERT INTO PrestacaoContas (
                 locador_id, mes, ano, referencia, valor_pago, valor_vencido, 
@@ -3824,7 +3844,30 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                         prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
                     ) VALUES (?, 'taxa', ?, ?, GETDATE(), GETDATE(), 1)
                 """, (prestacao_id, f'Taxa de Administração ({contrato_dados["taxa_administracao"]}%)', -taxa_admin))
-        
+
+        # FUNCIONALIDADE 1: Marcar todas as faturas relacionadas como "Lancada"
+        if faturas_relacionadas:
+            fatura_ids = [str(fatura[0]) for fatura in faturas_relacionadas]
+            if fatura_ids:
+                cursor.execute(f"""
+                    UPDATE Faturas
+                    SET status = 'lancada', data_atualizacao = GETDATE()
+                    WHERE id IN ({','.join(['?' for _ in fatura_ids])}) AND status != 'lancada'
+                """, fatura_ids)
+
+                faturas_atualizadas = cursor.rowcount
+                if faturas_atualizadas > 0:
+                    print(f"Faturas marcadas como 'Lancada': {faturas_atualizadas}")
+        else:
+            print(f"Nenhuma fatura encontrada para marcar como 'Lancada' para contrato {contrato_id} no mes {mes:02d}/{ano}")
+
+        # FUNCIONALIDADE 2: Marcar prestação como imutável (adicionar flag de controle)
+        cursor.execute("""
+            UPDATE PrestacaoContas
+            SET status = 'lancada', data_atualizacao = GETDATE()
+            WHERE id = ?
+        """, (prestacao_id,))
+
         conn.commit()
         conn.close()
         
@@ -4825,8 +4868,8 @@ def atualizar_metodos_pagamento_locador(cursor, locador_id, metodos_pagamento):
         metodos_pagamento: Lista de dicts com os dados bancários
     """
     try:
-        print(f"🔄 Atualizando métodos de pagamento do locador {locador_id}")
-        print(f"💳 Métodos recebidos: {metodos_pagamento}")
+        # print(f"Atualizando metodos de pagamento do locador {locador_id}")
+        # print(f"Metodos recebidos: {metodos_pagamento}")
         
         # 1. Desativar métodos de pagamento existentes (soft delete)
         cursor.execute("""
@@ -4836,7 +4879,7 @@ def atualizar_metodos_pagamento_locador(cursor, locador_id, metodos_pagamento):
         """, (locador_id,))
         
         metodos_desativados = cursor.rowcount
-        print(f"🗑️ {metodos_desativados} método(s) de pagamento anterior(es) desativado(s)")
+        # print(f"{metodos_desativados} metodo(s) de pagamento anterior(es) desativado(s)")
         
         # 2. Inserir novos métodos se fornecidos
         if metodos_pagamento and isinstance(metodos_pagamento, list):

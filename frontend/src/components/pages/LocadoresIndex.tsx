@@ -81,8 +81,8 @@ export const LocadoresIndex: React.FC<LocadoresIndexProps> = ({
       setLoading(true);
       setError(null);
       
-      // Buscar todos os locadores usando proxy configurado
-      const response = await fetch('/api/locadores');
+      // Buscar todos os locadores usando backend direto
+      const response = await fetch('http://localhost:8000/api/locadores');
       const data = await response.json();
       
       if (data.success && data.data) {

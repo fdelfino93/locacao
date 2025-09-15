@@ -115,9 +115,9 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       params.append('order_by', sortField);
       params.append('order_dir', sortDirection);
 
-      const url = `/api/faturas?${params.toString()}`;
+      const url = `http://localhost:8000/api/faturas?${params.toString()}`;
       console.log('🌐 URL completa da API:', url);
-      
+
       const response = await fetch(url);
       
       console.log('📡 Status da resposta:', response.status);
@@ -145,7 +145,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
           abertas: data.data.filter(f => f.status === 'aberta').length,
           pendentes: data.data.filter(f => f.status === 'pendente').length,
           pagas: data.data.filter(f => f.status === 'paga').length,
-          em_atraso: data.data.filter(f => f.status === 'atrasado' || f.dias_atraso > 0).length,
+          em_atraso: data.data.filter(f => f.status === 'em_atraso' || f.status === 'atrasado' || f.dias_atraso > 0).length,
           canceladas: data.data.filter(f => f.status === 'cancelada').length,
           valor_total_aberto: data.data.filter(f => f.status !== 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
           valor_total_recebido: data.data.filter(f => f.status === 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
@@ -315,7 +315,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     setLoadingContratos(true);
     try {
       console.log('🔍 Buscando contratos disponíveis...');
-      const response = await fetch('/api/contratos');
+      const response = await fetch('http://localhost:8000/api/contratos');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -438,7 +438,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`/api/faturas/${fatura.id}/status`, {
+      const response = await fetch(`http://localhost:8000/api/faturas/${fatura.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -478,8 +478,14 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
         } else {
           toast.success(`Fatura ${fatura.numero_fatura} alterada para ${statusLabels[novoStatus as keyof typeof statusLabels]}!`);
         }
-        
-        buscarFaturas(); // Recarregar lista
+
+        // Atualizar status localmente para responsividade imediata
+        setFaturas(prev => prev.map(f =>
+          f.id === fatura.id ? { ...f, status: novoStatus } : f
+        ));
+
+        // Recarregar lista completa do servidor
+        buscarFaturas();
       } else {
         throw new Error(data.message || 'Erro ao alterar status da fatura');
       }
@@ -697,7 +703,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
             <CardContent className="p-8">
               {/* Tabs Customizadas - Removendo shadcn/ui Tabs para debug */}
               <div className="w-full">
-                <div className="grid w-full grid-cols-6 gap-2 mb-8 p-1 bg-muted rounded-lg">
+                <div className="grid w-full grid-cols-7 gap-2 mb-8 p-1 bg-muted rounded-lg">
                   <button
                     onClick={() => setActiveTab('todas')}
                     className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-all duration-200 ${
@@ -741,6 +747,17 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                   >
                     <span>PAGAS</span>
                     <Badge variant="secondary" className="ml-2">{stats.pagas}</Badge>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('lancada')}
+                    className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-all duration-200 ${
+                      activeTab === 'lancada'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                    }`}
+                  >
+                    <span>LANÇADAS</span>
+                    <Badge variant="secondary" className="ml-2">{stats.lancadas || 0}</Badge>
                   </button>
                   <button
                     onClick={() => setActiveTab('em_atraso')}

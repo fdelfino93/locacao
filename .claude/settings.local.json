@@ -71,12 +71,15 @@
       "Bash(start http://localhost:3005/contrato)",
       "Bash(start http://localhost:3005/contrato/cadastro)",
       "Bash(start http://localhost:3005/dashboard)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(netstat:*)",
+      "Bash(npx kill-port:*)",
+      "Read(//c/Users/fernando/Documents/PY/**)",
+      "Bash(start http://localhost:3005/prestacao-contas/editar/10)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
-    "additionalDirectories": [
-      "C:\\Users\\matheus\\Documents\\Locacao"
-    ]
+    "additionalDirectories": []
   }
 }

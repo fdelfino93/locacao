@@ -22,6 +22,7 @@ import LocadoresIndex from './components/pages/LocadoresIndex';
 import { LocatariosIndex } from './components/pages/LocatariosIndex';
 import { ImoveisIndex } from './components/pages/ImoveisIndex';
 import { ContratosIndex } from './components/pages/ContratosIndex';
+import { TesteEdicaoSimples } from './components/forms/TesteEdicaoSimples';
 
 type PageType = 'hero' | 'locador' | 'locador-cadastro' | 'locador-visualizar' | 'locador-edicao' | 'locatario' | 'locatario-cadastro' | 'locatario-visualizar' | 'locatario-edicao' | 'imovel' | 'imovel-cadastro' | 'imovel-visualizar' | 'imovel-edicao' | 'contrato' | 'contrato-cadastro' | 'contrato-visualizar' | 'contrato-edicao' | 'prestacao-contas' | 'prestacao-contas-lancamento' | 'edicao-fatura' | 'dashboard' | 'busca';
 
