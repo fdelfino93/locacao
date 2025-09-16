@@ -109,7 +109,7 @@ const EdicaoFatura: React.FC = () => {
             { id: 2, tipo: 'receita', descricao: 'Condomínio', valor: 280.00 },
             { id: 3, tipo: 'receita', descricao: 'IPTU', valor: 150.00 },
             { id: 4, tipo: 'despesa', descricao: 'Taxa Administração (10%)', valor: 150.00 },
-            { id: 5, tipo: 'despesa', descricao: 'Taxa Boleto', valor: 2.50 }
+            // Taxa Boleto removida
           ]
         };
         

@@ -1849,12 +1849,15 @@ async def calcular_prestacao_contrato(request: dict):
         multa = request.get('multa', 0)
         
         # Para rescisão, calcular multa proporcional conforme Lei 8.245/91
+        calculo_multa = None
         if tipo_mapeado == "Rescisão" and data_saida_iso:
             try:
                 from repositories_adapter import calcular_multa_proporcional
                 calculo_multa = calcular_multa_proporcional(contrato_id, data_saida_iso)
                 multa = calculo_multa.get('multa_proporcional', multa)
                 print(f"APLICANDO LEI 8.245/91 - Multa proporcional: R$ {multa:,.2f}")
+                print(f"Meses restantes: {calculo_multa.get('meses_restantes', 0)}")
+                print(f"Taxa rescisão: R$ {calculo_multa.get('taxa_rescisao', 0):,.2f}")
             except Exception as e:
                 print(f"Erro no cálculo da multa proporcional: {e}")
                 print("Usando valor de multa informado pelo usuário")
@@ -1889,6 +1892,14 @@ async def calcular_prestacao_contrato(request: dict):
             "data_calculo": datetime.now().strftime('%Y-%m-%d'),
             "contrato_dados": resultado.get('contrato_dados', {})
         }
+
+        # Adicionar campos específicos de rescisão
+        if tipo_mapeado == "Rescisão" and calculo_multa:
+            resposta["meses_restantes"] = calculo_multa.get('meses_restantes', 0)
+            resposta["taxa_rescisao"] = calculo_multa.get('taxa_rescisao', 0)
+        else:
+            resposta["meses_restantes"] = 0
+            resposta["taxa_rescisao"] = 0
         
         return resposta
         

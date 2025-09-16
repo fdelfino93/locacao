@@ -46,7 +46,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     buscarFaturas();
   };
   const [stats, setStats] = useState<FaturaStats>({
-    todas: 0, abertas: 0, pendentes: 0, pagas: 0, lancadas: 0, em_atraso: 0, canceladas: 0,
+    todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
     valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
   });
 
@@ -81,52 +81,14 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const [contratos, setContratos] = useState<any[]>([]);
   const [loadingContratos, setLoadingContratos] = useState(false);
 
-  // Função para buscar estatísticas completas (para cards)
-  const buscarEstatisticas = useCallback(async () => {
-    try {
-      const statsParams = new URLSearchParams();
-      // Sempre buscar TODAS para estatísticas dos cards
-      if (mesSelecionado) statsParams.append('mes', mesSelecionado);
-      if (anoSelecionado) statsParams.append('ano', anoSelecionado);
-      if (searchTerm) statsParams.append('search', searchTerm);
-
-      const statsUrl = `http://localhost:8000/api/faturas?${statsParams.toString()}`;
-      const statsResponse = await fetch(statsUrl);
-
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        if (statsData.success && statsData.data) {
-          const statsCalculadas = {
-            todas: statsData.data.length,
-            abertas: statsData.data.filter(f => f.status === 'aberta').length,
-            pendentes: statsData.data.filter(f => f.status === 'pendente').length,
-            pagas: statsData.data.filter(f => f.status === 'paga').length,
-            lancadas: statsData.data.filter(f => f.status === 'lancada').length,
-            em_atraso: statsData.data.filter(f => f.status === 'em_atraso' && f.status !== 'cancelada' && f.status !== 'lancada').length,
-            canceladas: statsData.data.filter(f => f.status === 'cancelada').length,
-            valor_total_aberto: statsData.data.filter(f => f.status !== 'paga' && f.status !== 'lancada' && f.status !== 'cancelada').reduce((sum, f) => sum + (f.valor_total || 0), 0),
-            valor_total_recebido: statsData.data.filter(f => f.status === 'paga' || f.status === 'lancada').reduce((sum, f) => sum + (f.valor_total || 0), 0),
-            valor_total_atrasado: statsData.data.filter(f => f.status === 'em_atraso' && f.status !== 'cancelada' && f.status !== 'lancada').reduce((sum, f) => sum + (f.valor_total || 0), 0)
-          };
-          setStats(statsCalculadas);
-        }
-      }
-    } catch (error) {
-      console.error('❌ Erro ao buscar estatísticas:', error);
-    }
-  }, [mesSelecionado, anoSelecionado, searchTerm]);
-
-  // Função para buscar faturas da API (para tabela filtrada)
+  // Função para buscar faturas da API
   const buscarFaturas = useCallback(async () => {
     console.log('🚀 buscarFaturas iniciada');
     setLoading(true);
     try {
       console.log('🔍 Buscando faturas da API...');
       console.log('📊 Aba ativa:', activeTab);
-
-      // Buscar estatísticas completas primeiro
-      await buscarEstatisticas();
-
+      
       const params = new URLSearchParams();
       
       // Aplicar filtro de status baseado na aba ativa
@@ -173,11 +135,36 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       // Processar dados normalmente
       console.log('✅ Processando dados da API normalmente');
       
-      // Exibir apenas faturas filtradas (estatísticas já foram calculadas)
+      // Exibir faturas recebidas
       if (data.success && data.data) {
         setFaturas(data.data);
+        
+        // Calcular estatísticas reais
+        const statsCalculadas = {
+          todas: data.data.length,
+          abertas: data.data.filter(f => f.status === 'aberta').length,
+          pendentes: data.data.filter(f => f.status === 'pendente').length,
+          pagas: data.data.filter(f => f.status === 'paga').length,
+          em_atraso: data.data.filter(f => f.status === 'em_atraso' || f.status === 'atrasado' || f.dias_atraso > 0).length,
+          canceladas: data.data.filter(f => f.status === 'cancelada').length,
+          valor_total_aberto: data.data.filter(f => f.status !== 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
+          valor_total_recebido: data.data.filter(f => f.status === 'paga').reduce((sum, f) => sum + (f.valor_total || 0), 0),
+          valor_total_atrasado: data.data.filter(f => f.dias_atraso > 0).reduce((sum, f) => sum + (f.valor_total || 0), 0)
+        };
+        setStats(statsCalculadas);
       } else {
         setFaturas([]);
+        setStats({
+          todas: 0, 
+          abertas: 0, 
+          pendentes: 0, 
+          pagas: 0, 
+          em_atraso: 0, 
+          canceladas: 0,
+          valor_total_aberto: 0, 
+          valor_total_recebido: 0, 
+          valor_total_atrasado: 0
+        });
       }
       
       const filtroMsg = [];
@@ -194,7 +181,10 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       
       // NÃO usar mais dados mockados - exigir conexão real
       setFaturas([]);
-      // Manter estatísticas atuais em caso de erro
+      setStats({
+        todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
+        valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
+      });
       setLoading(false);
       return; // Parar aqui sem usar mocks
     }
@@ -259,7 +249,6 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     const statusConfig = {
       'aberta': { label: 'Aberta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
       'paga': { label: 'Paga', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
-      'lancada': { label: 'Lançada', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' },
       'pendente': { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
       'em_atraso': { label: 'Em Atraso', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
       'cancelada': { label: 'Cancelada', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' }
@@ -664,7 +653,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-muted-foreground truncate">Retido</p>
-                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.1 + (stats.pagas * 10.00))}</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.1 + (stats.pagas * 12.50))}</p>
                   </div>
                   <TrendingDown className="w-7 h-7 text-red-500 flex-shrink-0 ml-2" />
                 </div>
@@ -676,7 +665,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-muted-foreground truncate">Repasse</p>
-                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.9 - (stats.pagas * 10.00))}</p>
+                    <p className="text-xl font-bold text-foreground truncate">{formatCurrency(stats.valor_total_recebido * 0.9 - (stats.pagas * 12.50))}</p>
                   </div>
                   <Crown className="w-7 h-7 text-green-500 flex-shrink-0 ml-2" />
                 </div>

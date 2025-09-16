@@ -63,6 +63,7 @@ export interface FaturaStats {
   abertas: number;
   pendentes: number;
   pagas: number;
+  lancadas: number;
   em_atraso: number;
   canceladas: number;
   valor_total_aberto: number;

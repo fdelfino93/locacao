@@ -24,12 +24,16 @@ export interface CalculoPrestacaoResponse {
   meses_completos: number;
   qtd_meses_completos: number;
   proporcional_saida: number;
-  
+
   // Lançamentos e ajustes
   lancamentos_adicionais: LancamentoDetalhado[];
   desconto: number;
   multa: number;
   percentual_desconto: number;
+
+  // Campos específicos para rescisão
+  taxa_rescisao?: number; // 20% da multa de rescisão
+  meses_restantes?: number; // Meses restantes do contrato
   
   // Totais
   total: number;

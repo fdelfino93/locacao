@@ -131,11 +131,11 @@ export const ConfiguracoesRetencaoForm: React.FC<ConfiguracoesRetencaoFormProps>
                       ...configuracao,
                       taxa_boleto: Number(e.target.value) || 0
                     })}
-                    placeholder="2.50"
+                    placeholder="0.00"
                     className="mt-2"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Valor fixo cobrado por boleto emitido
+                    Taxa de boleto foi removida (manter em 0.00)
                   </p>
                 </div>
 

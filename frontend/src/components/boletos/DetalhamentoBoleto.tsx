@@ -390,19 +390,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
               </span>
             </motion.div>
 
-            {/* Taxa de Registro de Boleto */}
-            <motion.div
-              whileHover={{ x: 4 }}
-              className="flex items-center justify-between p-4 rounded-lg border border-border transition-all duration-200"
-            >
-              <div className="flex items-center space-x-3">
-                <Receipt className="w-4 h-4 text-muted-foreground" />
-                <span className="font-medium text-foreground">Taxa de Registro de Boleto</span>
-              </div>
-              <span className="font-semibold text-foreground">
-                {formatMoney(2.50)}
-              </span>
-            </motion.div>
+            {/* Taxa de Registro de Boleto removida */}
 
             {/* Taxa de Transferência */}
             <motion.div
@@ -424,7 +412,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
             <div className="flex justify-between items-center p-4 bg-muted/20 rounded-lg">
               <span className="text-lg font-bold text-foreground">Valor Total Retido</span>
               <span className="text-lg font-bold text-foreground">
-                {formatMoney(boleto.valor_total * 0.1 + 2.50 + 10.00)}
+                {formatMoney(boleto.valor_total * 0.1 + 10.00)}
               </span>
             </div>
           </div>
@@ -509,7 +497,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Valor do Repasse</p>
                   <p className="font-semibold text-foreground">
-                    {formatMoney(boleto.valor_total * 0.9 - 2.50 - 10.00)}
+                    {formatMoney(boleto.valor_total * 0.9 - 10.00)}
                   </p>
                 </div>
               </div>
@@ -564,7 +552,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
             <div className="flex items-center justify-between">
               <span className="text-lg font-medium text-foreground">Valor Total a Repassar</span>
               <span className="text-lg font-bold text-foreground">
-                {formatMoney(boleto.valor_total * 0.9 - 2.50 - 10.00)}
+                {formatMoney(boleto.valor_total * 0.9 - 10.00)}
               </span>
             </div>
           </div>
@@ -626,10 +614,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                   <span>Taxa administração (10%):</span>
                   <span>- {formatMoney(boleto.valor_total * 0.1)}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Taxa registro boleto:</span>
-                  <span>- {formatMoney(2.50)}</span>
-                </div>
+                {/* Taxa registro boleto removida */}
                 <div className="flex justify-between text-red-600">
                   <span>Taxa transferência:</span>
                   <span>- {formatMoney(10.00)}</span>
@@ -638,13 +623,13 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                 {/* Total Retido */}
                 <div className="border-t pt-1 flex justify-between font-medium text-red-600">
                   <span>Total retido:</span>
-                  <span>- {formatMoney(boleto.valor_total * 0.1 + 2.50 + 10.00)}</span>
+                  <span>- {formatMoney(boleto.valor_total * 0.1 + 10.00)}</span>
                 </div>
                 
                 {/* Valor Final */}
                 <div className="border-t pt-1 flex justify-between font-bold text-green-600">
                   <span>Valor total a repassar:</span>
-                  <span>{formatMoney(boleto.valor_total - (boleto.valor_total * 0.1) - 2.50 - 10.00)}</span>
+                  <span>{formatMoney(boleto.valor_total - (boleto.valor_total * 0.1) - 10.00)}</span>
                 </div>
               </div>
             </div>

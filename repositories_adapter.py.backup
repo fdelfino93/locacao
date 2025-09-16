@@ -919,18 +919,6 @@ def buscar_contratos_ativos():
                      CASE WHEN c.antecipa_seguro_fianca = 1 THEN ISNULL(c.valor_seguro_fianca, 0) ELSE 0 END +
                      CASE WHEN c.antecipa_seguro_incendio = 1 THEN ISNULL(c.valor_seguro_incendio, 0) ELSE 0 END +
                      CASE WHEN c.antecipa_iptu = 1 THEN ISNULL(c.valor_iptu, 0) ELSE 0 END) as valor_antecipado,
-                    -- Campos de parcelas e datas para seguro fiança
-                    c.parcelas_seguro_fianca,
-                    c.seguro_fianca_inicio,
-                    c.seguro_fianca_fim,
-                    -- Campos de parcelas e datas para seguro incêndio
-                    c.parcelas_seguro_incendio,
-                    c.seguro_incendio_inicio,
-                    c.seguro_incendio_fim,
-                    -- Campos de parcelas e datas para IPTU
-                    c.parcelas_iptu,
-                    c.data_inicio_iptu,
-                    c.data_fim_iptu,
                     i.endereco as imovel_endereco,
                     i.tipo as imovel_tipo
                 FROM Contratos c
@@ -956,41 +944,16 @@ def buscar_contratos_ativos():
                 # 🔧 USAR LÓGICA HÍBRIDA UNIFICADA para buscar locadores e locatários
                 contrato_id = contrato_dict['id']
                 
-                # Buscar locadores usando nova função unificada com dados completos
+                # Buscar locadores usando nova função unificada
                 locadores_data = obter_locadores_contrato_unificado(contrato_id)
                 contrato_dict['locadores'] = []
                 for loc_data in locadores_data:
-                    # Buscar dados completos do locador e sua conta bancária selecionada no termo
-                    cursor.execute("""
-                        SELECT l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
-                               cl.conta_bancaria_id, cl.porcentagem,
-                               cb.tipo_recebimento, cb.chave_pix, cb.banco, cb.agencia, cb.conta
-                        FROM Locadores l
-                        LEFT JOIN ContratoLocadores cl ON l.id = cl.locador_id AND cl.contrato_id = ?
-                        LEFT JOIN ContasBancariasLocador cb ON cl.conta_bancaria_id = cb.id
-                        WHERE l.id = ?
-                    """, (contrato_id, loc_data[0]))
-
-                    locador_completo = cursor.fetchone()
-                    if locador_completo:
-                        contrato_dict['locadores'].append({
-                            'locador_id': loc_data[0],
-                            'locador_nome': loc_data[1],
-                            'porcentagem': loc_data[2],
-                            'responsabilidade_principal': loc_data[3],
-                            'cpf_cnpj': locador_completo[2],
-                            'telefone': locador_completo[3],
-                            'email': locador_completo[4],
-                            'conta_bancaria_id': locador_completo[5],
-                            'tipo_recebimento': locador_completo[7],
-                            'conta_bancaria': {
-                                'tipo_recebimento': locador_completo[7],
-                                'pix_chave': locador_completo[8],
-                                'banco': locador_completo[9],
-                                'agencia': locador_completo[10],
-                                'conta': locador_completo[11]
-                            } if locador_completo[7] else None
-                        })
+                    contrato_dict['locadores'].append({
+                        'locador_id': loc_data[0],
+                        'locador_nome': loc_data[1],
+                        'porcentagem': loc_data[2],
+                        'responsabilidade_principal': loc_data[3]
+                    })
                 
                 # Buscar locatários usando nova função unificada
                 locatarios_data = obter_locatarios_contrato_unificado(contrato_id)
@@ -1510,11 +1473,11 @@ def buscar_contrato_por_id(contrato_id):
             # Buscar dados completos do locatario
             if row_dict.get('id_locatario'):
                 cursor.execute("""
-                    SELECT id, nome, cpf_cnpj, telefone, email
-                    FROM Locatarios
+                    SELECT id, nome, cpf_cnpj, telefone, email 
+                    FROM Locatarios 
                     WHERE id = ?
                 """, (row_dict['id_locatario'],))
-
+                
                 locatario_row = cursor.fetchone()
                 if locatario_row:
                     row_dict['locatario_id'] = locatario_row[0]
@@ -1522,53 +1485,7 @@ def buscar_contrato_por_id(contrato_id):
                     row_dict['locatario_cpf_completo'] = locatario_row[2]
                     row_dict['locatario_telefone'] = locatario_row[3]
                     row_dict['locatario_email'] = locatario_row[4]
-
-            # 🔧 BUSCAR TODOS OS LOCADORES COM PORCENTAGENS E DADOS BANCÁRIOS
-            locadores_data = obter_locadores_contrato_unificado(contrato_id)
-            row_dict['locadores'] = []
-
-            for loc_data in locadores_data:
-                # Buscar dados completos do locador e sua conta bancária selecionada no termo
-                cursor.execute("""
-                    SELECT l.id, l.nome, l.cpf_cnpj, l.telefone, l.email,
-                           cl.conta_bancaria_id, cl.porcentagem,
-                           cb.tipo_recebimento, cb.chave_pix, cb.banco, cb.agencia, cb.conta
-                    FROM Locadores l
-                    LEFT JOIN ContratoLocadores cl ON l.id = cl.locador_id AND cl.contrato_id = ?
-                    LEFT JOIN ContasBancariasLocador cb ON cl.conta_bancaria_id = cb.id
-                    WHERE l.id = ?
-                """, (contrato_id, loc_data[0]))
-
-                locador_completo = cursor.fetchone()
-                if locador_completo:
-                    row_dict['locadores'].append({
-                        'locador_id': loc_data[0],
-                        'locador_nome': loc_data[1],
-                        'porcentagem': loc_data[2],
-                        'responsabilidade_principal': loc_data[3],
-                        'cpf_cnpj': locador_completo[2],
-                        'telefone': locador_completo[3],
-                        'email': locador_completo[4],
-                        'conta_bancaria_id': locador_completo[5],
-                        'tipo_recebimento': locador_completo[7],
-                        'conta_bancaria': {
-                            'tipo_recebimento': locador_completo[7],
-                            'pix_chave': locador_completo[8],
-                            'banco': locador_completo[9],
-                            'agencia': locador_completo[10],
-                            'conta': locador_completo[11]
-                        } if locador_completo[7] else None
-                    })
-
-            # Manter compatibilidade com código existente (dados do locador principal)
-            if row_dict['locadores']:
-                principal = next((loc for loc in row_dict['locadores'] if loc['responsabilidade_principal']), row_dict['locadores'][0])
-                row_dict['locador_email'] = principal['email'] or ''
-                row_dict['locador_telefone'] = principal['telefone'] or ''
-                row_dict['porcentagem_proprietario'] = principal['porcentagem']
-                row_dict['conta_bancaria_principal'] = principal['conta_bancaria']
-
-
+            
             conn.close()
             return row_dict
         
@@ -1694,15 +1611,15 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
                     p.data_pagamento as data_pagamento,
                     -- Status baseado em datas e prestações lançadas
                     CASE
-                        -- Priorizar status cancelada (sempre prevalece)
-                        WHEN p.status = 'cancelada' THEN 'cancelada'
-                        -- Se foi marcado como lançada pelo sistema de prestação (só se foi paga antes)
-                        WHEN p.status = 'lancada' AND p.data_pagamento IS NOT NULL THEN 'lancada'
-                        -- Se tem data de pagamento mas não foi lançada
+                        WHEN p.data_pagamento IS NOT NULL AND EXISTS (
+                            SELECT 1 FROM PrestacaoContas pc2
+                            WHERE pc2.contrato_id = p.contrato_id
+                            AND pc2.mes = RIGHT('0' + CAST(MONTH(p.data_criacao) AS VARCHAR(2)), 2)
+                            AND pc2.ano = CAST(YEAR(p.data_criacao) AS VARCHAR(4))
+                            AND pc2.ativo = 1
+                        ) THEN 'lancada'
                         WHEN p.data_pagamento IS NOT NULL THEN 'paga'
-                        -- Se não tem pagamento e está vencida (exclui canceladas e lançadas)
-                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() AND p.status NOT IN ('cancelada', 'lancada') THEN 'em_atraso'
-                        -- Casos restantes
+                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN 'em_atraso'
                         ELSE ISNULL(p.status, 'pendente')
                     END as status,
                     ISNULL(p.referencia, 'N/A') as mes_referencia,
@@ -1786,21 +1703,14 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
 
             # Aplicar filtro baseado na lógica de status calculado
             if status_filter == 'paga':
-                # Faturas pagas mas não lançadas
-                where_conditions.append("p.data_pagamento IS NOT NULL AND p.status != 'lancada'")
+                where_conditions.append("p.data_pagamento IS NOT NULL")
             elif status_filter == 'em_atraso':
-                # Apenas prestações realmente em atraso (exclui canceladas e lançadas)
-                where_conditions.append("""
-                    p.data_pagamento IS NULL
-                    AND p.data_criacao < GETDATE()
-                    AND p.status NOT IN ('cancelada', 'lancada')
-                """)
+                where_conditions.append("p.data_pagamento IS NULL AND p.data_criacao < GETDATE()")
             elif status_filter == 'aberta':
                 where_conditions.append("p.data_pagamento IS NULL AND p.data_criacao >= GETDATE()")
             elif status_filter == 'pendente':
                 where_conditions.append("(p.status = 'pendente' OR (p.status IS NULL AND p.data_pagamento IS NULL))")
             elif status_filter == 'lancada':
-                # Faturas marcadas como lançadas pelo sistema
                 where_conditions.append("p.status = 'lancada'")
             elif status_filter == 'cancelada':
                 where_conditions.append("p.status = 'cancelada'")
@@ -1829,6 +1739,48 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
         query = query.replace("WHERE p.ativo = 1", f"WHERE {where_clause}")
 
 
+        # Aplicar filtros de status ANTES de executar a query
+        where_conditions = ["p.ativo = 1"]
+        query_params = []
+
+        if filtros and filtros.get('status'):
+            status_filter = filtros['status']
+            print(f"DEBUG: Aplicando filtro de status: {status_filter}")
+
+            # Aplicar filtro baseado na lógica de status calculado
+            if status_filter == 'paga':
+                where_conditions.append("p.data_pagamento IS NOT NULL")
+            elif status_filter == 'em_atraso':
+                where_conditions.append("p.data_pagamento IS NULL AND p.data_criacao < GETDATE()")
+            elif status_filter == 'aberta':
+                where_conditions.append("p.data_pagamento IS NULL AND p.data_criacao >= GETDATE()")
+            elif status_filter == 'pendente':
+                where_conditions.append("(p.status = 'pendente' OR (p.status IS NULL AND p.data_pagamento IS NULL))")
+            elif status_filter == 'cancelada':
+                where_conditions.append("p.status = 'cancelada'")
+
+        # Aplicar outros filtros
+        if filtros:
+            if filtros.get('search'):
+                search_term = f"%{filtros['search']}%"
+                where_conditions.append("""(
+                    CAST(p.id AS VARCHAR) LIKE ? OR
+                    p.referencia LIKE ? OR
+                    p.observacoes_manuais LIKE ?
+                )""")
+                query_params.extend([search_term, search_term, search_term])
+
+            if filtros.get('mes'):
+                where_conditions.append("p.mes = ?")
+                query_params.append(str(filtros['mes']).zfill(2))
+
+            if filtros.get('ano'):
+                where_conditions.append("p.ano = ?")
+                query_params.append(str(filtros['ano']))
+
+        # Montar WHERE clause final
+        where_clause = " AND ".join(where_conditions)
+        query = query.replace("WHERE p.ativo = 1", f"WHERE {where_clause}")
 
         print(f"DEBUG: Executando consulta principal...")
         try:
@@ -2064,7 +2016,7 @@ def buscar_estatisticas_faturas(filtros=None):
             'pagas': len([f for f in faturas if f.get('status') in ['paga', 'lancada']]),
             'em_atraso': len([f for f in faturas if f.get('status') == 'em_atraso']),
             'canceladas': len([f for f in faturas if f.get('status') == 'cancelada']),
-            'valor_total_aberto': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') in ['aberta', 'pendente', 'em_atraso']]),
+            'valor_total_aberto': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') in ['aberta', 'pendente']]),
             'valor_total_recebido': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') in ['paga', 'lancada']]),
             'valor_total_atrasado': sum([f.get('valor_total', 0) or 0 for f in faturas if f.get('status') == 'em_atraso'])
         }
@@ -3766,47 +3718,17 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         mes = agora.month
         ano = agora.year
         referencia = f"{mes:02d}/{ano}"
-
-        # Calcular data de vencimento baseada no mês de referência
-        data_vencimento_calculada = agora  # Por padrão usa data atual
-
+        
         # Se houver configuração de fatura com mês específico
         if configuracao_fatura and configuracao_fatura.get('mes_referencia'):
             try:
                 mes_ref = configuracao_fatura['mes_referencia']
-
-                # Suportar ambos os formatos: YYYY-MM (frontend) e MM/YYYY (legado)
-                if '-' in mes_ref:  # Formato YYYY-MM (novo)
-                    ano, mes = mes_ref.split('-')
-                    mes = int(mes)
-                    ano = int(ano)
-                elif '/' in mes_ref:  # Formato MM/YYYY (legado)
+                if '/' in mes_ref:
                     mes, ano = mes_ref.split('/')
                     mes = int(mes)
                     ano = int(ano)
-                else:
-                    # Fallback: se não tem separador, tenta interpretar como YYYYMM
-                    if len(mes_ref) == 6 and mes_ref.isdigit():
-                        ano = int(mes_ref[:4])
-                        mes = int(mes_ref[4:])
-                    else:
-                        raise ValueError(f"Formato de mês inválido: {mes_ref}")
-
-                referencia = f"{mes:02d}/{ano}"
-
-                # Calcular data de vencimento para o mês de referência
-                # Usar dia atual, mas mês/ano da referência
-                dia_vencimento = agora.day
-                try:
-                    data_vencimento_calculada = datetime(ano, mes, dia_vencimento)
-                except ValueError:
-                    # Se o dia não existe no mês (ex: 31 fev), usar último dia do mês
-                    import calendar
-                    ultimo_dia = calendar.monthrange(ano, mes)[1]
-                    data_vencimento_calculada = datetime(ano, mes, ultimo_dia)
-            except Exception as e:
-                print(f"Erro ao processar mes_referencia '{mes_ref}': {e}")
-                # Manter valores padrão (mês atual) em caso de erro
+                    referencia = f"{mes:02d}/{ano}"
+            except:
                 pass
         
         # Obter locador_id do contrato através do imóvel
@@ -3844,24 +3766,12 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         if prestacao_existente > 0:
             raise Exception("FATURA JÁ LANÇADA")
 
-        # VALIDACAO 3: Se status for 'lancada', verificar se existe prestação PAGA anteriormente
-        if status == 'lancada':
-            cursor.execute("""
-                SELECT COUNT(*)
-                FROM PrestacaoContas
-                WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1 AND status = 'paga'
-            """, (contrato_id, f"{mes:02d}", str(ano)))
-
-            tem_prestacao_paga = cursor.fetchone()[0]
-            if tem_prestacao_paga == 0:
-                raise Exception("ERRO: Só é possível LANÇAR prestação que foi PAGA anteriormente. Marque como PAGA primeiro.")
-
-        # VALIDACAO 4: Buscar faturas relacionadas ao contrato para marcar como "Lancada"
+        # VALIDACAO 2: Buscar faturas relacionadas ao contrato para marcar como "Lancada"
         cursor.execute("""
-            SELECT id, referencia, status
-            FROM PrestacaoContas
-            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1
-        """, (contrato_id, f"{mes:02d}", str(ano)))
+            SELECT id, numero_fatura, status
+            FROM Faturas
+            WHERE contrato_id = ? AND mes_referencia LIKE ? AND ativo = 1
+        """, (contrato_id, f"%{mes:02d}/{ano}%"))
 
         faturas_relacionadas = cursor.fetchall()
 
@@ -3898,101 +3808,63 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         
         conn.commit()
         
-        # LÓGICA CONDICIONAL: Atualizar existente OU criar nova baseado no tipo_prestacao
-        prestacao_id = None
-
-        # SE for fatura_existente, tenta atualizar uma prestação existente primeiro
-        if tipo_prestacao == 'fatura_existente' and faturas_relacionadas:
-            # Buscar prestação existente não lançada para atualizar
+        # NOVO COMPORTAMENTO: Sempre criar nova prestacao (historico completo)
+        # print(f"HISTORICO COMPLETO: Sempre criando nova prestacao para contrato {contrato_id} em {mes:02d}/{ano}")
+        # print(f"Cada lancamento sera um registro unico - historico preservado")
+        
+        # Inserir nova prestação com contrato_id
+        if tem_contrato_id:
+            # print(f"Criando nova prestacao para contrato {contrato_id}")
             cursor.execute("""
-                SELECT id FROM PrestacaoContas
-                WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1
-                AND status IN ('pendente', 'paga') AND status != 'lancada'
-                ORDER BY data_criacao DESC
-            """, (contrato_id, f"{mes:02d}", str(ano)))
-
-            prestacao_existente = cursor.fetchone()
-            if prestacao_existente:
-                prestacao_id = prestacao_existente[0]
-                # Atualizar prestação existente
-                cursor.execute("""
-                    UPDATE PrestacaoContas
-                    SET valor_pago = ?, valor_vencido = ?, encargos = ?, deducoes = ?,
-                        total_bruto = ?, total_liquido = ?, status = ?,
-                        pagamento_atrasado = ?, observacoes_manuais = ?, data_atualizacao = GETDATE()
-                    WHERE id = ?
-                """, (
-                    dados_financeiros.get('valor_pago', 0),
-                    dados_financeiros.get('valor_vencido', 0),
-                    dados_financeiros.get('encargos', 0),
-                    dados_financeiros.get('deducoes', 0),
-                    dados_financeiros.get('total_bruto', 0),
-                    dados_financeiros.get('total_liquido', 0),
-                    status,
-                    status == 'atrasado',
-                    observacoes,
-                    prestacao_id
-                ))
-                print(f"Prestação existente atualizada - ID: {prestacao_id}")
-
-        # SE não foi atualizada uma existente, criar nova (comportamento original preservado)
-        if prestacao_id is None:
-            # print(f"HISTORICO COMPLETO: Criando nova prestacao para contrato {contrato_id} em {mes:02d}/{ano}")
-            # Inserir nova prestação com contrato_id
-            if tem_contrato_id:
-                # print(f"Criando nova prestacao para contrato {contrato_id}")
-                cursor.execute("""
-                INSERT INTO PrestacaoContas (
-                    locador_id, contrato_id, mes, ano, referencia, valor_pago, valor_vencido,
-                    encargos, deducoes, total_bruto, total_liquido, status,
-                    pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), 1)
-                """, (
-                    locador_id,
-                    contrato_id,
-                    f"{mes:02d}",
-                    str(ano),
-                    referencia,
-                    dados_financeiros.get('valor_pago', 0),
-                    dados_financeiros.get('valor_vencido', 0),
-                    dados_financeiros.get('encargos', 0),
-                    dados_financeiros.get('deducoes', 0),
-                    dados_financeiros.get('total_bruto', 0),
-                    dados_financeiros.get('total_liquido', 0),
-                    status,
-                    status == 'atrasado',
-                    observacoes,
-                    data_vencimento_calculada
-                ))
-            else:
-                # Fallback para versão sem contrato_id
-                # print(f"Criando nova prestacao (fallback - sem contrato_id)")
-                cursor.execute("""
-                INSERT INTO PrestacaoContas (
-                    locador_id, mes, ano, referencia, valor_pago, valor_vencido,
-                    encargos, deducoes, total_bruto, total_liquido, status,
-                    pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), 1)
-                """, (
-                    locador_id,
-                    f"{mes:02d}",
-                    str(ano),
-                    referencia,
-                    dados_financeiros.get('valor_pago', 0),
-                    dados_financeiros.get('valor_vencido', 0),
-                    dados_financeiros.get('encargos', 0),
-                    dados_financeiros.get('deducoes', 0),
-                    dados_financeiros.get('total_bruto', 0),
-                    dados_financeiros.get('total_liquido', 0),
-                    status,
-                    status == 'atrasado',
-                    observacoes,
-                    data_vencimento_calculada
-                ))
-
-            # Obter ID da prestação recém criada (apenas se foi criada nova)
-            cursor.execute("SELECT @@IDENTITY")
-            prestacao_id = cursor.fetchone()[0]
+            INSERT INTO PrestacaoContas (
+                locador_id, contrato_id, mes, ano, referencia, valor_pago, valor_vencido, 
+                encargos, deducoes, total_bruto, total_liquido, status, 
+                pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+            """, (
+                locador_id,
+                contrato_id,
+                f"{mes:02d}",
+                str(ano),
+                referencia,
+                dados_financeiros.get('valor_pago', 0),
+                dados_financeiros.get('valor_vencido', 0),
+                dados_financeiros.get('encargos', 0),
+                dados_financeiros.get('deducoes', 0),
+                dados_financeiros.get('total_bruto', 0),
+                dados_financeiros.get('total_liquido', 0),
+                status,
+                status == 'atrasado',
+                observacoes
+            ))
+        else:
+            # Fallback para versão sem contrato_id
+            # print(f"Criando nova prestacao (fallback - sem contrato_id)")
+            cursor.execute("""
+            INSERT INTO PrestacaoContas (
+                locador_id, mes, ano, referencia, valor_pago, valor_vencido, 
+                encargos, deducoes, total_bruto, total_liquido, status, 
+                pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+            """, (
+                locador_id,
+                f"{mes:02d}",
+                str(ano),
+                referencia,
+                dados_financeiros.get('valor_pago', 0),
+                dados_financeiros.get('valor_vencido', 0),
+                dados_financeiros.get('encargos', 0),
+                dados_financeiros.get('deducoes', 0),
+                dados_financeiros.get('total_bruto', 0),
+                dados_financeiros.get('total_liquido', 0),
+                status,
+                status == 'atrasado',
+                observacoes
+            ))
+        
+        # Obter ID da prestação recém criada
+        cursor.execute("SELECT @@IDENTITY")
+        prestacao_id = cursor.fetchone()[0]
         
         # Inserir lançamentos extras se houver
         if lancamentos_extras:
@@ -4075,7 +3947,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             fatura_ids = [str(fatura[0]) for fatura in faturas_relacionadas]
             if fatura_ids:
                 cursor.execute(f"""
-                    UPDATE PrestacaoContas
+                    UPDATE Faturas
                     SET status = 'lancada', data_atualizacao = GETDATE()
                     WHERE id IN ({','.join(['?' for _ in fatura_ids])}) AND status = 'paga'
                 """, fatura_ids)
@@ -4086,13 +3958,12 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         else:
             print(f"Nenhuma fatura encontrada para marcar como 'Lancada' para contrato {contrato_id} no mes {mes:02d}/{ano}")
 
-        # FUNCIONALIDADE 2: Marcar prestação como lançada (sempre quando for fatura_existente)
-        if tipo_prestacao == 'fatura_existente' or status == 'lancada':
-            cursor.execute("""
-                UPDATE PrestacaoContas
-                SET status = 'lancada', data_atualizacao = GETDATE()
-                WHERE id = ?
-            """, (prestacao_id,))
+        # FUNCIONALIDADE 2: Marcar prestação como imutável (adicionar flag de controle)
+        cursor.execute("""
+            UPDATE PrestacaoContas
+            SET status = 'lancada', data_atualizacao = GETDATE()
+            WHERE id = ?
+        """, (prestacao_id,))
 
         conn.commit()
         conn.close()
@@ -4270,18 +4141,6 @@ def calcular_prestacao_proporcional(contrato_id, data_entrada, data_saida, tipo_
             # Rescisão geralmente é o valor total do mês
             resultado['total'] = valor_aluguel
             print(f"RESCISAO: R${resultado['total']:.2f}")
-
-            # Calcular multa de rescisão (30% dos aluguéis restantes)
-            try:
-                multa_info = calcular_multa_proporcional(contrato_id, data_saida)
-                resultado['meses_restantes'] = multa_info.get('meses_restantes', 0)
-                resultado['taxa_rescisao'] = multa_info.get('taxa_rescisao', 0)
-                print(f"MULTA RESCISÃO: {resultado['meses_restantes']} meses restantes, taxa: R${resultado['taxa_rescisao']:.2f}")
-            except Exception as e:
-                print(f"Erro ao calcular multa de rescisão: {e}")
-                resultado['meses_restantes'] = 0
-                resultado['taxa_rescisao'] = 0
-
         else:
             resultado['total'] = resultado['proporcional_entrada'] + resultado['meses_completos'] + resultado['proporcional_saida']
             print(f"TOTAL: R${resultado['proporcional_entrada']:.2f} + R${resultado['meses_completos']:.2f} + R${resultado['proporcional_saida']:.2f} = R${resultado['total']:.2f}")
@@ -4482,36 +4341,11 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
                 print(f"   Bonificação proporcional: -R${bonificacao_proporcional:.2f} ({dias_utilizados}/{dias_no_mes} de R${bonificacao:.2f})")
                 print(f"   Total aluguel proporcional: R${resultado['valor_calculado']:.2f}")
                 print(f"NOTA: Multa é calculada sobre aluguel MENSAL COMPLETO (não proporcional)")
-
-                # Calcular multa de rescisão (30% dos aluguéis restantes)
-                try:
-                    data_rescisao_str = f"{ano}-{mes:02d}-{dias_utilizados:02d}"
-                    multa_info = calcular_multa_proporcional(contrato_id, data_rescisao_str)
-                    resultado['meses_restantes'] = multa_info.get('meses_restantes', 0)
-                    resultado['taxa_rescisao'] = multa_info.get('taxa_rescisao', 0)
-                    print(f"MULTA RESCISÃO: {resultado['meses_restantes']} meses restantes, taxa: R${resultado['taxa_rescisao']:.2f}")
-                except Exception as e:
-                    print(f"Erro ao calcular multa de rescisão: {e}")
-                    resultado['meses_restantes'] = 0
-                    resultado['taxa_rescisao'] = 0
-
             else:
                 # Se não tem data, usar mês completo
                 resultado['valor_calculado'] = valor_bruto_base
                 resultado['dias_utilizados'] = dias_no_mes
                 print(f"RESCISAO SEM DATA: Mês completo = R${valor_bruto_base:.2f}")
-
-                # Calcular multa de rescisão (30% dos aluguéis restantes)
-                try:
-                    data_rescisao_str = f"{ano}-{mes:02d}-{dias_no_mes:02d}"
-                    multa_info = calcular_multa_proporcional(contrato_id, data_rescisao_str)
-                    resultado['meses_restantes'] = multa_info.get('meses_restantes', 0)
-                    resultado['taxa_rescisao'] = multa_info.get('taxa_rescisao', 0)
-                    print(f"MULTA RESCISÃO: {resultado['meses_restantes']} meses restantes, taxa: R${resultado['taxa_rescisao']:.2f}")
-                except Exception as e:
-                    print(f"Erro ao calcular multa de rescisão: {e}")
-                    resultado['meses_restantes'] = 0
-                    resultado['taxa_rescisao'] = 0
         
         # Calcular valores finais com retenções
         valor_bruto = resultado['valor_calculado']
@@ -4547,8 +4381,8 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
         base_taxa_admin = valor_aluguel - bonificacao
         taxa_admin_completa = base_taxa_admin * (taxa_admin / 100)
         
-        # Taxa de boleto removida conforme solicitação
-        taxa_boleto = 0.00
+        # Taxa de boleto sempre cobrada
+        taxa_boleto = 2.50
         
         # Taxa de TED: (número_locadores - 1) × R$ 10,00
         cursor.execute("SELECT COUNT(*) FROM ContratoLocadores WHERE contrato_id = ?", (contrato_id,))
@@ -4570,29 +4404,15 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
             valor_total_retido = retencoes_variaveis + taxas_fixas
             
         elif tipo_calculo == 'Rescisão':
-            # Rescisão usa retenção proporcional aos dias ocupados + taxa de rescisão
+            # Rescisão usa retenção proporcional aos dias ocupados
             if data_saida:
                 dias_utilizados = int(data_saida)
                 retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
                 valor_total_retido = retencao_proporcional + taxas_fixas
-
-                # Adicionar taxa de rescisão (20% da multa) se calculada
-                taxa_rescisao_valor = resultado.get('taxa_rescisao', 0)
-                if taxa_rescisao_valor > 0:
-                    valor_total_retido += taxa_rescisao_valor
-                    print(f"RETENCAO RESCISAO: Proporcional {dias_utilizados} dias + Taxa Rescisão = R${valor_total_retido:.2f}")
-                else:
-                    print(f"RETENCAO RESCISAO: Proporcional {dias_utilizados} dias = R${valor_total_retido:.2f}")
+                print(f"RETENCAO RESCISAO: Proporcional {dias_utilizados} dias = R${valor_total_retido:.2f}")
             else:
                 valor_total_retido = retencoes_variaveis + taxas_fixas
-
-                # Adicionar taxa de rescisão (20% da multa) se calculada
-                taxa_rescisao_valor = resultado.get('taxa_rescisao', 0)
-                if taxa_rescisao_valor > 0:
-                    valor_total_retido += taxa_rescisao_valor
-                    print(f"RETENCAO RESCISAO: Mês completo + Taxa Rescisão = R${valor_total_retido:.2f}")
-                else:
-                    print(f"RETENCAO RESCISAO: Mês completo = R${valor_total_retido:.2f}")
+                print(f"RETENCAO RESCISAO: Mês completo = R${valor_total_retido:.2f}")
             
         elif tipo_calculo == 'Entrada':
             if metodo_calculo == "proporcional-dias":
@@ -4771,15 +4591,15 @@ def criar_exemplo_contrato3():
 
 def calcular_multa_proporcional(contrato_id, data_rescisao):
     """
-    Calcula multa de rescisão = 30% dos aluguéis restantes
-    Taxa de rescisão = 20% do valor da multa (vai para retidos)
-
+    Calcula multa proporcional conforme Lei 8.245/91
+    Multa = multa_contratual × (meses_restantes ÷ prazo_total)
+    
     Args:
         contrato_id: ID do contrato
         data_rescisao: Data da rescisão antecipada
-
+    
     Returns:
-        dict com valor da multa e taxa de rescisão
+        dict com valor da multa proporcional e detalhes do cálculo
     """
     from datetime import datetime, timedelta
     from dateutil.relativedelta import relativedelta
@@ -4903,31 +4723,26 @@ def calcular_multa_proporcional(contrato_id, data_rescisao):
             print(f"   Percentual Cumprido: {percentual_cumprido:.1f}%")
             print(f"   Percentual Restante: {percentual_restante:.1f}%")
             
-            # NOVA FÓRMULA: 30% dos aluguéis restantes
-            valor_alugueis_restantes = meses_restantes * contrato_data['valor_aluguel']
-
+            # Multa integral (sem proporcionalidade)
+            multa_integral = contrato_data['multa_meses'] * contrato_data['valor_aluguel']
+            
+            # Multa proporcional Lei 8.245/91
             if meses_restantes <= 0:
-                multa_rescisao = 0
-                taxa_rescisao = 0
+                multa_proporcional = 0
                 justificativa = "Contrato já cumpriu prazo integral - sem multa"
             else:
-                # Multa = 30% dos aluguéis restantes
-                multa_rescisao = valor_alugueis_restantes * 0.30
-                # Taxa de rescisão = 20% da multa (para retidos)
-                taxa_rescisao = multa_rescisao * 0.20
-                justificativa = f"Multa: 30% de R$ {valor_alugueis_restantes:,.2f} ({meses_restantes} meses × R$ {contrato_data['valor_aluguel']:,.2f})"
+                multa_proporcional = multa_integral * (meses_restantes / prazo_total_meses)
+                justificativa = f"Multa proporcional: {contrato_data['multa_meses']} meses × {meses_restantes}/{prazo_total_meses} = R$ {multa_proporcional:,.2f}"
             
             print(f"\nResultado:")
-            print(f"   Aluguéis Restantes: R$ {valor_alugueis_restantes:,.2f} ({meses_restantes} meses)")
-            print(f"   Multa Rescisão (30%): R$ {multa_rescisao:,.2f}")
-            print(f"   Taxa Rescisão (20% da multa): R$ {taxa_rescisao:,.2f}")
+            print(f"   Multa Integral: R$ {multa_integral:,.2f}")
+            print(f"   Multa Proporcional: R$ {multa_proporcional:,.2f}")
+            print(f"   Economia: R$ {multa_integral - multa_proporcional:,.2f}")
             print(f"   Justificativa: {justificativa}")
-
+            
             resultado = {
-                'multa_proporcional': round(multa_rescisao, 2),  # Compatibilidade
-                'multa': round(multa_rescisao, 2),
-                'taxa_rescisao': round(taxa_rescisao, 2),
-                'valor_alugueis_restantes': round(valor_alugueis_restantes, 2),
+                'multa_proporcional': round(multa_proporcional, 2),
+                'multa_integral': round(multa_integral, 2),
                 'meses_restantes': meses_restantes,
                 'meses_cumpridos': meses_cumpridos,
                 'prazo_total_meses': prazo_total_meses,
@@ -4937,7 +4752,7 @@ def calcular_multa_proporcional(contrato_id, data_rescisao):
                 'multa_meses': contrato_data['multa_meses'],
                 'justificativa': justificativa,
                 'contrato_dados': contrato_data,
-                'base_legal': 'Multa: 30% dos aluguéis restantes / Taxa: 20% da multa',
+                'base_legal': 'Lei 8.245/91 - Art. 4º - Multa proporcional ao tempo restante',
                 'data_inicio': data_inicio.isoformat(),
                 'data_fim': data_fim.isoformat(),
                 'data_rescisao': data_rescisao_dt.isoformat()

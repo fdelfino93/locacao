@@ -3918,8 +3918,8 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
         base_taxa_admin = valor_aluguel - bonificacao
         taxa_admin_completa = base_taxa_admin * (taxa_admin / 100)
         
-        # Taxa de boleto sempre cobrada
-        taxa_boleto = 2.50
+        # Taxa de boleto removida conforme solicitação
+        taxa_boleto = 0.00
         
         # Taxa de TED: (número_locadores - 1) × R$ 10,00
         cursor.execute("SELECT COUNT(*) FROM ContratoLocadores WHERE contrato_id = ?", (contrato_id,))
