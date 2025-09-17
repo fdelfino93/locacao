@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { motion } from 'framer-motion';
 import { Badge } from "@/components/ui/badge";
 import { InputWithIcon } from "@/components/ui/input-with-icon";
@@ -57,6 +57,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
 
   // ✅ CORREÇÃO: Estados para controlar quais valores do termo foram desabilitados pelo usuário
   const [valoresTermoDesabilitados, setValoresTermoDesabilitados] = useState<{[key: string]: boolean}>({});
+
+  // Estado para controlar valores deletados permanentemente (como lançamentos extras)
+  const [valoresDeletados, setValoresDeletados] = useState<{[key: string]: boolean}>({});
 
   // Novos estados para nova prestação
   const [tipoLancamento, setTipoLancamento] = useState<'entrada' | 'mensal' | 'rescisao'>('mensal');
@@ -189,12 +192,34 @@ export const PrestacaoContasLancamento: React.FC = () => {
     }
   }, [contratoSelecionado]);
 
-  // Recalcular prestação quando dados relevantes mudam
+  // Hook customizado para debounce
+  const useDebounce = (value: any, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
+  };
+
+  // Debounce dos lançamentos para evitar múltiplas chamadas à API
+  const debouncedLancamentos = useDebounce(lancamentos, 500);
+  const debouncedRetidos = useDebounce(retidosExtras, 500);
+  const debouncedValoresDesabilitados = useDebounce(valoresTermoDesabilitados, 500);
+
+  // Recalcular prestação quando dados relevantes mudam (com debounce)
   useEffect(() => {
     if (contratoSelecionado && tipoLancamento && isNovaPrestacao) {
       recalcularPrestacao();
     }
-  }, [contratoSelecionado, tipoLancamento, metodoCalculo, dataEntrada, dataRescisao, lancamentos, retidosExtras, valoresTermoDesabilitados, encargos, deducoes, observacoesLancamento]);
+  }, [contratoSelecionado, tipoLancamento, metodoCalculo, dataEntrada, dataRescisao, debouncedLancamentos, debouncedRetidos, debouncedValoresDesabilitados, encargos, deducoes, observacoesLancamento]);
 
   const buscarLocadores = async () => {
     setLoadingLocadores(true);
@@ -298,8 +323,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
     );
   };
 
-  // Função para recalcular prestação
-  const recalcularPrestacao = async () => {
+  // Função para recalcular prestação (com useCallback para evitar recriações)
+  const recalcularPrestacao = useCallback(async () => {
     if (!contratoSelecionado || !tipoLancamento) return;
 
     setCalculandoPrestacao(true);
@@ -337,7 +362,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
         id: Date.now() + Math.random(), // ID temporário
         descricao: lanc.descricao || 'Lançamento',
         valor: Number(lanc.valor) || 0,
-        tipo: lanc.tipo === 'despesa' ? 'debito' : 'credito'
+        tipo: (lanc.tipo === 'desconto' || lanc.tipo === 'ajuste') ? 'debito' : 'credito'
       }));
 
       // Definir método baseado no tipo de lançamento
@@ -379,7 +404,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
     } finally {
       setCalculandoPrestacao(false);
     }
-  };
+  }, [contratoSelecionado, tipoLancamento, metodoCalculo, dataEntrada, dataRescisao, lancamentos, retidosExtras, valoresTermoDesabilitados, encargos, deducoes, observacoesLancamento]);
 
   const adicionarLancamento = () => {
     const novoLancamento = {
@@ -404,6 +429,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
     }));
   };
 
+  // Função para deletar permanentemente valores (como lançamentos extras)
+  const deletarValorPermanente = (chave: string) => {
+    setValoresDeletados(prev => ({
+      ...prev,
+      [chave]: true
+    }));
+  };
+
 
   const atualizarLancamento = (index: number, campo: string, valor: any) => {
     const novosLancamentos = [...lancamentos];
@@ -419,13 +452,17 @@ export const PrestacaoContasLancamento: React.FC = () => {
   const aplicarValoresDesabilitados = (valores: any) => {
     const resultado = { ...valores };
 
-    // Zerar valores desabilitados pelo usuário
-    if (valoresTermoDesabilitados['valor_aluguel']) resultado.valor_aluguel = 0;
-    if (valoresTermoDesabilitados['valor_condominio']) resultado.valor_condominio = 0;
-    if (valoresTermoDesabilitados['valor_fci']) resultado.valor_fci = 0;
-    if (valoresTermoDesabilitados['valor_seguro_fianca']) resultado.valor_seguro_fianca = 0;
-    if (valoresTermoDesabilitados['valor_seguro_incendio']) resultado.valor_seguro_incendio = 0;
-    if (valoresTermoDesabilitados['valor_iptu']) resultado.valor_iptu = 0;
+    // Zerar valores desabilitados pelo usuário ou deletados permanentemente
+    if (valoresTermoDesabilitados['valor_aluguel'] || valoresDeletados['valor_aluguel']) resultado.valor_aluguel = 0;
+    if (valoresTermoDesabilitados['valor_condominio'] || valoresDeletados['valor_condominio']) resultado.valor_condominio = 0;
+    if (valoresTermoDesabilitados['valor_fci'] || valoresDeletados['valor_fci']) resultado.valor_fci = 0;
+    if (valoresTermoDesabilitados['valor_seguro_fianca'] || valoresDeletados['valor_seguro_fianca']) resultado.valor_seguro_fianca = 0;
+    if (valoresTermoDesabilitados['valor_seguro_incendio'] || valoresDeletados['valor_seguro_incendio']) resultado.valor_seguro_incendio = 0;
+    if (valoresTermoDesabilitados['valor_iptu'] || valoresDeletados['valor_iptu']) resultado.valor_iptu = 0;
+
+    // Zerar outros valores que podem ser deletados
+    if (valoresTermoDesabilitados['multa_rescisao'] || valoresDeletados['multa_rescisao']) resultado.multa_rescisao = 0;
+    if (valoresTermoDesabilitados['bonificacao'] || valoresDeletados['bonificacao']) resultado.bonificacao = 0;
 
     return resultado;
   };
@@ -459,6 +496,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
     });
 
     return resultado;
+  };
+
+  // Função para obter descrição do mês de referência
+  const obterDescricaoMesReferencia = () => {
+    const mesAtual = getMesReferenciaAtual();
+    if (!mesAtual) return 'Não definido';
+
+    try {
+      const [ano, mes] = mesAtual.split('-');
+      const data = new Date(parseInt(ano), parseInt(mes) - 1);
+      const mesNome = data.toLocaleDateString('pt-BR', { month: 'long' });
+      const mesCapitalizado = mesNome.charAt(0).toUpperCase() + mesNome.slice(1);
+      return `referente ao mês ${mes} de ${ano} (${mesCapitalizado})`;
+    } catch (error) {
+      return mesAtual;
+    }
   };
 
   // Função para formatar descrição do mês de referência
@@ -715,7 +768,15 @@ export const PrestacaoContasLancamento: React.FC = () => {
       valor_seguro_fianca: valoresPorTipo.valor_seguro_fianca || 0,
       valor_seguro_incendio: valoresPorTipo.valor_seguro_incendio || 0,
       valor_iptu: valoresPorTipo.valor_iptu || 0,
-      taxa_rescisao: (tipoLancamento === 'rescisao' && resultadoCalculo?.taxa_rescisao) ? resultadoCalculo.taxa_rescisao : 0
+      taxa_rescisao: (() => {
+        // Calcular taxa de rescisão localmente (20% da multa rescisória)
+        if (tipoLancamento === 'rescisao' && resultadoCalculo?.multa) {
+          const taxaCalculada = resultadoCalculo.multa * 0.20;
+          console.log('🔍 CALCULANDO Taxa de Rescisão - Multa:', resultadoCalculo.multa, 'Taxa (20%):', taxaCalculada);
+          return taxaCalculada;
+        }
+        return 0;
+      })()
     };
   };
 
@@ -731,10 +792,26 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
     
     // Incluir desconto por bonificação de pontualidade - apenas se não foi desabilitado
-    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
 
     return totalBruto - totalDescontos - descontoPontualidade;
   };
+
+  // Memoizar o cálculo do total para melhor performance
+  const totalBoletoCalculado = useMemo(() => {
+    const valoresPorTipo = obterValoresPorTipo();
+
+    // ✅ CORREÇÃO: Aplicar valores deletados nos fixos
+    const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
+    const totalFixos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) =>
+      total + (typeof valor === 'number' ? valor : 0), 0);
+
+    const totalExtras = lancamentos.reduce((total, lanc) =>
+      lanc.tipo === 'desconto' || lanc.tipo === 'ajuste' ? total - lanc.valor : total + lanc.valor, 0);
+    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+    const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
+    return totalFixos + totalExtras - descontoPontualidade + multaRescisao;
+  }, [lancamentos, valoresTermoDesabilitados, valoresDeletados, contratoSelecionado, tipoLancamento, resultadoCalculo]);
 
   const calcularTotais = () => {
     // Se temos um resultado calculado pela API, usar esses valores
@@ -745,39 +822,46 @@ export const PrestacaoContasLancamento: React.FC = () => {
       // ✅ CORREÇÃO: Calcular repasse corretamente baseado nos valores corrigidos
       const valorBoletoCorrigido = (() => {
         const valoresPorTipo = obterValoresPorTipo();
+        const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
         const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
         const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
-        const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
+        const subtotalLancamentos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
           lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
         const totalBruto = subtotalLancamentos + valorVencido;
         const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
-        const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
-        return totalBruto - totalDescontos - descontoPontualidade;
+        const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+        const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
+        return totalBruto - totalDescontos - descontoPontualidade + multaRescisao;
       })();
 
       const totalRetidoCorrigido = (() => {
         let total = 0;
         const valoresRetidos = obterValoresRetidos();
-        if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio']) {
+        if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio'] && !valoresDeletados['retido_condominio']) {
           total += valoresRetidos.valor_condominio;
         }
-        if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci']) {
+        if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci'] && !valoresDeletados['retido_fci']) {
           total += valoresRetidos.valor_fci;
         }
-        if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca']) {
+        if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca'] && !valoresDeletados['retido_seguro_fianca']) {
           total += valoresRetidos.valor_seguro_fianca;
         }
-        if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio']) {
+        if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio'] && !valoresDeletados['retido_seguro_incendio']) {
           total += valoresRetidos.valor_seguro_incendio;
         }
-        if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu']) {
+        if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu'] && !valoresDeletados['retido_iptu']) {
           total += valoresRetidos.valor_iptu;
         }
-        if (!valoresTermoDesabilitados['taxa_admin']) {
+        if (!valoresTermoDesabilitados['taxa_admin'] && !valoresDeletados['taxa_admin']) {
           total += resultadoCalculo.breakdown_retencao?.taxa_admin || 0;
         }
-        if (!valoresTermoDesabilitados['taxa_transferencia']) {
+        if (!valoresTermoDesabilitados['taxa_transferencia'] && !valoresDeletados['taxa_transferencia']) {
           total += Math.max(0, (resultadoCalculo.breakdown_retencao?.outros || 0));
+        }
+        // Taxa de rescisão (20% da multa) - apenas para rescisão
+        if (tipoLancamento === 'rescisao' && valoresRetidos.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao'] && !valoresDeletados['taxa_rescisao']) {
+          console.log('🔍 CALCULAR TOTAIS - SOMANDO Taxa de Rescisão:', valoresRetidos.taxa_rescisao);
+          total += valoresRetidos.taxa_rescisao;
         }
         total += retidosExtras.reduce((sum, retido) => sum + retido.valor, 0);
         return total;
@@ -794,16 +878,18 @@ export const PrestacaoContasLancamento: React.FC = () => {
         valorBoleto: (() => {
           // ✅ CORREÇÃO: Calcular valorBoleto manual respeitando exclusões
           const valoresPorTipo = obterValoresPorTipo();
+          const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
           const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
           const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
 
-          const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
+          const subtotalLancamentos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
             lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
           const totalBruto = subtotalLancamentos + valorVencido;
           const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
-          const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+          const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+          const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
 
-          return totalBruto - totalDescontos - descontoPontualidade;
+          return totalBruto - totalDescontos - descontoPontualidade + multaRescisao;
         })(),
         totalRetido: (() => {
           // ✅ CORREÇÃO: Calcular totalRetido manual mesmo com API
@@ -811,28 +897,34 @@ export const PrestacaoContasLancamento: React.FC = () => {
           const valoresRetidos = obterValoresRetidos();
 
           // Valores retidos do contrato - verificar exclusões
-          if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio']) {
+          if (contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio'] && !valoresDeletados['retido_condominio']) {
             total += valoresRetidos.valor_condominio;
           }
-          if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci']) {
+          if (contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci'] && !valoresDeletados['retido_fci']) {
             total += valoresRetidos.valor_fci;
           }
-          if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca']) {
+          if (contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca'] && !valoresDeletados['retido_seguro_fianca']) {
             total += valoresRetidos.valor_seguro_fianca;
           }
-          if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio']) {
+          if (contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio'] && !valoresDeletados['retido_seguro_incendio']) {
             total += valoresRetidos.valor_seguro_incendio;
           }
-          if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu']) {
+          if (contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu'] && !valoresDeletados['retido_iptu']) {
             total += valoresRetidos.valor_iptu;
           }
 
           // Taxas administrativas
-          if (!valoresTermoDesabilitados['taxa_admin']) {
+          if (!valoresTermoDesabilitados['taxa_admin'] && !valoresDeletados['taxa_admin']) {
             total += resultadoCalculo.breakdown_retencao?.taxa_admin || 0;
           }
-          if (!valoresTermoDesabilitados['taxa_transferencia']) {
+          if (!valoresTermoDesabilitados['taxa_transferencia'] && !valoresDeletados['taxa_transferencia']) {
             total += Math.max(0, (resultadoCalculo.breakdown_retencao?.outros || 0));
+          }
+
+          // Taxa de rescisão (20% da multa) - apenas para rescisão
+          if (tipoLancamento === 'rescisao' && valoresRetidos.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao'] && !valoresDeletados['taxa_rescisao']) {
+            console.log('🔍 API SECTION - SOMANDO Taxa de Rescisão:', valoresRetidos.taxa_rescisao);
+            total += valoresRetidos.taxa_rescisao;
           }
 
           // Retidos extras
@@ -919,9 +1011,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
     
     const valoresPorTipo = obterValoresPorTipo();
-    
+    const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
+
     // Subtotal dos lançamentos (sem acréscimos por atraso)
-    const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) + 
+    const subtotalLancamentos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
       lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
     
     // Total bruto incluindo acréscimos por atraso
@@ -929,11 +1022,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
     
     // Incluir desconto por bonificação de pontualidade - apenas se não foi desabilitado
-    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
     const totalDescontosComBonificacao = totalDescontos + descontoPontualidade;
 
-    // Valor do boleto = subtotal + acréscimos - descontos (incluindo bonificação)
-    const valorBoleto = totalBruto - totalDescontosComBonificacao;
+    // Incluir multa rescisória quando aplicável
+    const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
+
+    // Valor do boleto = subtotal + acréscimos - descontos (incluindo bonificação) + multa rescisória
+    const valorBoleto = totalBruto - totalDescontosComBonificacao + multaRescisao;
 
     // Cálculos de retenção baseados na configuração
     // Para lançamento de fatura, usar locadores do contrato, não proprietarios do estado
@@ -976,7 +1072,8 @@ export const PrestacaoContasLancamento: React.FC = () => {
     }
 
     // Taxa de rescisão (20% da multa) - apenas para rescisão
-    if (tipoLancamento === 'rescisao' && valoresRetidos.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao']) {
+    if (tipoLancamento === 'rescisao' && valoresRetidos.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao'] && !valoresDeletados['taxa_rescisao']) {
+      console.log('🔍 SOMANDO Taxa de Rescisão:', valoresRetidos.taxa_rescisao);
       totalRetido += valoresRetidos.taxa_rescisao;
     }
 
@@ -2202,6 +2299,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           return (
                             <>
                               {/* Aluguel - Valor Principal */}
+                              {!valoresDeletados['valor_aluguel'] && (
                               <div className="p-4 bg-background border border-border rounded-xl">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-3 flex-1">
@@ -2225,7 +2323,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                       +{formatCurrency(obterValoresPorTipo().valor_aluguel || 0)}
                                     </span>
                                     <Button
-                                      onClick={() => toggleValorTermo('valor_aluguel')}
+                                      onClick={() => deletarValorPermanente('valor_aluguel')}
                                       variant="ghost"
                                       size="sm"
                                       className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2235,9 +2333,10 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   </div>
                                 </div>
                               </div>
+                              )}
 
                               {/* Condomínio */}
-                              {obterValoresPorTipo().valor_condominio > 0 && !valoresTermoDesabilitados['valor_condominio'] && (
+                              {obterValoresPorTipo().valor_condominio > 0 && !valoresTermoDesabilitados['valor_condominio'] && !valoresDeletados['valor_condominio'] && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -2248,7 +2347,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                       </div>
                                       <div className="flex-1">
                                         <p className="font-medium text-foreground">Condomínio</p>
-                                        <p className="text-xs text-muted-foreground">Valor do termo</p>
+                                        <p className="text-xs text-muted-foreground">{obterDescricaoMesReferencia()}</p>
                                       </div>
                                     </div>
                                     <div className="flex items-center space-x-3">
@@ -2256,7 +2355,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(obterValoresPorTipo().valor_condominio)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('valor_condominio')}
+                                        onClick={() => deletarValorPermanente('valor_condominio')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2291,7 +2390,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(obterValoresPorTipo().valor_fci)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('valor_fci')}
+                                        onClick={() => deletarValorPermanente('valor_fci')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2304,7 +2403,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* Seguro Fiança */}
-                              {temSeguroFiancaConfigurado() && (
+                              {temSeguroFiancaConfigurado() && !valoresDeletados['valor_seguro_fianca'] && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -2329,7 +2428,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(obterValoresPorTipo().valor_seguro_fianca)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('valor_seguro_fianca')}
+                                        onClick={() => deletarValorPermanente('valor_seguro_fianca')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2342,7 +2441,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* Seguro Incêndio */}
-                              {temSeguroIncendioConfigurado() && (
+                              {temSeguroIncendioConfigurado() && !valoresDeletados['valor_seguro_incendio'] && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -2367,7 +2466,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(obterValoresPorTipo().valor_seguro_incendio)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('valor_seguro_incendio')}
+                                        onClick={() => deletarValorPermanente('valor_seguro_incendio')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2380,7 +2479,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* IPTU */}
-                              {temIPTUConfigurado() && (
+                              {temIPTUConfigurado() && !valoresDeletados['valor_iptu'] && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -2405,7 +2504,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(obterValoresPorTipo().valor_iptu)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('valor_iptu')}
+                                        onClick={() => deletarValorPermanente('valor_iptu')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2418,7 +2517,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               )}
 
                               {/* Multa Rescisória - Exibir quando for rescisão e API já calculou */}
-                              {tipoLancamento === 'rescisao' && resultadoCalculo && resultadoCalculo.multa > 0 && !valoresTermoDesabilitados['multa_rescisao'] && (
+                              {tipoLancamento === 'rescisao' && resultadoCalculo && resultadoCalculo.multa > 0 && !valoresTermoDesabilitados['multa_rescisao'] && !valoresDeletados['multa_rescisao'] && (
                                 <div className="p-3 bg-background border border-border rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3 flex-1">
@@ -2437,7 +2536,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         +{formatCurrency(resultadoCalculo.multa)}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('multa_rescisao')}
+                                        onClick={() => deletarValorPermanente('multa_rescisao')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2479,7 +2578,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                         })())}
                                       </span>
                                       <Button
-                                        onClick={() => toggleValorTermo('bonificacao')}
+                                        onClick={() => deletarValorPermanente('bonificacao')}
                                         variant="ghost"
                                         size="sm"
                                         className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2575,22 +2674,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             </span>
                           </div>
                           <span className="text-xl font-bold text-foreground">
-                            {formatCurrency((() => {
-                              // Se temos resultado da API, usar o valor total dela
-                              if (resultadoCalculo && isNovaPrestacao) {
-                                return resultadoCalculo.valor_boleto;
-                              }
-                              
-                              // Caso contrário, calcular manualmente
-                              const valoresPorTipo = obterValoresPorTipo();
-                              const totalFixos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => 
-                                total + (typeof valor === 'number' ? valor : 0), 0);
-                              const totalExtras = lancamentos.reduce((total, lanc) => 
-                                lanc.tipo === 'desconto' || lanc.tipo === 'ajuste' ? total - lanc.valor : total + lanc.valor, 0);
-                              const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
-                              const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa) ? resultadoCalculo.multa : 0;
-                              return totalFixos + totalExtras - descontoPontualidade + multaRescisao;
-                            })())}
+                            {formatCurrency(totalBoletoCalculado)}
                           </span>
                         </div>
                       </div>
@@ -2737,7 +2821,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
 
                         {/* Retenções baseadas nos campos retido_* do contrato */}
-                        {contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio'] && (
+                        {contratoSelecionado?.retido_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['retido_condominio'] && !valoresDeletados['retido_condominio'] && (
                           <div className="p-3 bg-background border border-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -2748,7 +2832,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 </div>
                                 <div className="flex-1">
                                   <p className="font-medium text-foreground">Condomínio (Retido)</p>
-                                  <p className="text-xs text-muted-foreground">Valor do termo</p>
+                                  <p className="text-xs text-muted-foreground">{obterDescricaoMesReferencia()}</p>
                                 </div>
                               </div>
                               <div className="flex items-center space-x-3">
@@ -2756,7 +2840,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValoresRetidos().valor_condominio)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('retido_condominio')}
+                                  onClick={() => deletarValorPermanente('retido_condominio')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2768,7 +2852,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
 
-                        {contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci'] && (
+                        {contratoSelecionado?.retido_fci && contratoSelecionado?.valor_fci > 0 && !valoresTermoDesabilitados['retido_fci'] && !valoresDeletados['retido_fci'] && (
                           <div className="p-3 bg-background border border-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -2787,7 +2871,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValoresRetidos().valor_fci)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('retido_fci')}
+                                  onClick={() => deletarValorPermanente('retido_fci')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2799,7 +2883,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
 
-                        {contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca'] && (
+                        {contratoSelecionado?.retido_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['retido_seguro_fianca'] && !valoresDeletados['retido_seguro_fianca'] && (
                           <div className="p-3 bg-background border border-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -2823,7 +2907,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValoresRetidos().valor_seguro_fianca)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('retido_seguro_fianca')}
+                                  onClick={() => deletarValorPermanente('retido_seguro_fianca')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2835,7 +2919,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
 
-                        {contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio'] && (
+                        {contratoSelecionado?.retido_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['retido_seguro_incendio'] && !valoresDeletados['retido_seguro_incendio'] && (
                           <div className="p-3 bg-background border border-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -2859,7 +2943,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValoresRetidos().valor_seguro_incendio)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('retido_seguro_incendio')}
+                                  onClick={() => deletarValorPermanente('retido_seguro_incendio')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2871,7 +2955,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
 
-                        {contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu'] && (
+                        {contratoSelecionado?.retido_iptu && contratoSelecionado?.valor_iptu > 0 && !valoresTermoDesabilitados['retido_iptu'] && !valoresDeletados['retido_iptu'] && (
                           <div className="p-3 bg-background border border-border rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -2895,7 +2979,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValoresRetidos().valor_iptu)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('retido_iptu')}
+                                  onClick={() => deletarValorPermanente('retido_iptu')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2915,6 +2999,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         </div>
 
                         {/* Taxa de Administração */}
+                        {!valoresDeletados['taxa_admin'] && (
                         <div className="p-3 bg-background border border-border rounded-lg">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3 flex-1">
@@ -2935,7 +3020,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 +{formatCurrency(calcularTotais().taxaAdmin)}
                               </span>
                               <Button
-                                onClick={() => toggleValorTermo('taxa_admin')}
+                                onClick={() => deletarValorPermanente('taxa_admin')}
                                 variant="ghost"
                                 size="sm"
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2945,6 +3030,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                        )}
 
                         {/* Taxa de Boleto removida - não exibir mais */}
 
@@ -2954,7 +3040,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           const taxaTransferenciaTotal = calcularTotais().taxaTransferencia;
                           const locadoresAdicionais = Math.max(0, numLocadores - 1);
                           
-                          return locadoresAdicionais > 0 && (
+                          return locadoresAdicionais > 0 && !valoresDeletados['taxa_transferencia'] && (
                             <div className="p-3 bg-background border border-border rounded-lg">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3 flex-1">
@@ -2975,7 +3061,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                     +{formatCurrency(taxaTransferenciaTotal)}
                                   </span>
                                   <Button
-                                    onClick={() => toggleValorTermo('taxa_transferencia')}
+                                    onClick={() => deletarValorPermanente('taxa_transferencia')}
                                     variant="ghost"
                                     size="sm"
                                     className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -2990,7 +3076,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                       </div>
 
                       {/* Taxa de Rescisão - 20% da multa de rescisão */}
-                      {tipoLancamento === 'rescisao' && resultadoCalculo?.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao'] && (
+                      {tipoLancamento === 'rescisao' && resultadoCalculo?.taxa_rescisao > 0 && !valoresTermoDesabilitados['taxa_rescisao'] && !valoresDeletados['taxa_rescisao'] && (
                         <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3 flex-1">
@@ -3012,7 +3098,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                 +{formatCurrency(resultadoCalculo?.taxa_rescisao || 0)}
                               </span>
                               <Button
-                                onClick={() => toggleValorTermo('taxa_rescisao')}
+                                onClick={() => deletarValorPermanente('taxa_rescisao')}
                                 variant="ghost"
                                 size="sm"
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -3033,7 +3119,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         )}
                         
                         {/* Valores Antecipados do Contrato */}
-                        {contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['antecipa_condominio'] && (
+                        {contratoSelecionado?.antecipa_condominio && contratoSelecionado?.valor_condominio > 0 && !valoresTermoDesabilitados['antecipa_condominio'] && !valoresDeletados['antecipa_condominio'] && (
                           <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -3055,7 +3141,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(contratoSelecionado?.valor_condominio * 0.05)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('antecipa_condominio')}
+                                  onClick={() => deletarValorPermanente('antecipa_condominio')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -3067,7 +3153,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
                         
-                        {contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['antecipa_seguro_fianca'] && (
+                        {contratoSelecionado?.antecipa_seguro_fianca && contratoSelecionado?.valor_seguro_fianca > 0 && !valoresTermoDesabilitados['antecipa_seguro_fianca'] && !valoresDeletados['antecipa_seguro_fianca'] && (
                           <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -3089,7 +3175,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValorMensalSeguroFianca() * 0.05)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('antecipa_seguro_fianca')}
+                                  onClick={() => deletarValorPermanente('antecipa_seguro_fianca')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -3101,7 +3187,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                           </div>
                         )}
                         
-                        {contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['antecipa_seguro_incendio'] && (
+                        {contratoSelecionado?.antecipa_seguro_incendio && contratoSelecionado?.valor_seguro_incendio > 0 && !valoresTermoDesabilitados['antecipa_seguro_incendio'] && !valoresDeletados['antecipa_seguro_incendio'] && (
                           <div className="p-4 bg-gradient-to-r from-background to-muted/30 border border-border rounded-xl">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3 flex-1">
@@ -3123,7 +3209,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                                   +{formatCurrency(obterValorMensalSeguroIncendio() * 0.05)}
                                 </span>
                                 <Button
-                                  onClick={() => toggleValorTermo('antecipa_seguro_incendio')}
+                                  onClick={() => deletarValorPermanente('antecipa_seguro_incendio')}
                                   variant="ghost"
                                   size="sm"
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -3701,7 +3787,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                         })()}%):</span>
                         <span className="text-xs font-medium text-red-600">-{formatCurrency((() => {
                           const valorAluguel = contratoSelecionado?.valor_aluguel || 0;
-                          const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
+                          const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
                           const baseCalculo = valorAluguel - descontoPontualidade;
                           const percentualAdmin = contratoSelecionado?.taxa_administracao || configuracaoRetencoes.percentual_admin;
                           return baseCalculo * (percentualAdmin / 100);
