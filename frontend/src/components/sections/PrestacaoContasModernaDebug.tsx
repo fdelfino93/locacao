@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithIcon } from "@/components/ui/input-with-icon";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown, Hash, Building, User, Users } from 'lucide-react';
+import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown, Hash, Building, User, Users, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
@@ -345,7 +346,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     }
   };
 
-  const abrirDetalheBoleto = (fatura: Fatura) => {
+  const abrirDetalheBoleto = async (fatura: Fatura) => {
     console.log('👁️ Abrindo detalhes do boleto:', fatura.numero_fatura);
     console.log('💰 Dados da fatura para detalhes:', {
       id: fatura.id,
@@ -353,6 +354,35 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       valor_total: fatura.valor_total,
       valor_liquido: fatura.valor_liquido
     });
+
+    // 🔍 Buscar dados de prestação se existirem
+    try {
+      console.log('🔍 Buscando prestação para contrato:', fatura.contrato_id);
+      const response = await fetch(`http://localhost:8000/api/prestacao-contas/contrato/${fatura.contrato_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Prestações encontradas:', data);
+
+        // Verificar se há prestação para a mesma referência
+        const prestacaoCorrespondente = data.prestacoes?.find((p: any) => {
+          const prestacaoRef = `${p.mes_referencia}/${p.ano_referencia}`;
+          const faturaRef = fatura.mes_referencia;
+          return prestacaoRef === faturaRef ||
+                 prestacaoRef === fatura.referencia_display?.replace(' ', '/').toLowerCase();
+        });
+
+        if (prestacaoCorrespondente) {
+          console.log('🎯 Prestação correspondente encontrada:', prestacaoCorrespondente);
+          // Adicionar dados da prestação à fatura
+          (fatura as any).prestacaoData = prestacaoCorrespondente;
+        }
+      } else {
+        console.log('ℹ️ Nenhuma prestação encontrada ou erro na busca');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar prestação:', error);
+    }
+
     setFaturaParaDetalhes(fatura);
     setShowDetalheBoleto(true);
   };
@@ -360,6 +390,180 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
   const fecharDetalheBoleto = () => {
     setShowDetalheBoleto(false);
     setFaturaParaDetalhes(null);
+  };
+
+  const gerarPDFDetalhamento = async (fatura: Fatura) => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      // Helper para formatar moeda
+      const formatMoney = (value: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+      // Helper para formatar data
+      const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('pt-BR');
+      };
+
+      // Configurações de fonte
+      pdf.setFont('helvetica');
+
+      // Cabeçalho
+      pdf.setFontSize(18);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('DETALHAMENTO DO BOLETO', 105, 20, { align: 'center' });
+
+      pdf.setFontSize(12);
+      pdf.text(`Boleto: ${fatura.numero_fatura || `#${fatura.id}`}`, 20, 35);
+      pdf.text(`Referência: ${fatura.referencia_display || fatura.mes_referencia}`, 20, 45);
+      pdf.text(`Data: ${formatDate(new Date().toISOString())}`, 150, 35);
+      pdf.text(`Vencimento: ${formatDate(fatura.data_vencimento)}`, 150, 45);
+
+      // Linha separadora
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(20, 55, 190, 55);
+
+      let yPos = 70;
+
+      // Informações do Contrato
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 100, 200);
+      pdf.text('INFORMAÇÕES DO CONTRATO', 20, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Proprietário: ${fatura.proprietario_nome || 'N/A'}`, 20, yPos);
+      pdf.text(`CPF: ${fatura.proprietario_cpf || 'N/A'}`, 120, yPos);
+      yPos += 7;
+      pdf.text(`Locatário: ${fatura.locatario_nome || 'N/A'}`, 20, yPos);
+      pdf.text(`CPF: ${fatura.locatario_cpf || 'N/A'}`, 120, yPos);
+      yPos += 7;
+      pdf.text(`Imóvel: ${fatura.imovel_endereco || 'N/A'}`, 20, yPos);
+      yPos += 15;
+
+      // Valores do Boleto
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 100, 200);
+      pdf.text('COMPOSIÇÃO DO BOLETO', 20, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+
+      // Lista de valores base
+      const valoresBase = [
+        { label: 'Aluguel', valor: fatura.valor_aluguel || 0 },
+        { label: 'IPTU', valor: fatura.valor_iptu || 0 },
+        { label: 'Seguro Fiança', valor: fatura.valor_seguro_fianca || 0 },
+        { label: 'Seguro Incêndio', valor: fatura.valor_seguro_incendio || 0 },
+        { label: 'Condomínio', valor: fatura.valor_condominio || 0 },
+        { label: 'Energia Elétrica', valor: fatura.valor_energia || 0 },
+        { label: 'Gás', valor: fatura.valor_gas || 0 },
+        { label: 'FCI', valor: fatura.valor_fci || 0 }
+      ];
+
+      valoresBase.forEach(({ label, valor }) => {
+        if (valor > 0) {
+          pdf.text(label + ':', 25, yPos);
+          pdf.text(formatMoney(valor), 150, yPos, { align: 'right' });
+          yPos += 6;
+        }
+      });
+
+      // Subtotal
+      const subtotal = valoresBase.reduce((acc, item) => acc + item.valor, 0);
+      pdf.setDrawColor(100, 100, 100);
+      pdf.line(25, yPos, 190, yPos);
+      yPos += 5;
+      pdf.setFontSize(11);
+      pdf.text('Subtotal:', 25, yPos);
+      pdf.text(formatMoney(subtotal), 150, yPos, { align: 'right' });
+      yPos += 10;
+
+      // Acréscimos por atraso
+      if (fatura.valor_acrescimos && fatura.valor_acrescimos > 0) {
+        pdf.setTextColor(200, 0, 0);
+        pdf.text(`Acréscimos (${fatura.dias_atraso || 0} dias):`, 25, yPos);
+        pdf.text(formatMoney(fatura.valor_acrescimos), 150, yPos, { align: 'right' });
+        yPos += 6;
+        pdf.setTextColor(0, 0, 0);
+      }
+
+      // Valor total do boleto
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.setDrawColor(0, 0, 0);
+      pdf.line(25, yPos, 190, yPos);
+      yPos += 8;
+      pdf.text('VALOR TOTAL DO BOLETO:', 25, yPos);
+      pdf.text(formatMoney(fatura.valor_total || 0), 150, yPos, { align: 'right' });
+      yPos += 15;
+
+      // Valores Retidos
+      pdf.setFontSize(14);
+      pdf.setTextColor(200, 100, 0);
+      pdf.text('VALORES RETIDOS', 20, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      const taxaAdmin = (fatura.valor_total || 0) * 0.1;
+      const taxaTransferencia = 10.00;
+      const totalRetido = taxaAdmin + taxaTransferencia;
+
+      pdf.text('Taxa de Administração (10%):', 25, yPos);
+      pdf.text(formatMoney(taxaAdmin), 150, yPos, { align: 'right' });
+      yPos += 6;
+      pdf.text('Taxa de Transferência:', 25, yPos);
+      pdf.text(formatMoney(taxaTransferencia), 150, yPos, { align: 'right' });
+      yPos += 6;
+
+      pdf.setDrawColor(100, 100, 100);
+      pdf.line(25, yPos, 190, yPos);
+      yPos += 5;
+      pdf.setFontSize(11);
+      pdf.text('Total Retido:', 25, yPos);
+      pdf.text(formatMoney(totalRetido), 150, yPos, { align: 'right' });
+      yPos += 15;
+
+      // Valor de Repasse
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 150, 0);
+      pdf.text('REPASSE AO PROPRIETÁRIO', 20, yPos);
+      yPos += 10;
+
+      const valorRepasse = (fatura.valor_total || 0) - totalRetido;
+      pdf.setFontSize(12);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('Valor a Repassar:', 25, yPos);
+      pdf.text(formatMoney(valorRepasse), 150, yPos, { align: 'right' });
+      yPos += 10;
+
+      // Buscar dados da prestação se existir
+      if ((fatura as any).prestacaoData) {
+        yPos += 10;
+        pdf.setFontSize(10);
+        pdf.setTextColor(0, 150, 0);
+        pdf.text('* Dados com base na prestação de contas salva', 20, yPos);
+        pdf.text(`Tipo: ${(fatura as any).prestacaoData.tipo_calculo?.toUpperCase() || 'N/A'}`, 20, yPos + 6);
+      }
+
+      // Rodapé
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Sistema de Gestão de Locações - CobiMob', 105, 280, { align: 'center' });
+      pdf.text(`Gerado em: ${formatDate(new Date().toISOString())} às ${new Date().toLocaleTimeString('pt-BR')}`, 105, 285, { align: 'center' });
+
+      // Salvar PDF
+      const fileName = `Detalhamento_${fatura.numero_fatura || `Boleto_${fatura.id}`}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+      toast.success('PDF gerado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast.error('Erro ao gerar PDF');
+    }
   };
 
   // Função para salvar edições de fatura
@@ -1137,7 +1341,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 numero_fatura: faturaParaDetalhes.numero_fatura,
                 valor_total_original: faturaParaDetalhes.valor_total
               })}
-              <DetalhamentoBoleto 
+              <DetalhamentoBoleto
                 boleto={{
                   numero_boleto: faturaParaDetalhes.numero_fatura,
                   valores_base: {
@@ -1189,19 +1393,31 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
             {/* Footer do Modal */}
             <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t px-6 py-4">
               <div className="flex items-center justify-between">
-                <Button 
+                <Button
                   onClick={fecharDetalheBoleto}
                   variant="outline"
                 >
                   Fechar
                 </Button>
-                <Button 
-                  onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
-                  className="btn-gradient"
-                >
-                  <Receipt className="w-4 h-4 mr-2" />
-                  Lançar Prestação
-                </Button>
+
+                <div className="flex items-center space-x-3">
+                  <Button
+                    onClick={() => gerarPDFDetalhamento(faturaParaDetalhes)}
+                    variant="outline"
+                    className="btn-outline"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Gerar PDF
+                  </Button>
+
+                  <Button
+                    onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
+                    className="btn-gradient"
+                  >
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Lançar Prestação
+                  </Button>
+                </div>
               </div>
             </div>
           </motion.div>

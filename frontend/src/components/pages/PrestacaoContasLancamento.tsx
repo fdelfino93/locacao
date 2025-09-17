@@ -1254,18 +1254,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
       console.log('🏷️ Tipo:', tipoLancamento);
       console.log('📄 Contrato:', contratoSelecionado?.id);
       
+      // ✅ CAPTURAR DADOS CALCULADOS para novos campos
+      const totaisCalculados = calcularTotais();
+      const multaRescisoria = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
+
       // Preparar dados para envio ao SQL Server via API backend - Inspirado no módulo antigo
       const dadosParaAPI = {
         contrato_id: isNovaPrestacao ? contratoSelecionado?.id : faturaParaLancamento?.contrato_id,
         tipo_prestacao: isNovaPrestacao ? tipoLancamento : 'fatura_existente',
-        
+
         // Configurações do cálculo (datas são obtidas do servidor)
         configuracao_calculo: isNovaPrestacao ? {
           tipo_calculo: tipoLancamento,
           desconto_percentual: deducoes,
           multa_valor: encargos
         } : null,
-        
+
         // Configurações da fatura
         configuracao_fatura: isNovaPrestacao ? {
           dia_vencimento: diaVencimento,
@@ -1276,7 +1280,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
           dias_antes_envio_email: diasAntesEnvioEmail,
           envio_whatsapp: envioWhatsapp
         } : null,
-        
+
         dados_financeiros: {
           valor_pago: valorPago,
           valor_vencido: valorVencido,
@@ -1288,7 +1292,53 @@ export const PrestacaoContasLancamento: React.FC = () => {
         status: statusLancamento,
         observacoes: observacoesLancamento,
         lancamentos_extras: lancamentos,
-        
+
+        // ✅ NOVOS CAMPOS - Solução híbrida
+        valor_boleto: totaisCalculados.valorBoleto,
+        total_retido: totaisCalculados.totalRetido,
+        valor_repasse: totaisCalculados.valorRepasse,
+        tipo_calculo: tipoLancamento,
+        multa_rescisoria: multaRescisoria,
+
+        // ✅ DETALHAMENTO COMPLETO em JSON
+        detalhamento_completo: {
+          // Dados do contrato
+          contrato: {
+            id: contratoSelecionado?.id,
+            codigo: contratoSelecionado?.codigo,
+            valor_aluguel: contratoSelecionado?.valor_aluguel,
+            taxa_administracao: contratoSelecionado?.taxa_administracao,
+            locadores: contratoSelecionado?.locadores || []
+          },
+
+          // Lançamentos
+          lancamentos: {
+            principais: lancamentosPrincipais || [],
+            extras: lancamentos || []
+          },
+
+          // Totais
+          totais: totaisCalculados,
+
+          // Configurações aplicadas
+          configuracoes: {
+            deducoes,
+            encargos,
+            dia_vencimento: diaVencimento,
+            mes_referencia: mesReferencia,
+            retencoes: configuracaoRetencoes
+          },
+
+          // Valores deletados/desabilitados para reconstrução
+          valores_termo_desabilitados: valoresTermoDesabilitados,
+          valores_deletados: valoresDeletados,
+          retidos_extras: retidosExtras,
+
+          // Metadata
+          data_criacao: new Date().toISOString(),
+          versao_sistema: "2.0_hibrido"
+        },
+
         // Incluir dados do contrato para referência
         contrato_dados: isNovaPrestacao ? contratoSelecionado : null,
         fatura_origem: !isNovaPrestacao ? faturaParaLancamento : null,

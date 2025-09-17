@@ -42,7 +42,7 @@ function App() {
     if (path.startsWith('/prestacao-contas/editar/')) {
       return 'edicao-fatura';
     }
-    
+
     if (path.startsWith('/locador/visualizar/')) {
       return 'locador-visualizar';
     }

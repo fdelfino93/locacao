@@ -3752,9 +3752,10 @@ def buscar_dados_bancarios_corretor(contrato_id):
 # FUNÇÕES PARA PRESTAÇÃO DE CONTAS
 # ==========================================
 
-def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, status, observacoes=None, 
-                          lancamentos_extras=None, contrato_dados=None, configuracao_calculo=None, 
-                          configuracao_fatura=None):
+def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, status, observacoes=None,
+                          lancamentos_extras=None, contrato_dados=None, configuracao_calculo=None,
+                          configuracao_fatura=None, detalhamento_completo=None, valor_boleto=None,
+                          total_retido=None, valor_repasse=None, tipo_calculo=None, multa_rescisoria=None):
     """Salva uma nova prestação de contas no banco de dados"""
     try:
         conn = get_conexao()
@@ -3941,13 +3942,13 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             # Inserir nova prestação com contrato_id
             if tem_contrato_id:
                 # print(f"Criando nova prestacao para contrato {contrato_id}")
-                cursor.execute("""
-                INSERT INTO PrestacaoContas (
-                    locador_id, contrato_id, mes, ano, referencia, valor_pago, valor_vencido,
-                    encargos, deducoes, total_bruto, total_liquido, status,
-                    pagamento_atrasado, observacoes_manuais, data_criacao, data_atualizacao, ativo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), 1)
-                """, (
+                # ✅ EXPANDIDO: Incluir novos campos se existirem
+                campos_insert = [
+                    'locador_id', 'contrato_id', 'mes', 'ano', 'referencia', 'valor_pago', 'valor_vencido',
+                    'encargos', 'deducoes', 'total_bruto', 'total_liquido', 'status',
+                    'pagamento_atrasado', 'observacoes_manuais', 'data_criacao', 'data_atualizacao', 'ativo'
+                ]
+                valores_insert = [
                     locador_id,
                     contrato_id,
                     f"{mes:02d}",
@@ -3963,7 +3964,54 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     status == 'atrasado',
                     observacoes,
                     data_vencimento_calculada
-                ))
+                ]
+
+                # ✅ ADICIONAR NOVOS CAMPOS (se fornecidos)
+                if valor_boleto is not None:
+                    campos_insert.append('valor_boleto')
+                    valores_insert.append(valor_boleto)
+
+                if total_retido is not None:
+                    campos_insert.append('total_retido')
+                    valores_insert.append(total_retido)
+
+                if valor_repasse is not None:
+                    campos_insert.append('valor_repasse')
+                    valores_insert.append(valor_repasse)
+
+                if tipo_calculo is not None:
+                    campos_insert.append('tipo_calculo')
+                    valores_insert.append(tipo_calculo)
+
+                if multa_rescisoria is not None:
+                    campos_insert.append('multa_rescisoria')
+                    valores_insert.append(multa_rescisoria)
+
+                if detalhamento_completo is not None:
+                    import json
+                    campos_insert.append('detalhamento_json')
+                    valores_insert.append(json.dumps(detalhamento_completo, ensure_ascii=False))
+
+                # Adicionar campos de data e ativo por último
+                campos_insert.extend(['data_criacao', 'data_atualizacao', 'ativo'])
+                valores_insert.extend([data_vencimento_calculada, 'GETDATE()', 1])
+
+                # Montar SQL dinamicamente
+                placeholders = []
+                valores_final = []
+                for i, campo in enumerate(campos_insert):
+                    if campo in ['data_atualizacao']:
+                        placeholders.append('GETDATE()')
+                    else:
+                        placeholders.append('?')
+                        valores_final.append(valores_insert[i])
+
+                sql_insert = f"""
+                    INSERT INTO PrestacaoContas ({', '.join(campos_insert)})
+                    VALUES ({', '.join(placeholders)})
+                """
+
+                cursor.execute(sql_insert, valores_final)
             else:
                 # Fallback para versão sem contrato_id
                 # print(f"Criando nova prestacao (fallback - sem contrato_id)")
@@ -4111,6 +4159,135 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             conn.rollback()
             conn.close()
         raise e
+
+def buscar_prestacao_detalhada(prestacao_id):
+    """Busca prestação de contas com todos os detalhes incluindo novos campos"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+
+        # Buscar prestação com todos os campos
+        cursor.execute("""
+            SELECT
+                id, contrato_id, mes, ano, status, valor_pago, valor_vencido,
+                encargos, deducoes, total_bruto, total_liquido, observacoes_manuais,
+                data_criacao, data_atualizacao,
+                -- Novos campos
+                valor_boleto, total_retido, valor_repasse, tipo_calculo,
+                multa_rescisoria, detalhamento_json
+            FROM PrestacaoContas
+            WHERE id = ? AND ativo = 1
+        """, (prestacao_id,))
+
+        prestacao = cursor.fetchone()
+        if not prestacao:
+            return None
+
+        # Converter para dicionário
+        prestacao_dict = {
+            'id': prestacao[0],
+            'contrato_id': prestacao[1],
+            'mes': prestacao[2],
+            'ano': prestacao[3],
+            'status': prestacao[4],
+            'valor_pago': prestacao[5],
+            'valor_vencido': prestacao[6],
+            'encargos': prestacao[7],
+            'deducoes': prestacao[8],
+            'total_bruto': prestacao[9],
+            'total_liquido': prestacao[10],
+            'observacoes_manuais': prestacao[11],
+            'data_criacao': prestacao[12].isoformat() if prestacao[12] else None,
+            'data_atualizacao': prestacao[13].isoformat() if prestacao[13] else None,
+            # Novos campos
+            'valor_boleto': prestacao[14],
+            'total_retido': prestacao[15],
+            'valor_repasse': prestacao[16],
+            'tipo_calculo': prestacao[17],
+            'multa_rescisoria': prestacao[18],
+            'detalhamento_json': prestacao[19]
+        }
+
+        # Parse do JSON se existir
+        if prestacao_dict['detalhamento_json']:
+            import json
+            try:
+                prestacao_dict['detalhamento_json'] = json.loads(prestacao_dict['detalhamento_json'])
+            except:
+                prestacao_dict['detalhamento_json'] = None
+
+        # Buscar dados do contrato
+        cursor.execute("""
+            SELECT c.id, c.codigo, c.valor_aluguel, c.taxa_administracao,
+                   i.endereco_completo, l.nome as locatario_nome,
+                   l.telefone as locatario_telefone, l.email as locatario_email
+            FROM Contratos c
+            LEFT JOIN Imoveis i ON c.id_imovel = i.id
+            LEFT JOIN Locatarios l ON c.id_locatario = l.id
+            WHERE c.id = ?
+        """, (prestacao_dict['contrato_id'],))
+
+        contrato = cursor.fetchone()
+        if contrato:
+            prestacao_dict['contrato'] = {
+                'id': contrato[0],
+                'codigo': contrato[1],
+                'valor_aluguel': contrato[2],
+                'taxa_administracao': contrato[3],
+                'imovel_endereco': contrato[4],
+                'locatario_nome': contrato[5],
+                'locatario_telefone': contrato[6],
+                'locatario_email': contrato[7]
+            }
+
+        conn.close()
+        return prestacao_dict
+
+    except Exception as e:
+        print(f"Erro ao buscar prestação detalhada: {e}")
+        return None
+
+def listar_prestacoes_contrato(contrato_id, limit=50):
+    """Lista prestações de um contrato específico"""
+    try:
+        conn = get_conexao()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                id, mes, ano, status, total_bruto, total_liquido,
+                valor_boleto, total_retido, valor_repasse, tipo_calculo,
+                data_criacao
+            FROM PrestacaoContas
+            WHERE contrato_id = ? AND ativo = 1
+            ORDER BY ano DESC, mes DESC
+            LIMIT ?
+        """, (contrato_id, limit))
+
+        prestacoes = cursor.fetchall()
+
+        resultado = []
+        for p in prestacoes:
+            resultado.append({
+                'id': p[0],
+                'mes': p[1],
+                'ano': p[2],
+                'status': p[3],
+                'total_bruto': p[4],
+                'total_liquido': p[5],
+                'valor_boleto': p[6],
+                'total_retido': p[7],
+                'valor_repasse': p[8],
+                'tipo_calculo': p[9],
+                'data_criacao': p[10].isoformat() if p[10] else None
+            })
+
+        conn.close()
+        return resultado
+
+    except Exception as e:
+        print(f"Erro ao listar prestações: {e}")
+        return []
 
 def calcular_prestacao_proporcional(contrato_id, data_entrada, data_saida, tipo_calculo, metodo_calculo="proporcional-dias"):
     """

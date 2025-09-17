@@ -61,8 +61,8 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
     valor_total: boleto.valor_total,
     valores_base: boleto.valores_base
   });
-  
-  const formatMoney = (value: number) => 
+
+  const formatMoney = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
   const formatDate = (dateString: string) => {
@@ -790,6 +790,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
           </Card>
         </motion.div>
       )}
+
     </div>
   );
 };

@@ -21,7 +21,9 @@ from repositories_adapter import (
     inserir_representante_legal_locador,
     # Novas funções híbridas
     obter_locadores_contrato_unificado, obter_locatarios_contrato_unificado,
-    buscar_contratos_ativos
+    buscar_contratos_ativos,
+    # Funções de prestação detalhada
+    buscar_prestacao_detalhada, listar_prestacoes_contrato
 )
 
 # Importar funções específicas para dashboard
@@ -1450,6 +1452,29 @@ async def dashboard_completo(mes: Optional[int] = None, ano: Optional[int] = Non
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar dashboard: {str(e)}")
+
+# Endpoints de Prestação Detalhada
+@app.get("/api/prestacao-contas/{prestacao_id}")
+async def buscar_prestacao_detalhada_endpoint(prestacao_id: int):
+    """Busca prestação de contas com detalhamento completo"""
+    try:
+        prestacao = buscar_prestacao_detalhada(prestacao_id)
+        if not prestacao:
+            raise HTTPException(status_code=404, detail="Prestação não encontrada")
+        return prestacao
+    except Exception as e:
+        print(f"Erro ao buscar prestação detalhada: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+@app.get("/api/prestacao-contas/contrato/{contrato_id}")
+async def listar_prestacoes_contrato_endpoint(contrato_id: int, limit: int = 50):
+    """Lista prestações de um contrato específico"""
+    try:
+        prestacoes = listar_prestacoes_contrato(contrato_id, limit)
+        return {"prestacoes": prestacoes, "total": len(prestacoes)}
+    except Exception as e:
+        print(f"Erro ao listar prestações do contrato: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 # Endpoints de Busca
 @app.get("/api/busca")
