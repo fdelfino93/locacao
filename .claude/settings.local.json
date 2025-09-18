@@ -80,7 +80,8 @@
       "Bash(node:*)",
       "Bash(git add:*)",
       "Bash(git push:*)",
-      "Bash(start http://localhost:3000/contratos)"
+      "Bash(start http://localhost:3000/contratos)",
+      "Bash(start http://localhost:3000/dashboard)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

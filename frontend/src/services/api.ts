@@ -52,16 +52,14 @@ export interface DashboardCompleto {
   timestamp: string;
 }
 
-import { API_CONFIG } from '../config/api';
-
-const API_BASE_URL = API_CONFIG.API_BASE_URL;
+import { getApiUrl } from '../config/api';
 
 class ApiService {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = getApiUrl(endpoint);
 
     const response = await fetch(url, {
       headers: {
@@ -184,43 +182,37 @@ class ApiService {
 
   // Métodos do Dashboard
   async obterMetricasDashboard(): Promise<DashboardMetricas> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/metricas`);
-    if (!response.ok) throw new Error('Erro ao buscar métricas');
-    return response.json();
+    const result = await this.request<DashboardMetricas>('/dashboard/metricas');
+    return result.data || result as any;
   }
 
   async obterOcupacaoDashboard(): Promise<DashboardOcupacao> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/ocupacao`);
-    if (!response.ok) throw new Error('Erro ao buscar ocupação');
-    return response.json();
+    const result = await this.request<DashboardOcupacao>('/dashboard/ocupacao');
+    return result.data || result as any;
   }
 
   async obterVencimentosDashboard(dias: number = 30): Promise<DashboardVencimento[]> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/vencimentos?dias=${dias}`);
-    if (!response.ok) throw new Error('Erro ao buscar vencimentos');
-    return response.json();
+    const result = await this.request<DashboardVencimento[]>(`/dashboard/vencimentos?dias=${dias}`);
+    return result.data || result as any;
   }
 
   async obterAlertasDashboard(): Promise<DashboardAlerta[]> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/alertas`);
-    if (!response.ok) throw new Error('Erro ao buscar alertas');
-    return response.json();
+    const result = await this.request<DashboardAlerta[]>('/dashboard/alertas');
+    return result.data || result as any;
   }
 
   async obterDashboardCompleto(mes?: number, ano?: number): Promise<DashboardCompleto> {
     const params = new URLSearchParams();
     if (mes) params.append('mes', mes.toString());
     if (ano) params.append('ano', ano.toString());
-    
-    const response = await fetch(`${API_BASE_URL}/dashboard/completo?${params}`);
-    if (!response.ok) throw new Error('Erro ao buscar dashboard');
-    return response.json();
+
+    const result = await this.request<DashboardCompleto>(`/dashboard/completo?${params}`);
+    return result.data || result as any;
   }
 
   async obterAlertasDashboardFiltrados(ativosApenas: boolean = true): Promise<DashboardAlerta[]> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/alertas?ativos_apenas=${ativosApenas}`);
-    if (!response.ok) throw new Error('Erro ao buscar alertas');
-    return response.json();
+    const result = await this.request<DashboardAlerta[]>(`/dashboard/alertas?ativos_apenas=${ativosApenas}`);
+    return result.data || result as any;
   }
 
   // Método público para requests customizados  
@@ -238,8 +230,8 @@ class ApiService {
 
   // Verifica se a API está viva
   async healthCheck(): Promise<{ status: string }> {
-    const response = await fetch(`${API_BASE_URL}/health`);
-    return response.json();
+    const result = await this.request<{ status: string }>('/health');
+    return result.data || result as any;
   }
 }
 
