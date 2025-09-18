@@ -52,6 +52,7 @@ import { ContractLandlordsForm } from './ContractLandlordsForm';
 import { ContractTenantsForm } from './ContractTenantsForm';
 import { ContractPropertyForm } from './ContractPropertyForm';
 import HistoricoContrato from '../contrato/HistoricoContrato';
+import { getApiUrl } from '../../config/api';
 
 interface Cliente {
   id: number;
@@ -257,9 +258,9 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
           if (contratoIdMatch) {
             const contratoId = parseInt(contratoIdMatch[2]);
             console.log('Carregando contrato ID:', contratoId);
-            console.log('🌐 Fazendo chamada para:', `http://192.168.1.159:8080/api/contratos/${contratoId}`);
+            console.log('🌐 Fazendo chamada para:', getApiUrl(`/contratos/${contratoId}`));
             
-            const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}`, {
+            const response = await fetch(getApiUrl(`/contratos/${contratoId}`), {
               signal: AbortSignal.timeout(10000) // 10 segundos timeout
             });
             if (response.ok) {
@@ -295,12 +296,12 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                       responsePlano,
                       responseDadosBancariosCorretor
                     ] = await Promise.all([
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/locadores`),
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/locatarios`),
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/pets`),
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/garantias`),
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/plano`),
-                      fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/corretor/dados-bancarios`)
+                      fetch(getApiUrl(`/contratos/${contratoId}/locadores`)),
+                      fetch(getApiUrl(`/contratos/${contratoId}/locatarios`)),
+                      fetch(getApiUrl(`/contratos/${contratoId}/pets`)),
+                      fetch(getApiUrl(`/contratos/${contratoId}/garantias`)),
+                      fetch(getApiUrl(`/contratos/${contratoId}/plano`)),
+                      fetch(getApiUrl(`/contratos/${contratoId}/corretor/dados-bancarios`))
                     ]);
 
                     // Carregar locadores
@@ -682,7 +683,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
           const contratoId = parseInt(contratoIdMatch[2]);
           console.log('Recarregando dados do contrato ID:', contratoId);
           
-          const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}`, {
+          const response = await fetch(getApiUrl(`/contratos/${contratoId}`), {
             signal: AbortSignal.timeout(10000) // 10 segundos timeout
           });
           if (response.ok) {
@@ -776,7 +777,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         };
         
         // 1. Criar dados básicos do contrato (usando contratoCompleto como handleSaveContract)
-        const responseContrato = await fetch('http://192.168.1.159:8080/api/contratos', {
+        const responseContrato = await fetch(getApiUrl('/contratos'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -799,7 +800,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         if (locadores && locadores.length > 0) {
           console.log('Salvando locadores...'); // Igual ao handleSaveContract
           console.log('📤 Dados dos locadores enviados:', JSON.stringify(locadores, null, 2));
-          const responseLocadores = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/locadores`, {
+          const responseLocadores = await fetch(getApiUrl(`/contratos/${contratoId}/locadores`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -834,7 +835,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
             return;
           }
           
-          const responseLocatarios = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/locatarios`, {
+          const responseLocatarios = await fetch(getApiUrl(`/contratos/${contratoId}/locatarios`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -868,7 +869,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         
         if (temGarantias) {
           console.log('4. Salvando garantias...');
-          const responseGarantias = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/garantias`, {
+          const responseGarantias = await fetch(getApiUrl(`/contratos/${contratoId}/garantias`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -896,7 +897,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         
         if (temPets) {
           console.log('5. Salvando pets...');
-          const responsePets = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/pets`, {
+          const responsePets = await fetch(getApiUrl(`/contratos/${contratoId}/pets`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -956,7 +957,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         console.log('Dados completos:', JSON.stringify(contratoData, null, 2));
         
         // 1. Salvar dados básicos do contrato
-        const responseContrato = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoData?.id}`, {
+        const responseContrato = await fetch(getApiUrl(`/contratos/${contratoData?.id}`), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -978,7 +979,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         if (locadores && locadores.length > 0) {
           console.log('Salvando locadores...');
           console.log('📤 Dados dos locadores enviados:', JSON.stringify(locadores, null, 2));
-          const responseLocadores = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoData?.id}/locadores`, {
+          const responseLocadores = await fetch(getApiUrl(`/contratos/${contratoData?.id}/locadores`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1013,7 +1014,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
             return;
           }
           
-          const responseLocatarios = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoData?.id}/locatarios`, {
+          const responseLocatarios = await fetch(getApiUrl(`/contratos/${contratoData?.id}/locatarios`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1049,7 +1050,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         
         if (temGarantias) {
           console.log('Salvando garantias...');
-          const responseGarantias = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoData?.id}/garantias`, {
+          const responseGarantias = await fetch(getApiUrl(`/contratos/${contratoData?.id}/garantias`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1075,7 +1076,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         
         if (petsData.quantidade_pets > 0) {
           console.log('Salvando pets...');
-          const responsePets = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoData?.id}/pets`, {
+          const responsePets = await fetch(getApiUrl(`/contratos/${contratoData?.id}/pets`), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -119,7 +119,7 @@ async def busca_global_endpoint(
         import requests
         try:
             api_response = requests.get(
-                f"http://localhost:8001/api/search/global",
+                f"http://{os.getenv('API_HOST', 'localhost')}:{os.getenv('API_PORT', '8001')}/api/search/global",
                 params={'q': termo_busca, 'limit': limite, 'offset': offset}
             )
             if api_response.ok:

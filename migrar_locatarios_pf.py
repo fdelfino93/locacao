@@ -19,7 +19,15 @@ from datetime import datetime
 import sys
 
 # Configurações
-API_BASE_URL = "http://localhost:8000/api"
+# Configurar URL da API baseada em variáveis de ambiente
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+API_PORT = os.getenv('API_PORT', '8000')
+API_HOST = os.getenv('API_HOST', 'localhost')
+API_BASE_URL = f"http://{API_HOST}:{API_PORT}/api"
 ARQUIVO_EXCEL = "pessoa_fisica.xlsx"
 
 def log(message):

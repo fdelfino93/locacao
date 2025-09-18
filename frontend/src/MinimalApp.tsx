@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ThemeToggle } from './components/ui/theme-toggle';
+import { API_CONFIG } from './config/api';
 
 // Importar apenas os componentes que funcionam 100%
 import { Hero } from './components/sections/Hero';
@@ -134,7 +135,7 @@ function MinimalApp() {
               </button>
               
               <button
-                onClick={() => window.open('http://192.168.1.159:8080/docs', '_blank')}
+                onClick={() => window.open(`${API_CONFIG.BASE_URL}/docs`, '_blank')}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 📚 Ver APIs (Swagger)

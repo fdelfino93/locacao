@@ -2191,4 +2191,7 @@ async def registrar_pagamento_fatura(fatura_id: int, request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="localhost", port=8000)
+    # Usar variáveis de ambiente para host e porta
+    host = os.getenv('API_HOST', 'localhost')
+    port = int(os.getenv('API_PORT', '8000'))
+    uvicorn.run(app, host=host, port=port)

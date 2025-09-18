@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  ArrowLeft, 
-  Edit, 
-  FileText, 
-  History, 
-  User, 
-  Building, 
+import {
+  ArrowLeft,
+  Edit,
+  FileText,
+  History,
+  User,
+  Building,
   Calendar,
   DollarSign,
   Settings
@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import HistoricoContrato from '../contrato/HistoricoContrato';
+import { getApiUrl } from '../../config/api';
 
 interface ContratoDetalhesProps {
   contratoId: number;
@@ -39,7 +40,7 @@ export const ContratoDetalhes: React.FC<ContratoDetalhesProps> = ({
   const fetchContrato = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}`);
+      const response = await fetch(getApiUrl(`/contratos/${contratoId}`));
       const data = await response.json();
       
       if (data.success) {

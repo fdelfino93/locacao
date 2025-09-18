@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
 import toast from "react-hot-toast";
 import { DetalhamentoBoleto } from "@/components/boletos/DetalhamentoBoleto";
+import { getApiUrl } from "../../config/api";
 
 export const PrestacaoContasModernaDebug: React.FC = () => {
   const [debugMessage, setDebugMessage] = useState("Componente carregado");
@@ -91,7 +92,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       if (anoSelecionado) statsParams.append('ano', anoSelecionado);
       if (searchTerm) statsParams.append('search', searchTerm);
 
-      const statsUrl = `http://192.168.1.159:8080/api/faturas?${statsParams.toString()}`;
+      const statsUrl = getApiUrl(`/faturas?${statsParams.toString()}`);
       const statsResponse = await fetch(statsUrl);
 
       if (statsResponse.ok) {
@@ -154,7 +155,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       params.append('order_by', sortField);
       params.append('order_dir', sortDirection);
 
-      const url = `http://192.168.1.159:8080/api/faturas?${params.toString()}`;
+      const url = getApiUrl(`/faturas?${params.toString()}`);
       console.log('🌐 URL completa da API:', url);
 
       const response = await fetch(url);
@@ -327,7 +328,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     setLoadingContratos(true);
     try {
       console.log('🔍 Buscando contratos disponíveis...');
-      const response = await fetch('http://192.168.1.159:8080/api/contratos');
+      const response = await fetch(getApiUrl('/contratos'));
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -358,7 +359,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     // 🔍 Buscar dados de prestação se existirem
     try {
       console.log('🔍 Buscando prestação para contrato:', fatura.contrato_id);
-      const response = await fetch(`http://192.168.1.159:8080/api/prestacao-contas/contrato/${fatura.contrato_id}`);
+      const response = await fetch(getApiUrl(`/prestacao-contas/contrato/${fatura.contrato_id}`));
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Prestações encontradas:', data);
@@ -653,7 +654,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://192.168.1.159:8080/api/faturas/${fatura.id}/status`, {
+      const response = await fetch(getApiUrl(`/faturas/${fatura.id}/status`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

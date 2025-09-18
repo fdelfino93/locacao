@@ -26,6 +26,7 @@ import {
   PawPrint
 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '../../config/api';
 
 interface Locatario {
   id: number;
@@ -86,14 +87,14 @@ export const LocatariosIndex: React.FC<LocatariosIndexProps> = ({
       setError(null);
       
       // Buscar todos os locatários usando API direta (que inclui campo 'ativo')
-      const response = await fetch('http://192.168.1.159:8080/api/locatarios');
+      const response = await fetch(getApiUrl('/locatarios'));
       const data = await response.json();
       
       if (data.success && data.data) {
         setLocatarios(data.data);
       } else {
         // Se não funcionar, usar busca geral
-        const searchResponse = await fetch('http://192.168.1.159:8080/api/busca?query=*&tipo=locatarios');
+        const searchResponse = await fetch(getApiUrl('/busca?query=*&tipo=locatarios'));
         const searchData = await searchResponse.json();
         
         if (searchData.success && searchData.data && searchData.data.locatarios) {

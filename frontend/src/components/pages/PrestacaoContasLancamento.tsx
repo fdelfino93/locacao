@@ -20,10 +20,11 @@ import { ConfiguracoesRetencaoForm } from "@/components/forms/ConfiguracoesReten
 import type { ProprietarioImovel, ConfiguracaoRetencoes } from "@/types/PrestacaoContas";
 import { calculoPrestacaoApi } from "@/services/calculoPrestacaoApi";
 import type { CalculoPrestacaoRequest, CalculoPrestacaoResponse } from "@/types/CalculoPrestacao";
+import { API_CONFIG } from "@/config/api";
 
 
 // Configuração da URL base da API
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://192.168.1.159:8080') + '/api';
+const API_BASE_URL = API_CONFIG.API_BASE_URL;
 
 export const PrestacaoContasLancamento: React.FC = () => {
   // Estados dos dados da transferência

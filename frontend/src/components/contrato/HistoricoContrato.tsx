@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  History, 
-  Clock, 
-  User, 
-  FileText, 
-  TrendingUp, 
-  RefreshCw, 
+import {
+  History,
+  Clock,
+  User,
+  FileText,
+  TrendingUp,
+  RefreshCw,
   Edit,
   AlertCircle,
   CheckCircle,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { getApiUrl } from '../../config/api';
 
 interface HistoricoItem {
   id: number;
@@ -46,7 +47,7 @@ export const HistoricoContrato: React.FC<HistoricoContratoProps> = ({ contratoId
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/historico`);
+      const response = await fetch(getApiUrl(`/contratos/${contratoId}/historico`));
       const data = await response.json();
 
       if (data.success) {

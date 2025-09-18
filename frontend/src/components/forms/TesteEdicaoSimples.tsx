@@ -9,6 +9,7 @@ import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import { ArrowLeft, Calendar, DollarSign, CreditCard, Check } from 'lucide-react';
+import { getApiUrl } from '../../config/api';
 
 interface Fatura {
   id: number;
@@ -59,7 +60,7 @@ export const TesteEdicaoSimples: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://192.168.1.159:8080/api/faturas?id=${faturaId}`);
+      const response = await fetch(getApiUrl(`/faturas?id=${faturaId}`));
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -114,7 +115,7 @@ export const TesteEdicaoSimples: React.FC = () => {
       setSalvando(true);
 
       // Atualizar fatura para status "paga" e definir data de pagamento
-      const response = await fetch(`http://192.168.1.159:8080/api/faturas/${fatura.id}/pagamento`, {
+      const response = await fetch(getApiUrl(`/faturas/${fatura.id}/pagamento`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

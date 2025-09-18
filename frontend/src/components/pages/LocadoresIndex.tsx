@@ -25,6 +25,7 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '../../config/api';
 
 interface Locador {
   id: number;
@@ -82,7 +83,7 @@ export const LocadoresIndex: React.FC<LocadoresIndexProps> = ({
       setError(null);
       
       // Buscar todos os locadores usando backend direto
-      const response = await fetch('http://192.168.1.159:8080/api/locadores');
+      const response = await fetch(getApiUrl('/locadores'));
       const data = await response.json();
       
       if (data.success && data.data) {

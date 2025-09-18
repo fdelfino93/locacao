@@ -12,11 +12,13 @@ load_dotenv()
 
 def get_conexao():
     connection_string = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+        f"DRIVER={{{os.getenv('DB_DRIVER')}}};"
         f"SERVER={os.getenv('DB_SERVER')};"
         f"DATABASE={os.getenv('DB_DATABASE')};"
         f"UID={os.getenv('DB_USER')};"
-        f"PWD={os.getenv('DB_PASSWORD')}"
+        f"PWD={os.getenv('DB_PASSWORD')};"
+        f"Encrypt={os.getenv('DB_ENCRYPT')};"
+        f"TrustServerCertificate={os.getenv('DB_TRUST_CERT')}"
     )
     return pyodbc.connect(connection_string)
 

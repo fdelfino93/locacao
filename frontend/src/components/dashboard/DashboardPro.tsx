@@ -14,6 +14,7 @@ import { OcupacaoChart } from './widgets/OcupacaoChart';
 import { apiService } from '@/services/api';
 import type { DashboardCompleto, DashboardMetricas, DashboardOcupacao, DashboardVencimento, DashboardAlerta } from '@/services/api';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '../../config/api';
 
 interface DashboardProProps {
   onNavigateToContratosVencendo?: () => void;
@@ -71,7 +72,7 @@ const DashboardPro: React.FC<DashboardProProps> = ({ onNavigateToContratosVencen
       setLoading(true);
       
       // Buscar dados dos contratos diretamente
-      const response = await fetch('http://192.168.1.159:8080/api/contratos');
+      const response = await fetch(getApiUrl('/contratos'));
       const data = await response.json();
       
       if (data.success && data.data) {

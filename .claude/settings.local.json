@@ -76,7 +76,9 @@
       "Bash(npx kill-port:*)",
       "Read(//c/Users/fernando/Documents/PY/**)",
       "Bash(start http://localhost:3005/prestacao-contas/editar/10)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(node:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

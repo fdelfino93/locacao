@@ -6,11 +6,16 @@ Implementa a nova lógica de componentes do boleto com cálculos específicos de
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pyodbc
+import os
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import json
 import logging
 from typing import Dict, List, Optional, Any
+
+# Carregar variáveis de ambiente
+load_dotenv()
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
@@ -19,19 +24,19 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# Configuração do banco de dados
-DB_CONFIG = {
-    'driver': '{ODBC Driver 17 for SQL Server}',
-    'server': 'localhost',
-    'database': 'LOCACAO',
-    'trusted_connection': 'yes'
-}
-
 def get_db_connection():
     """Conecta ao banco de dados SQL Server"""
     try:
-        conn_str = f"DRIVER={DB_CONFIG['driver']};SERVER={DB_CONFIG['server']};DATABASE={DB_CONFIG['database']};Trusted_Connection={DB_CONFIG['trusted_connection']}"
-        return pyodbc.connect(conn_str)
+        connection_string = (
+            f"DRIVER={{{os.getenv('DB_DRIVER')}}};"
+            f"SERVER={os.getenv('DB_SERVER')};"
+            f"DATABASE={os.getenv('DB_DATABASE')};"
+            f"UID={os.getenv('DB_USER')};"
+            f"PWD={os.getenv('DB_PASSWORD')};"
+            f"Encrypt={os.getenv('DB_ENCRYPT')};"
+            f"TrustServerCertificate={os.getenv('DB_TRUST_CERT')}"
+        )
+        return pyodbc.connect(connection_string)
     except Exception as e:
         logger.error(f"Erro ao conectar ao banco: {e}")
         raise

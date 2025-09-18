@@ -15,6 +15,7 @@ import { MetricasChart } from './widgets/MetricasChart';
 import { OcupacaoChart } from './widgets/OcupacaoChart';
 import type { DashboardCompleto, DashboardMetricas, DashboardOcupacao, DashboardVencimento, DashboardAlerta } from '@/services/api';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '../../config/api';
 
 const DashboardEnhanced: React.FC = () => {
   // Estados
@@ -54,7 +55,7 @@ const DashboardEnhanced: React.FC = () => {
       params.append('mes', selectedMonth.toString());
       params.append('ano', selectedYear.toString());
       
-      const response = await fetch(`http://192.168.1.159:8080/api/dashboard/completo?${params}`);
+      const response = await fetch(getApiUrl(`/dashboard/completo?${params}`));
       
       if (response.ok) {
         const data = await response.json();

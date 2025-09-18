@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ArrowRight
 } from 'lucide-react';
+import { getApiUrl } from '../../config/api';
 
 interface Contrato {
   id: number;
@@ -44,7 +45,7 @@ const Dashboard: React.FC = () => {
   const fetchContratos = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.1.159:8080/api/contratos');
+      const response = await fetch(getApiUrl('/contratos'));
       const data = await response.json();
       
       if (data.success && data.data) {

@@ -34,6 +34,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '../../config/api';
 
 interface Contrato {
   id: number;
@@ -104,7 +105,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
       setError(null);
       
       // Buscar contratos da API
-      const response = await fetch('http://192.168.1.159:8080/api/contratos');
+      const response = await fetch(getApiUrl('/contratos'));
       const data = await response.json();
       
       if (data.success && data.data) {
@@ -310,7 +311,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
 
   const updateContractStatusInBackground = async (contratoId: number, novoStatus: string) => {
     try {
-      await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/status`, {
+      await fetch(getApiUrl(`/contratos/${contratoId}/status`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -326,7 +327,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     try {
       console.log('Alterando status do contrato', contratoId, 'para:', novoStatus);
       
-      const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/status`, {
+      const response = await fetch(getApiUrl(`/contratos/${contratoId}/status`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

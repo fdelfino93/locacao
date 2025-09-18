@@ -10,12 +10,13 @@ def verificar_campos_banco():
     try:
         # Conectar ao banco
         connection_string = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"DRIVER={{{os.getenv('DB_DRIVER')}}};"
             f"SERVER={os.getenv('DB_SERVER')};"
             f"DATABASE={os.getenv('DB_DATABASE')};"
-            f"UID={os.getenv('DB_USERNAME')};"
+            f"UID={os.getenv('DB_USER')};"
             f"PWD={os.getenv('DB_PASSWORD')};"
-            f"TrustServerCertificate=yes;"
+            f"Encrypt={os.getenv('DB_ENCRYPT')};"
+            f"TrustServerCertificate={os.getenv('DB_TRUST_CERT')}"
         )
 
         conn = pyodbc.connect(connection_string)
