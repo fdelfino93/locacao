@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiUrl } from '@/config/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SimpleFilters } from './SimpleFilters';
 import { 
@@ -80,7 +81,7 @@ const EnhancedSearchModule: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`http://192.168.1.159:8080/api/search/advanced/sugestoes/${encodeURIComponent(termo)}`);
+      const response = await fetch(getApiUrl(`/search/advanced/sugestoes/${encodeURIComponent(termo)}`));
       if (!response.ok) throw new Error('Erro na API');
       
       const data = await response.json();
@@ -138,7 +139,7 @@ const EnhancedSearchModule: React.FC = () => {
         queryParams.append('incluir_historico', 'true');
       }
       
-      const response = await fetch(`http://192.168.1.159:8080/api/search/global?${queryParams}`);
+      const response = await fetch(getApiUrl(`/search/global?${queryParams}`));
 
       if (!response.ok) {
         throw new Error(`Erro ${response.status}: ${response.statusText}`);

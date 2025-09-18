@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { Locador, Endereco, DadosBancarios, RepresentanteLegal, DocumentosEmpresa } from '../../types';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '@/config/api';
 import { EnderecoForm } from './EnderecoForm';
 import { DadosBancariosForm } from './DadosBancariosForm';
 import { MultipleBankAccountsForm } from './MultipleBankAccountsForm';
@@ -182,7 +183,7 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
       console.log('🔍 Carregando locador completo ID:', locadorId);
       
       // Usar API específica com repository v2
-      const response = await fetch(`/api/locadores/${locadorId}`);
+      const response = await fetch(getApiUrl(`/locadores/${locadorId}`));
       
       if (!response.ok) {
         throw new Error(`API retornou status ${response.status}`);
@@ -560,7 +561,7 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
         
         // Tentar via proxy do Vite primeiro
         console.log('🔧 Tentando via proxy do Vite');
-        const fetchResponse = await fetch(`/api/locadores/${locadorId}`, {
+        const fetchResponse = await fetch(getApiUrl(`/locadores/${locadorId}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dadosParaEnvio)

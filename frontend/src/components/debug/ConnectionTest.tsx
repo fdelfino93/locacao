@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '@/config/api';
 
 const ConnectionTest: React.FC = () => {
   const [results, setResults] = useState<any>({});
@@ -33,14 +34,12 @@ const ConnectionTest: React.FC = () => {
     setLoading(true);
     setResults({});
 
-    // Testar diferentes endpoints
+    // Testar diferentes endpoints (sempre via getApiUrl)
     await Promise.all([
-      testEndpoint('Root API', '/'),
-      testEndpoint('Health Check', '/health'),
-      testEndpoint('Locadores', '/locadores'),
-      testEndpoint('Locatários', '/locatarios'),
-      testEndpoint('Imóveis', '/imoveis'),
-      testEndpoint('Direct Backend', 'http://192.168.1.159:8080/api/locadores'),
+      testEndpoint('Health Check', getApiUrl('/health')),
+      testEndpoint('Locadores', getApiUrl('/locadores')),
+      testEndpoint('Locatários', getApiUrl('/locatarios')),
+      testEndpoint('Imóveis', getApiUrl('/imoveis')),
     ]);
 
     setLoading(false);

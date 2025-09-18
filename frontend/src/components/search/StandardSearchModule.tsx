@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMockData } from '@/data/mockData';
+import { getApiUrl } from '@/config/api';
 import { 
   Search, 
   Users, 
@@ -130,7 +131,7 @@ const StandardSearchModule: React.FC = () => {
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
 
   // API Configuration
-  const API_BASE_URL = 'http://192.168.1.159:8080';
+  // Centralizar via getApiUrl
 
   // Função principal para buscar dados
   const fetchApiData = useCallback(async (searchTerm: string = '', entityType: EntityType = 'todos') => {
@@ -143,7 +144,7 @@ const StandardSearchModule: React.FC = () => {
       if (searchTerm.length >= 2) {
         // Busca com termo específico
         if (entityType === 'todos') {
-          const response = await fetch(`${API_BASE_URL}/api/search/global?q=${encodeURIComponent(searchTerm)}&limit=30`);
+          const response = await fetch(getApiUrl(`/search/global?q=${encodeURIComponent(searchTerm)}&limit=30`));
           if (!response.ok) throw new Error('API não disponível');
           
           const result: ApiResponse<any> = await response.json();
@@ -156,7 +157,7 @@ const StandardSearchModule: React.FC = () => {
           }
         } else {
           const endpoint = entityType;
-          const response = await fetch(`${API_BASE_URL}/api/search/${endpoint}?q=${encodeURIComponent(searchTerm)}&limit=50`);
+          const response = await fetch(getApiUrl(`/search/${endpoint}?q=${encodeURIComponent(searchTerm)}&limit=50`));
           if (!response.ok) throw new Error('API não disponível');
           
           const result: ApiResponse<any> = await response.json();
@@ -167,15 +168,15 @@ const StandardSearchModule: React.FC = () => {
       } else {
         // Carregar dados iniciais
         const endpoints = [
-          { key: 'locadores', url: '/api/search/locadores?limit=30' },
-          { key: 'locatarios', url: '/api/search/locatarios?limit=30' },
-          { key: 'imoveis', url: '/api/search/imoveis?limit=30' },
-          { key: 'contratos', url: '/api/search/contratos?limit=30' }
+          { key: 'locadores', url: getApiUrl('/search/locadores?limit=30') },
+          { key: 'locatarios', url: getApiUrl('/search/locatarios?limit=30') },
+          { key: 'imoveis', url: getApiUrl('/search/imoveis?limit=30') },
+          { key: 'contratos', url: getApiUrl('/search/contratos?limit=30') }
         ];
 
         const promises = endpoints.map(async ({ key, url }) => {
           try {
-            const response = await fetch(`${API_BASE_URL}${url}`);
+            const response = await fetch(url);
             if (!response.ok) throw new Error('API não disponível');
             
             const result: ApiResponse<any> = await response.json();

@@ -36,7 +36,7 @@ const SimpleSearchModule: React.FC = () => {
     setError(null);
     
     try {
-      const response = await fetch('http://192.168.1.159:8080/api/search/locadores?limit=10');
+      const response = await fetch(getApiUrl('/search/locadores?limit=10'));
       if (!response.ok) {
         throw new Error('API não disponível');
       }
@@ -317,3 +317,4 @@ const SimpleSearchModule: React.FC = () => {
 };
 
 export default SimpleSearchModule;
+import { getApiUrl } from '@/config/api';

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { ContratoLocador, ContaBancariaLocador, LocadorOption } from '../../types';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '@/config/api';
 
 interface ContractLandlordsFormProps {
   locadores: ContratoLocador[];
@@ -85,9 +86,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   const carregarContasBancarias = async (locadorId: number) => {
     console.log(`🏦 CARREGANDO contas bancárias para locador ${locadorId}`);
     try {
-      // Usar URL absoluta para garantir que funcione
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://192.168.1.159:8080';
-      const response = await fetch(`${apiUrl}/api/locadores/${locadorId}/contas-bancarias`);
+      const response = await fetch(getApiUrl(`/locadores/${locadorId}/contas-bancarias`));
       
       if (response.ok) {
         const result = await response.json();

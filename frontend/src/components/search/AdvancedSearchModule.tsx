@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMockData } from '@/data/mockData';
+import { getApiUrl } from '@/config/api';
 import { 
   Search, 
   Users, 
@@ -115,8 +116,7 @@ const AdvancedSearchModule: React.FC = () => {
   // Debounce para a busca
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // API Base URL
-  const API_BASE_URL = 'http://192.168.1.159:8080';
+  // Centralizar via getApiUrl
 
   // Função para buscar dados da API
   const fetchApiData = useCallback(async (searchTerm: string = '', entityType: EntityType = 'todos') => {
@@ -135,7 +135,7 @@ const AdvancedSearchModule: React.FC = () => {
         // Busca com termo específico
         if (entityType === 'todos') {
           // Busca global
-          const response = await fetch(`${API_BASE_URL}/api/search/global?q=${encodeURIComponent(searchTerm)}&limit=20`);
+          const response = await fetch(getApiUrl(`/search/global?q=${encodeURIComponent(searchTerm)}&limit=20`));
           const result: ApiResponse<any> = await response.json();
           
           if (result.success && result.data) {
@@ -151,7 +151,7 @@ const AdvancedSearchModule: React.FC = () => {
                           entityType === 'locatarios' ? 'locatarios' :
                           entityType === 'imoveis' ? 'imoveis' : 'contratos';
           
-          const response = await fetch(`${API_BASE_URL}/api/search/${endpoint}?q=${encodeURIComponent(searchTerm)}&limit=50`);
+          const response = await fetch(getApiUrl(`/search/${endpoint}?q=${encodeURIComponent(searchTerm)}&limit=50`));
           const result: ApiResponse<any> = await response.json();
           
           if (result.success && result.data) {
@@ -162,15 +162,15 @@ const AdvancedSearchModule: React.FC = () => {
         // Carregar dados iniciais (sem busca) - SEMPRE mostrar dados
         try {
           const endpoints = [
-            { key: 'locadores', url: '/api/search/locadores?limit=20' },
-            { key: 'locatarios', url: '/api/search/locatarios?limit=20' },
-            { key: 'imoveis', url: '/api/search/imoveis?limit=20' },
-            { key: 'contratos', url: '/api/search/contratos?limit=20' }
+            { key: 'locadores', url: getApiUrl('/search/locadores?limit=20') },
+            { key: 'locatarios', url: getApiUrl('/search/locatarios?limit=20') },
+            { key: 'imoveis', url: getApiUrl('/search/imoveis?limit=20') },
+            { key: 'contratos', url: getApiUrl('/search/contratos?limit=20') }
           ];
 
           const promises = endpoints.map(async ({ key, url }) => {
             try {
-              const response = await fetch(`${API_BASE_URL}${url}`);
+              const response = await fetch(url);
               const result: ApiResponse<any> = await response.json();
               return { key, data: result.success ? (result.data?.dados || []) : [] };
             } catch (err) {

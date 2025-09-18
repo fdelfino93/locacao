@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { Locatario, Endereco, DadosBancarios, Fiador, Morador } from '../../types';
 import { apiService } from '../../services/api';
+import { getApiUrl } from '@/config/api';
 import { EnderecoForm } from './EnderecoForm';
 import { DadosBancariosForm } from './DadosBancariosForm';
 
@@ -133,10 +134,10 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     setApiError(null);
     
     try {
-      console.log('🔍 Fazendo requisição para:', `http://192.168.1.159:8080/api/locatarios/${locatarioId}`);
+      console.log('🔍 Fazendo requisição para:', getApiUrl(`/locatarios/${locatarioId}`));
       
       // Tentar API específica por ID
-      const response = await fetch(`http://192.168.1.159:8080/api/locatarios/${locatarioId}`);
+      const response = await fetch(getApiUrl(`/locatarios/${locatarioId}`));
       console.log('📡 Response status:', response.status, response.statusText);
       
       if (!response.ok) {

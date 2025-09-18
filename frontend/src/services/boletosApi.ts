@@ -1,22 +1,21 @@
-import type { 
-  Boleto, 
-  GerarBoletoRequest, 
+import type {
+  Boleto,
+  GerarBoletoRequest,
   RecalcularBoletoRequest,
   RecalcularBoletoResponse,
   RegistrarPagamentoRequest,
   IndiceCorrecao,
   RelatorioMensal,
-  ApiResponse 
+  ApiResponse
 } from '../types';
-
-const API_BASE_URL = '/api'; // usa proxy do vite
+import { getApiUrl } from '../config/api';
 
 class BoletosApiService {
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = getApiUrl(endpoint);
 
     const response = await fetch(url, {
       headers: {

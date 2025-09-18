@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import React from 'react';
 import Fuse from 'fuse.js';
+import { getApiUrl } from '@/config/api';
 
 // API functions
 const searchApi = {
@@ -9,7 +10,7 @@ const searchApi = {
     const params = new URLSearchParams({ q: query });
     if (tipos) params.append('tipos', tipos.join(','));
     
-    const response = await fetch(`http://192.168.1.159:8080/api/search/global?${params}`);
+    const response = await fetch(getApiUrl(`/search/global?${params}`));
     if (!response.ok) throw new Error('Erro na busca');
     return response.json();
   },
@@ -18,7 +19,7 @@ const searchApi = {
     const params = new URLSearchParams({ q: query });
     if (tipo) params.append('tipo', tipo);
     
-    const response = await fetch(`/api/search/autocomplete?${params}`);
+    const response = await fetch(getApiUrl(`/search/autocomplete?${params}`));
     if (!response.ok) throw new Error('Erro no autocomplete');
     return response.json();
   },
@@ -29,7 +30,7 @@ const searchApi = {
       if (value) params.append(key, String(value));
     });
     
-    const response = await fetch(`/api/search/locadores?${params}`);
+    const response = await fetch(getApiUrl(`/search/locadores?${params}`));
     if (!response.ok) throw new Error('Erro na busca de locadores');
     return response.json();
   },
@@ -40,7 +41,7 @@ const searchApi = {
       if (value) params.append(key, String(value));
     });
     
-    const response = await fetch(`/api/search/locatarios?${params}`);
+    const response = await fetch(getApiUrl(`/search/locatarios?${params}`));
     if (!response.ok) throw new Error('Erro na busca de locatários');
     return response.json();
   },
@@ -51,7 +52,7 @@ const searchApi = {
       if (value) params.append(key, String(value));
     });
     
-    const response = await fetch(`/api/search/imoveis?${params}`);
+    const response = await fetch(getApiUrl(`/search/imoveis?${params}`));
     if (!response.ok) throw new Error('Erro na busca de imóveis');
     return response.json();
   },
@@ -62,7 +63,7 @@ const searchApi = {
       if (value) params.append(key, String(value));
     });
     
-    const response = await fetch(`/api/search/contratos?${params}`);
+    const response = await fetch(getApiUrl(`/search/contratos?${params}`));
     if (!response.ok) throw new Error('Erro na busca de contratos');
     return response.json();
   }

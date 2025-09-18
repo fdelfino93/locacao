@@ -1,20 +1,19 @@
-import { 
-  CalculoPrestacaoRequest, 
-  CalculoPrestacaoResponse, 
+import {
+  CalculoPrestacaoRequest,
+  CalculoPrestacaoResponse,
   PrestacaoContasSalvar,
   BoletoRequest,
   BoletoResponse,
   ContratoResumo
 } from '@/types/CalculoPrestacao';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.1.159:8080';
+import { getApiUrl } from '@/config/api';
 
 class CalculoPrestacaoApiService {
   private async request<T>(
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = getApiUrl(endpoint);
     
     const defaultHeaders = {
       'Content-Type': 'application/json',
@@ -76,7 +75,7 @@ class CalculoPrestacaoApiService {
       console.log('📊 Enviando dados para cálculo:', dados);
       
       const response = await this.request<CalculoPrestacaoResponse>(
-        '/api/contratos/calcular-prestacao',
+        '/contratos/calcular-prestacao',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -98,7 +97,7 @@ class CalculoPrestacaoApiService {
       console.log('💾 Salvando prestação de contas:', dados);
       
       const response = await this.request<{id: number; message: string}>(
-        '/api/prestacoes-contas',
+        '/prestacoes-contas',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -120,7 +119,7 @@ class CalculoPrestacaoApiService {
       console.log('📋 Gerando boleto:', dados);
       
       const response = await this.request<BoletoResponse>(
-        '/api/boletos/gerar',
+        '/boletos/gerar',
         {
           method: 'POST',
           body: JSON.stringify(dados),
@@ -140,7 +139,7 @@ class CalculoPrestacaoApiService {
   async buscarHistoricoPrestacoes(contratoId: number): Promise<PrestacaoContasSalvar[]> {
     try {
       const response = await this.request<{data: PrestacaoContasSalvar[]}>(
-        `/api/prestacoes-contas?contrato_id=${contratoId}`
+        `/prestacoes-contas?contrato_id=${contratoId}`
       );
       
       return response.data || [];
