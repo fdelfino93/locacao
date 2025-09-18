@@ -78,7 +78,9 @@
       "Bash(start http://localhost:3005/prestacao-contas/editar/10)",
       "Bash(powershell:*)",
       "Bash(node:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(start http://localhost:3000/contratos)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

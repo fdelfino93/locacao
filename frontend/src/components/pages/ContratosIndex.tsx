@@ -105,8 +105,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
       setError(null);
       
       // Buscar contratos da API
-      const response = await fetch(getApiUrl('/contratos'));
-      const data = await response.json();
+      const data = await apiService.listarContratos();
       
       if (data.success && data.data) {
         console.log('🔍 DADOS DA API CONTRATOS:', data.data);
@@ -311,7 +310,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
 
   const updateContractStatusInBackground = async (contratoId: number, novoStatus: string) => {
     try {
-      await fetch(getApiUrl(`/contratos/${contratoId}/status`), {
+      await apiService.requestPublic(`/contratos/${contratoId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +326,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     try {
       console.log('Alterando status do contrato', contratoId, 'para:', novoStatus);
       
-      const response = await fetch(getApiUrl(`/contratos/${contratoId}/status`), {
+      await apiService.requestPublic(`/contratos/${contratoId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -335,18 +334,14 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
         body: JSON.stringify({ status: novoStatus }),
       });
 
-      if (response.ok) {
-        // Atualizar a lista de contratos
-        setContratos(prev => prev.map(contrato => 
-          contrato.id === contratoId 
-            ? { ...contrato, status: novoStatus as 'ativo' | 'encerrado' | 'pendente' | 'vencido' }
+      // Se chegou até aqui, a requisição foi bem-sucedida
+      // Atualizar a lista de contratos
+      setContratos(prev => prev.map(contrato =>
+        contrato.id === contratoId
+          ? { ...contrato, status: novoStatus as 'ativo' | 'encerrado' | 'pendente' | 'vencido' }
             : contrato
         ));
-        console.log(`✅ Status alterado para: ${novoStatus}`);
-      } else {
-        console.error('Erro ao alterar status:', await response.text());
-        alert('Erro ao alterar status do termo');
-      }
+      console.log(`✅ Status alterado para: ${novoStatus}`);
     } catch (error) {
       console.error('Erro ao alterar status:', error);
       alert('Erro de conexão ao alterar status');
