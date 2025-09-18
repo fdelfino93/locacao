@@ -53,9 +53,19 @@ async def health_check():
     return {"status": "ok", "message": "API funcionando"}
 
 # Configurar CORS
+origins = [
+    "http://localhost:3000",
+    "http://192.168.1.159:3000",
+    "http://192.168.1.159:3001",
+    "http://192.168.1.159:3002",
+    "http://192.168.1.159:3003",
+    "http://192.168.1.159:3004",
+    "http://192.168.1.159:3005",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004", "http://localhost:3005"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

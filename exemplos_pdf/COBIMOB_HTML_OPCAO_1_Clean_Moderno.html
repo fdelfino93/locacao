@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prestação de Contas - COBIMOB - Opção 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #ffffff;
+            color: #2d3748;
+            line-height: 1.5;
+        }
+
+        .prestacao-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 20mm 20mm 20mm 5mm;
+            background: white;
+            position: relative;
+        }
+
+        /* Header com Logo */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-left: 0;
+        }
+
+        .logo {
+            height: 55px;
+        }
+
+        .titulo-principal {
+            text-align: right;
+            color: #2d3748;
+        }
+
+        .titulo-principal h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            color: #1a365d;
+        }
+
+        .titulo-principal .subtitulo {
+            font-size: 16px;
+            color: #137D76;
+            font-weight: 600;
+        }
+
+        /* Informações do Topo */
+        .info-topo {
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .info-card {
+            padding: 5px;
+        }
+
+        .info-card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .info-card p {
+            font-size: 13px;
+            color: #2d3748;
+            margin-bottom: 2px;
+        }
+
+        .info-card .destaque {
+            font-weight: 600;
+            color: #1a365d;
+        }
+
+        /* Dados do Boleto */
+        .dados-boleto {
+            border: 1px solid #cbd5e0;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .dados-boleto .numero-boleto {
+            font-size: 14px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+
+        .dados-boleto .datas {
+            font-size: 14px;
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        /* Seções */
+        .secao {
+            margin-bottom: 15px;
+        }
+
+        .secao-titulo {
+            color: #1a365d;
+            padding: 2px 0;
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 2px;
+            border-left: 3px solid #137D76;
+            padding-left: 8px;
+        }
+
+        /* Tabelas Modernas */
+        .tabela-moderna {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border: 1px solid #e2e8f0;
+        }
+
+        .tabela-moderna thead {
+            background: #f8fafc;
+        }
+
+        .tabela-moderna th {
+            padding: 6px 16px;
+            text-align: left;
+            font-weight: 700;
+            color: #1a365d;
+            font-size: 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .tabela-moderna td {
+            padding: 6px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 13px;
+        }
+
+        .tabela-moderna tr:hover {
+            background: #f8fafc;
+        }
+
+        .tabela-moderna .valor {
+            text-align: right;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .tabela-moderna .total-row {
+            background: #edf2f7;
+            font-weight: 700;
+            border-top: 2px solid #4299e1;
+        }
+
+        .tabela-moderna .total-row td {
+            color: #1a365d;
+            font-size: 13px;
+        }
+
+        .tabela-moderna .total-row small {
+            font-size: 13px;
+        }
+
+        .valor-negativo {
+            color: #e53e3e !important;
+        }
+
+        .valor-positivo {
+            color: #38a169 !important;
+        }
+
+        /* Rodapé */
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 85px;
+            background: #fafafa;
+        }
+
+        .footer-faixa {
+            height: 25px;
+            background: linear-gradient(
+                to right,
+                #137D76 0%, #137D76 16.66%,
+                #431E75 16.66%, #431E75 33.33%,
+                #137D76 33.33%, #137D76 50%,
+                #431E75 50%, #431E75 66.66%,
+                #137D76 66.66%, #137D76 83.33%,
+                #431E75 83.33%, #431E75 100%
+            );
+            margin-bottom: 12px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 25px;
+            align-items: center;
+            padding: 0 20mm 0 5mm;
+            font-size: 13px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .footer-logo {
+            font-weight: 700;
+            font-size: 22px;
+        }
+
+        .footer-address {
+            text-align: left;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .footer-website {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .footer-website .cobimob {
+            font-weight: 700;
+        }
+
+        .footer-contact {
+            text-align: right;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #2d3748;
+        }
+
+        .footer-phone {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        @media print {
+            .prestacao-container {
+                margin: 0;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="prestacao-container" id="prestacao-container-1">
+
+        <!-- Header -->
+        <div class="header">
+            <img src="Cobimob logos-01.png" alt="CobiMob" class="logo">
+            <div class="titulo-principal">
+                <h1>PRESTAÇÃO DE CONTAS</h1>
+                <div class="subtitulo">Maio/2025</div>
+            </div>
+        </div>
+
+        <!-- Informações do Topo -->
+        <div class="info-topo">
+            <div class="info-grid">
+                <div class="info-card">
+                    <h3>Proprietários</h3>
+                    <p class="destaque">Camilo R. Gusso</p>
+                    <p>CPF: 098.602.089-30</p>
+                    <p class="destaque">Camila C. Gusso</p>
+                    <p>CPF: 129.665.399-41</p>
+                    <p class="destaque">Reinaldo José Gusso</p>
+                    <p>CPF: 089.166.619-27</p>
+                </div>
+
+                <div class="info-card">
+                    <h3>Locatário & Imóvel</h3>
+                    <p class="destaque">Vivaldo Valério da Silva</p>
+                    <p>Condomínio Alameda Club Residencial</p>
+                    <p>Apartamento 207 - Bloco A, Vaga 203</p>
+                    <p>R. João Alencar Guimarães, 2580</p>
+                    <p>Campo Comprido, Curitiba/PR</p>
+                    <p>CEP: 81.220-190</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dados do Boleto -->
+        <div class="dados-boleto">
+            <div class="numero-boleto">Boleto Nº: 2025050001</div>
+            <div class="datas">
+                <div>Vencimento: 07/07/2025</div>
+                <div>Pagamento: 04/08/2025</div>
+            </div>
+        </div>
+
+        <!-- Seção: Valores Cobrados -->
+        <div class="secao">
+            <div class="secao-titulo">Valores Cobrados junto ao Aluguel</div>
+            <table class="tabela-moderna">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Aluguel</td><td class="valor">R$ 1.877,91</td></tr>
+                    <tr><td>Seguro fiança (22/27)</td><td class="valor">R$ 165,00</td></tr>
+                    <tr><td>Taxa de Condomínio - Ref ao vencimento 10/06/25</td><td class="valor">R$ 929,16</td></tr>
+                    <tr><td>FCI - Fundo de Conservação</td><td class="valor">R$ 93,90</td></tr>
+                    <tr><td>IPTU - Apartamento parcela 04/10</td><td class="valor">R$ 52,42</td></tr>
+                    <tr><td>IPTU - Garagem parcela 04/07</td><td class="valor">R$ 20,82</td></tr>
+                    <tr><td>Bonificação - Pagamento até o vencimento</td><td class="valor">R$ -</td></tr>
+                    <tr><td>Reembolso - Fundo de Reserva</td><td class="valor valor-negativo">-R$ 43,64</td></tr>
+                    <tr><td>Reembolso - Fundo de obras</td><td class="valor valor-negativo">-R$ 10,00</td></tr>
+                    <tr><td>Reembolso - Reforma do Hall - Parc 06/24</td><td class="valor valor-negativo">-R$ 127,89</td></tr>
+                    <tr><td>Acréscimos por atraso (+) ref ao Aluguel</td><td class="valor">R$ 193,27</td></tr>
+                    <tr><td>Acréscimos por atraso (+) ref ao Seguro Fiança</td><td class="valor">R$ 16,98</td></tr>
+                    <tr><td>Acréscimos por atraso (+) taxa de condomínio</td><td class="valor">R$ 95,62</td></tr>
+                    <tr><td>Acréscimos por atraso (+) FCI</td><td class="valor">R$ 9,67</td></tr>
+                    <tr><td>Acréscimos por atraso (+) IPTU</td><td class="valor">R$ 7,54</td></tr>
+                    <tr><td>Valor total Acréscimos</td><td class="valor">R$ 323,08</td></tr>
+                    <tr class="total-row"><td><strong>VALOR TOTAL</strong></td><td class="valor"><strong>R$&nbsp;3.280,76</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Seção: Valores Retidos -->
+        <div class="secao">
+            <div class="secao-titulo">Valores Retidos do Total Pago</div>
+            <table class="tabela-moderna">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Taxa de administração (5%)</td><td class="valor">R$ 150,02</td></tr>
+                    <tr><td>Registro boleto</td><td class="valor">R$ 2,50</td></tr>
+                    <tr><td>Transferência bancária adicional - R$10,00 (Qtd 2)</td><td class="valor">R$ 20,00</td></tr>
+                    <tr><td>Valor retido para pagamento FCI (-)</td><td class="valor">R$ 103,57</td></tr>
+                    <tr><td>Valor retido para pagamento IPTU (-)</td><td class="valor">R$ 80,78</td></tr>
+                    <tr><td>Valor retido para pagamento Condomínio (-)</td><td class="valor">R$ 1.024,78</td></tr>
+                    <tr><td>Valor retido para pagamento Seguro Fiança (-)</td><td class="valor">R$ 181,98</td></tr>
+                    <tr class="total-row"><td><strong>VALOR TOTAL RETIDO</strong></td><td class="valor"><strong>R$&nbsp;1.563,63</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Seção: Repasses -->
+        <div class="secao">
+            <div class="secao-titulo">Valor Total a ser Repassado</div>
+            <table class="tabela-moderna">
+                <thead>
+                    <tr>
+                        <th>Proprietário</th>
+                        <th>Dados PIX</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Camilo R. Gusso</td>
+                        <td>telefone 41996840799</td>
+                        <td class="valor valor-positivo">R$ 572,38</td>
+                    </tr>
+                    <tr>
+                        <td>Reinaldo José Gusso</td>
+                        <td>CPF 089.166.619-27</td>
+                        <td class="valor valor-positivo">R$ 572,38</td>
+                    </tr>
+                    <tr>
+                        <td>Camila C. Gusso</td>
+                        <td>telefone 41984411620</td>
+                        <td class="valor valor-positivo">R$ 572,37</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="2"><strong>TOTAL A SER REPASSADO</strong><br><small>Repasse realizado em: 06/08/2025</small></td>
+                        <td class="valor"><strong>R$&nbsp;1.717,13</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="footer">
+            <div class="footer-faixa"></div>
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="Cobimob logos-03.png" alt="CbiMb" style="height: 24px;">
+                </div>
+                <div class="footer-address">
+                    R. Presidente Faria, 431 | cj 42 | 4° andar | Centro | Curitiba | PR<br>
+                    <span class="footer-website">www.<span class="cobimob">cobimob</span>.com.br</span>
+                </div>
+                <div class="footer-contact">
+                    contato@cobimob.com.br<br>
+                    <span class="footer-phone">☎ (41) 3501 5601</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prestação de Contas - COBIMOB - Opção 1</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            color: #2D3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            margin: 0 auto;
+            background: white;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #1E9F8F;
+            padding-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            color: #1E9F8F;
+        }
+
+        .logo .purple { color: #6B46C1; }
+        .logo .pink { color: #EC4899; }
+
+        .title {
+            text-align: right;
+            color: #6B46C1;
+        }
+
+        .title h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .title .date {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        /* Info Cards */
+        .info-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-card {
+            background: #F7FAFC;
+            border-left: 4px solid #1E9F8F;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .info-card h3 {
+            color: #6B46C1;
+            font-size: 14px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .info-card p {
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        /* Financial Tables */
+        .financial-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            background: linear-gradient(135deg, #1E9F8F, #6B46C1);
+            color: white;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .financial-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .financial-table th {
+            background: #F7FAFC;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #4A5568;
+            border-bottom: 1px solid #E2E8F0;
+        }
+
+        .financial-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        .financial-table tr:hover {
+            background: #F8F9FA;
+        }
+
+        .value {
+            text-align: right;
+            font-weight: 600;
+            color: #2D3748;
+        }
+
+        .positive { color: #22C55E; }
+        .negative { color: #EF4444; }
+        .total {
+            background: #EDF2F7;
+            font-weight: bold;
+            border-top: 2px solid #1E9F8F;
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(135deg, #2D3748, #6B46C1);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .footer-logo {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .geometric-accent {
+            position: absolute;
+            top: 50mm;
+            right: 15mm;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #EC4899, #6B46C1);
+            border-radius: 50%;
+            opacity: 0.1;
+        }
+
+        .geometric-accent::after {
+            content: '';
+            position: absolute;
+            top: 40px;
+            right: 20px;
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-bottom: 43px solid #EC4899;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Elementos geométricos decorativos -->
+        <div class="geometric-accent"></div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                Cobi<span class="pink">M</span><span class="purple">ob</span>
+            </div>
+            <div class="title">
+                <h1>PRESTAÇÃO DE CONTAS</h1>
+                <div class="date">Maio/2025</div>
+            </div>
+        </div>
+
+        <!-- Info Section -->
+        <div class="info-section">
+            <div class="info-card">
+                <h3>Proprietário</h3>
+                <p><strong>Camilo R. Gusso</strong></p>
+                <p>CPF: 098.602.089-30</p>
+                <p>Camila C. Gusso - CPF: 129.665.399-41</p>
+                <p>Reinaldo José Gusso - CPF: 089.166.619-27</p>
+            </div>
+
+            <div class="info-card">
+                <h3>Locatário & Imóvel</h3>
+                <p><strong>Vivaldo Valério da Silva</strong></p>
+                <p>Condomínio Alameda Club Residencial</p>
+                <p>Apartamento 207 - Bloco A</p>
+                <p>Curitiba/PR - CEP: 81.220-190</p>
+            </div>
+        </div>
+
+        <!-- Valores Cobrados -->
+        <div class="financial-section">
+            <div class="section-title">📋 Valores Cobrados junto ao Aluguel</div>
+            <table class="financial-table">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Aluguel</td><td class="value">R$ 1.877,91</td></tr>
+                    <tr><td>Seguro fiança (22/27)</td><td class="value">R$ 165,00</td></tr>
+                    <tr><td>Taxa de Condomínio - Ref ao vencimento 10/06/25</td><td class="value">R$ 929,16</td></tr>
+                    <tr><td>FCI - Fundo de Conservação</td><td class="value">R$ 93,90</td></tr>
+                    <tr><td>IPTU - Apartamento parcela 04/10</td><td class="value">R$ 52,42</td></tr>
+                    <tr><td>IPTU - Garagem parcela 04/07</td><td class="value">R$ 20,82</td></tr>
+                    <tr><td>Reembolso - Fundo de Reserva</td><td class="value negative">-R$ 43,64</td></tr>
+                    <tr><td>Reembolso - Fundo de obras</td><td class="value negative">-R$ 10,00</td></tr>
+                    <tr><td>Reembolso - Reforma do Hall - Parc 06/24</td><td class="value negative">-R$ 127,89</td></tr>
+                    <tr class="total"><td><strong>Valor Total</strong></td><td class="value"><strong>R$ 3.280,76</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Valores Retidos -->
+        <div class="financial-section">
+            <div class="section-title">🏛️ Valores Retidos do Total Pago</div>
+            <table class="financial-table">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Taxa de administração (5%)</td><td class="value">R$ 150,02</td></tr>
+                    <tr><td>Registro boleto</td><td class="value">R$ 2,50</td></tr>
+                    <tr><td>Transferência bancária adicional (Qtd 2)</td><td class="value">R$ 20,00</td></tr>
+                    <tr><td>Valor retido para pagamento FCI</td><td class="value">R$ 103,57</td></tr>
+                    <tr><td>Valor retido para pagamento IPTU</td><td class="value">R$ 80,78</td></tr>
+                    <tr><td>Valor retido para pagamento Condomínio</td><td class="value">R$ 1.024,78</td></tr>
+                    <tr><td>Valor retido para pagamento Seguro Fiança</td><td class="value">R$ 181,98</td></tr>
+                    <tr class="total"><td><strong>Valor Total Retido</strong></td><td class="value"><strong>R$ 1.563,63</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Repasse -->
+        <div class="financial-section">
+            <div class="section-title">💰 Valor a ser Repassado</div>
+            <table class="financial-table">
+                <thead>
+                    <tr>
+                        <th>Proprietário</th>
+                        <th style="width: 120px;">Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Camilo R. Gusso</td><td class="value positive">R$ 572,38</td></tr>
+                    <tr><td>Reinaldo José Gusso</td><td class="value positive">R$ 572,38</td></tr>
+                    <tr><td>Camila C. Gusso</td><td class="value positive">R$ 572,37</td></tr>
+                    <tr class="total"><td><strong>Total a ser Repassado</strong></td><td class="value positive"><strong>R$ 1.717,13</strong></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-logo">Cb Mb</div>
+        <div>R. Presidente Faria, 431 | Centro | Curitiba | PR</div>
+        <div>contato@cobimob.com.br | +1 3501 5601</div>
+    </div>
+</body>
+</html>
