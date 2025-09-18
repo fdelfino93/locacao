@@ -59,7 +59,7 @@ export const TesteEdicaoSimples: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8000/api/faturas?id=${faturaId}`);
+      const response = await fetch(`http://192.168.1.159:8080/api/faturas?id=${faturaId}`);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -114,7 +114,7 @@ export const TesteEdicaoSimples: React.FC = () => {
       setSalvando(true);
 
       // Atualizar fatura para status "paga" e definir data de pagamento
-      const response = await fetch(`http://localhost:8000/api/faturas/${fatura.id}/pagamento`, {
+      const response = await fetch(`http://192.168.1.159:8080/api/faturas/${fatura.id}/pagamento`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

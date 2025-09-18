@@ -134,7 +134,7 @@ function MinimalApp() {
               </button>
               
               <button
-                onClick={() => window.open('http://localhost:8000/docs', '_blank')}
+                onClick={() => window.open('http://192.168.1.159:8080/docs', '_blank')}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 📚 Ver APIs (Swagger)

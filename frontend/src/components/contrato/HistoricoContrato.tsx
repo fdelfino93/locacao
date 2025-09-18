@@ -46,7 +46,7 @@ export const HistoricoContrato: React.FC<HistoricoContratoProps> = ({ contratoId
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}/historico`);
+      const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/historico`);
       const data = await response.json();
 
       if (data.success) {

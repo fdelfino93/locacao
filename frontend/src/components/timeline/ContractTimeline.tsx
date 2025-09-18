@@ -43,13 +43,13 @@ const timelineApi = {
       contrato_id: contratoId.toString(),
       ...filters 
     });
-    const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}/timeline?${params}`);
+    const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/timeline?${params}`);
     if (!response.ok) throw new Error('Erro ao carregar timeline');
     return response.json();
   },
 
   createEvent: async (contratoId: number, event: any) => {
-    const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}/eventos`, {
+    const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/eventos`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(event),
@@ -59,7 +59,7 @@ const timelineApi = {
   },
 
   updateEvent: async (eventId: number, updates: any) => {
-    const response = await fetch(`http://localhost:8000/api/eventos/${eventId}`, {
+    const response = await fetch(`http://192.168.1.159:8080/api/eventos/${eventId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -69,7 +69,7 @@ const timelineApi = {
   },
 
   deleteEvent: async (eventId: number) => {
-    const response = await fetch(`http://localhost:8000/api/eventos/${eventId}`, {
+    const response = await fetch(`http://192.168.1.159:8080/api/eventos/${eventId}`, {
       method: 'DELETE',
     });
     if (!response.ok) throw new Error('Erro ao deletar evento');
@@ -77,7 +77,7 @@ const timelineApi = {
   },
 
   getEventTypes: async () => {
-    const response = await fetch('http://localhost:8000/api/eventos/tipos');
+    const response = await fetch('http://192.168.1.159:8080/api/eventos/tipos');
     if (!response.ok) throw new Error('Erro ao carregar tipos de eventos');
     return response.json();
   }

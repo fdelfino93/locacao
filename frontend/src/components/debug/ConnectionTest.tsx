@@ -40,7 +40,7 @@ const ConnectionTest: React.FC = () => {
       testEndpoint('Locadores', '/locadores'),
       testEndpoint('Locatários', '/locatarios'),
       testEndpoint('Imóveis', '/imoveis'),
-      testEndpoint('Direct Backend', 'http://localhost:8000/api/locadores'),
+      testEndpoint('Direct Backend', 'http://192.168.1.159:8080/api/locadores'),
     ]);
 
     setLoading(false);

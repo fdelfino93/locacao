@@ -71,7 +71,7 @@ const DashboardPro: React.FC<DashboardProProps> = ({ onNavigateToContratosVencen
       setLoading(true);
       
       // Buscar dados dos contratos diretamente
-      const response = await fetch('http://localhost:8000/api/contratos');
+      const response = await fetch('http://192.168.1.159:8080/api/contratos');
       const data = await response.json();
       
       if (data.success && data.data) {

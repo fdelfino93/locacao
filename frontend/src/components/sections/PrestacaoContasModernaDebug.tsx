@@ -91,7 +91,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       if (anoSelecionado) statsParams.append('ano', anoSelecionado);
       if (searchTerm) statsParams.append('search', searchTerm);
 
-      const statsUrl = `http://localhost:8000/api/faturas?${statsParams.toString()}`;
+      const statsUrl = `http://192.168.1.159:8080/api/faturas?${statsParams.toString()}`;
       const statsResponse = await fetch(statsUrl);
 
       if (statsResponse.ok) {
@@ -154,7 +154,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       params.append('order_by', sortField);
       params.append('order_dir', sortDirection);
 
-      const url = `http://localhost:8000/api/faturas?${params.toString()}`;
+      const url = `http://192.168.1.159:8080/api/faturas?${params.toString()}`;
       console.log('🌐 URL completa da API:', url);
 
       const response = await fetch(url);
@@ -327,7 +327,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     setLoadingContratos(true);
     try {
       console.log('🔍 Buscando contratos disponíveis...');
-      const response = await fetch('http://localhost:8000/api/contratos');
+      const response = await fetch('http://192.168.1.159:8080/api/contratos');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -358,7 +358,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     // 🔍 Buscar dados de prestação se existirem
     try {
       console.log('🔍 Buscando prestação para contrato:', fatura.contrato_id);
-      const response = await fetch(`http://localhost:8000/api/prestacao-contas/contrato/${fatura.contrato_id}`);
+      const response = await fetch(`http://192.168.1.159:8080/api/prestacao-contas/contrato/${fatura.contrato_id}`);
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Prestações encontradas:', data);
@@ -653,7 +653,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`http://localhost:8000/api/faturas/${fatura.id}/status`, {
+      const response = await fetch(`http://192.168.1.159:8080/api/faturas/${fatura.id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

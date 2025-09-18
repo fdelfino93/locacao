@@ -223,12 +223,12 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       console.log('🔍 Carregando imóvel ID:', imovelId);
       
       // Primeiro tentar API específica por ID
-      let response = await fetch(`http://localhost:8000/api/imoveis/${imovelId}`);
+      let response = await fetch(`http://192.168.1.159:8080/api/imoveis/${imovelId}`);
       
       if (!response.ok) {
         // Se não funcionar, usar busca geral e filtrar pelo ID exato
         console.log('⚠️ API específica falhou, usando busca geral');
-        response = await fetch(`http://localhost:8000/api/imoveis`);
+        response = await fetch(`http://192.168.1.159:8080/api/imoveis`);
       }
       
       const data = await response.json();
@@ -621,7 +621,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
         // 🚀 DEBUG: Log do JSON exato sendo enviado para a API
         console.log('🚀 === JSON SENDO ENVIADO PARA API ===');
         console.log('📡 JSON.stringify(imovelData):', JSON.stringify(imovelData));
-        console.log('🎯 URL destino:', `http://localhost:8000/api/imoveis/${imovelId}`);
+        console.log('🎯 URL destino:', `http://192.168.1.159:8080/api/imoveis/${imovelId}`);
         
         // Chamar API de atualização
         response = await apiService.atualizarImovel(parseInt(imovelId), imovelData);

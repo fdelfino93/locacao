@@ -54,7 +54,7 @@ const DashboardEnhanced: React.FC = () => {
       params.append('mes', selectedMonth.toString());
       params.append('ano', selectedYear.toString());
       
-      const response = await fetch(`http://localhost:8000/api/dashboard/completo?${params}`);
+      const response = await fetch(`http://192.168.1.159:8080/api/dashboard/completo?${params}`);
       
       if (response.ok) {
         const data = await response.json();

@@ -130,7 +130,7 @@ const StandardSearchModule: React.FC = () => {
   const debouncedSearchQuery = useDebounce(searchQuery, 400);
 
   // API Configuration
-  const API_BASE_URL = 'http://localhost:8000';
+  const API_BASE_URL = 'http://192.168.1.159:8080';
 
   // Função principal para buscar dados
   const fetchApiData = useCallback(async (searchTerm: string = '', entityType: EntityType = 'todos') => {

@@ -117,8 +117,8 @@ export const ImoveisIndex: React.FC<ImoveisIndexProps> = ({
       
       // Buscar imóveis e locadores em paralelo usando backend direto
       const [imoveisResponse, locadoresResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/imoveis'),
-        fetch('http://localhost:8000/api/locadores')
+        fetch('http://192.168.1.159:8080/api/imoveis'),
+        fetch('http://192.168.1.159:8080/api/locadores')
       ]);
 
       const imoveisData = await imoveisResponse.json();

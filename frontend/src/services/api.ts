@@ -52,7 +52,7 @@ export interface DashboardCompleto {
   timestamp: string;
 }
 
-const API_BASE_URL = 'http://localhost:8000/api'; // URL direta temporariamente
+const API_BASE_URL = 'http://192.168.1.159:8080/api'; // URL direta temporariamente
 
 class ApiService {
   private async request<T>(

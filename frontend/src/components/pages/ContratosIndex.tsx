@@ -104,7 +104,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
       setError(null);
       
       // Buscar contratos da API
-      const response = await fetch('http://localhost:8000/api/contratos');
+      const response = await fetch('http://192.168.1.159:8080/api/contratos');
       const data = await response.json();
       
       if (data.success && data.data) {
@@ -310,7 +310,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
 
   const updateContractStatusInBackground = async (contratoId: number, novoStatus: string) => {
     try {
-      await fetch(`http://localhost:8000/api/contratos/${contratoId}/status`, {
+      await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -326,7 +326,7 @@ export const ContratosIndex: React.FC<ContratosIndexProps> = ({
     try {
       console.log('Alterando status do contrato', contratoId, 'para:', novoStatus);
       
-      const response = await fetch(`http://localhost:8000/api/contratos/${contratoId}/status`, {
+      const response = await fetch(`http://192.168.1.159:8080/api/contratos/${contratoId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

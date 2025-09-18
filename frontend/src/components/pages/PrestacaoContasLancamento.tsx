@@ -23,7 +23,7 @@ import type { CalculoPrestacaoRequest, CalculoPrestacaoResponse } from "@/types/
 
 
 // Configuração da URL base da API
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000') + '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://192.168.1.159:8080') + '/api';
 
 export const PrestacaoContasLancamento: React.FC = () => {
   // Estados dos dados da transferência
