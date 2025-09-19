@@ -108,6 +108,7 @@ export interface Locatario {
   cargo_representante?: string;   // Compatibilidade
   telefone_representante?: string;
   email_representante?: string;
+  endereco_representante?: EnderecoEstruturado;
   
   // CAMPOS EXISTENTES MANTIDOS
   dados_bancarios?: DadosBancarios;

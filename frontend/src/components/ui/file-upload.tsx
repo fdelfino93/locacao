@@ -12,6 +12,7 @@ interface FileUploadProps {
   required?: boolean;
   currentFile?: File | string | null;
   error?: string;
+  disabled?: boolean;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -21,7 +22,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   onFileSelect,
   required = false,
   currentFile,
-  error
+  error,
+  disabled = false
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -55,7 +57,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
+    if (disabled) return;
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFileSelect(files[0]);
@@ -64,7 +68,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!disabled) {
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -88,7 +94,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   const handleButtonClick = () => {
-    fileInputRef.current?.click();
+    if (!disabled) {
+      fileInputRef.current?.click();
+    }
   };
 
   const getFileName = () => {
@@ -112,9 +120,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       <div
         className={`
           relative border-2 border-dashed rounded-lg p-6 transition-all duration-200
-          ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
+          ${isDragging && !disabled ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
           ${error ? 'border-destructive bg-destructive/5' : ''}
           ${hasFile ? 'border-success bg-success/5' : ''}
+          ${disabled ? 'opacity-50 cursor-not-allowed bg-muted/50' : ''}
         `}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -127,6 +136,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           onChange={handleInputChange}
           className="hidden"
           required={required}
+          disabled={disabled}
         />
 
         {uploadStatus === 'uploading' && (
@@ -159,6 +169,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={handleButtonClick}
+                disabled={disabled}
               >
                 Trocar arquivo
               </Button>
@@ -167,6 +178,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 variant="destructive"
                 size="sm"
                 onClick={handleRemoveFile}
+                disabled={disabled}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -187,6 +199,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               variant="outline"
               size="sm"
               onClick={handleButtonClick}
+              disabled={disabled}
             >
               Tentar novamente
             </Button>
@@ -205,6 +218,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               variant="outline"
               size="sm"
               onClick={handleButtonClick}
+              disabled={disabled}
             >
               <Upload className="w-4 h-4 mr-2" />
               Selecionar arquivo
