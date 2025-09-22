@@ -195,7 +195,9 @@ export const ModernLocadorFormV2: React.FC<ModernLocadorFormV2Props> = ({ onBack
       if (data.success && data.data) {
         const locador = data.data;
         console.log('📋 Preenchendo dados do locador:', locador);
-        
+        console.log('🔍 DEBUG - endereco_estruturado recebido:', locador.endereco_estruturado);
+        console.log('🔍 DEBUG - endereco_id:', locador.endereco_id);
+
         // Preencher dados principais
         setFormData(prev => ({
           ...prev,

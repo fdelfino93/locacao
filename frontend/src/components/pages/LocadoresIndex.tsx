@@ -34,6 +34,15 @@ interface Locador {
   telefone?: string;
   email?: string;
   endereco?: string;
+  endereco_estruturado?: {
+    rua?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+    cep?: string;
+  };
   tipo_recebimento?: string;
   qtd_imoveis?: number;
   contratos_ativos?: number;
@@ -81,11 +90,11 @@ export const LocadoresIndex: React.FC<LocadoresIndexProps> = ({
     try {
       setLoading(true);
       setError(null);
-      
+
       // Buscar todos os locadores usando backend direto
       const response = await fetch(getApiUrl('/locadores'));
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setLocadores(data.data);
       } else {
@@ -97,6 +106,27 @@ export const LocadoresIndex: React.FC<LocadoresIndexProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Função para formatar endereço estruturado
+  const formatarEndereco = (locador: Locador): string => {
+    if (locador.endereco_estruturado) {
+      const { rua, numero, complemento, bairro, cidade, estado } = locador.endereco_estruturado;
+
+      // Montar endereço completo
+      let endereco = '';
+      if (rua) endereco += rua.trim();
+      if (numero) endereco += `, ${numero}`;
+      if (complemento) endereco += ` - ${complemento}`;
+      if (bairro) endereco += ` - ${bairro}`;
+      if (cidade) endereco += ` - ${cidade}`;
+      if (estado) endereco += `/${estado}`;
+
+      return endereco || 'Endereço não informado';
+    }
+
+    // Fallback para endereço string (compatibilidade)
+    return locador.endereco || 'Endereço não informado';
   };
 
   const formatCurrency = (value: number | undefined) => {
@@ -402,11 +432,9 @@ export const LocadoresIndex: React.FC<LocadoresIndexProps> = ({
                                 </div>
                                 <div>
                                   <div className="font-medium text-foreground">{locador.nome}</div>
-                                  {locador.endereco && (
-                                    <div className="text-sm text-muted-foreground truncate max-w-xs">
-                                      {locador.endereco}
-                                    </div>
-                                  )}
+                                  <div className="text-sm text-muted-foreground truncate max-w-xs">
+                                    {formatarEndereco(locador)}
+                                  </div>
                                 </div>
                               </div>
                             </td>

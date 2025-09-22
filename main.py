@@ -764,17 +764,23 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
 
 @app.get("/api/locadores/{locador_id}")
-async def buscar_locador_por_id(locador_id: int):
+async def buscar_locador_por_id_endpoint(locador_id: int):
     try:
         print(f"Buscando locador completo ID: {locador_id}")
-        
-        # Buscar locador específico (implementação simples)
-        locadores = buscar_locadores()
-        locador = next((l for l in locadores if l.get('id') == locador_id), None)
-        
+
+        # Usar a nova função buscar_locador_por_id com endereço estruturado
+        from repositories_adapter import buscar_locador_por_id
+        locador = buscar_locador_por_id(locador_id)
+
         if not locador:
             raise HTTPException(status_code=404, detail="Locador não encontrado")
-            
+
+        # DEBUG: Verificar se endereco_estruturado está presente
+        endereco_estruturado = locador.get('endereco_estruturado')
+        print(f"DEBUG API - endereco_estruturado: {endereco_estruturado}")
+        print(f"DEBUG API - endereco_id: {locador.get('endereco_id')}")
+        print(f"DEBUG API - chaves do objeto: {list(locador.keys())}")
+
         return {"data": locador, "success": True}
     except HTTPException:
         raise
