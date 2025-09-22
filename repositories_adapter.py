@@ -222,15 +222,33 @@ def processar_endereco_imovel(endereco_input):
 
 # Funçoes diretas para as tabelas corretas
 def buscar_locadores():
-    """Busca todos os locadores da tabela Locadores"""
+    """Busca todos os locadores da tabela Locadores com endereços estruturados"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Locadores")
-        
+
+        # Query com JOIN para buscar endereços estruturados
+        query = """
+        SELECT
+            l.*,
+            e.id as endereco_estruturado_id,
+            e.rua as endereco_rua,
+            e.numero as endereco_numero,
+            e.complemento as endereco_complemento,
+            e.bairro as endereco_bairro,
+            e.cidade as endereco_cidade,
+            e.uf as endereco_estado,
+            e.cep as endereco_cep
+        FROM Locadores l
+        LEFT JOIN EnderecoLocador e ON l.endereco_id = e.id
+        ORDER BY l.ativo DESC, l.nome ASC
+        """
+
+        cursor.execute(query)
+
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
-        
+
         # Converter resultados para lista de dicionarios
         rows = cursor.fetchall()
         result = []
@@ -238,9 +256,30 @@ def buscar_locadores():
             row_dict = {}
             for i, value in enumerate(row):
                 row_dict[columns[i]] = value
+
+            # Montar objeto endereco_estruturado se existir dados
+            if row_dict.get('endereco_estruturado_id'):
+                endereco_estruturado = {
+                    'rua': row_dict.get('endereco_rua', ''),
+                    'numero': row_dict.get('endereco_numero', ''),
+                    'complemento': row_dict.get('endereco_complemento', ''),
+                    'bairro': row_dict.get('endereco_bairro', ''),
+                    'cidade': row_dict.get('endereco_cidade', ''),
+                    'estado': row_dict.get('endereco_estado', ''),
+                    'cep': row_dict.get('endereco_cep', '')
+                }
+                row_dict['endereco_estruturado'] = endereco_estruturado
+
+                # Limpar campos auxiliares
+                for campo in ['endereco_estruturado_id', 'endereco_rua', 'endereco_numero',
+                             'endereco_complemento', 'endereco_bairro', 'endereco_cidade',
+                             'endereco_estado', 'endereco_cep']:
+                    row_dict.pop(campo, None)
+
             result.append(row_dict)
-        
+
         conn.close()
+        print(f"Buscados {len(result)} locadores com endereços estruturados")
         return result
     except Exception as e:
         print(f"Erro ao buscar locadores: {e}")

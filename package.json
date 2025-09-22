@@ -1,5 +1,17 @@
 {
+  "name": "locacao-system",
+  "version": "1.0.0",
+  "description": "Sistema de Locações - Cobimob",
+  "scripts": {
+    "docker:build": ".\\scripts\\build.bat",
+    "docker:dev": ".\\scripts\\dev.bat",
+    "docker:save": ".\\scripts\\save-images.bat",
+    "dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "prod": "docker-compose -f docker-compose.prod.yml up -d",
+    "stop": "docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.prod.yml down"
+  },
   "dependencies": {
+    "puppeteer": "^24.22.0",
     "react-hot-toast": "^2.5.2"
   }
 }

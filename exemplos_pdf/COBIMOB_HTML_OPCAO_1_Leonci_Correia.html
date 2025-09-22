@@ -24,7 +24,7 @@
             width: 210mm;
             min-height: 297mm;
             margin: 0 auto;
-            padding: 20mm 20mm 100px 5mm;
+            padding: 20mm 12.5mm 100px 12.5mm;
             background: white;
             position: relative;
         }
@@ -123,7 +123,7 @@
 
         /* Seções */
         .secao {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .secao-titulo {
@@ -232,35 +232,11 @@
         }
 
         .footer-faixa {
-            height: 25px;
-            background: linear-gradient(
-                to right,
-                #137D76 0%, #137D76 4.16%,
-                #431E75 4.16%, #431E75 8.33%,
-                #137D76 8.33%, #137D76 12.5%,
-                #431E75 12.5%, #431E75 16.66%,
-                #137D76 16.66%, #137D76 20.83%,
-                #431E75 20.83%, #431E75 25%,
-                #137D76 25%, #137D76 29.16%,
-                #431E75 29.16%, #431E75 33.33%,
-                #137D76 33.33%, #137D76 37.5%,
-                #431E75 37.5%, #431E75 41.66%,
-                #137D76 41.66%, #137D76 45.83%,
-                #431E75 45.83%, #431E75 50%,
-                #137D76 50%, #137D76 54.16%,
-                #431E75 54.16%, #431E75 58.33%,
-                #137D76 58.33%, #137D76 62.5%,
-                #431E75 62.5%, #431E75 66.66%,
-                #137D76 66.66%, #137D76 70.83%,
-                #431E75 70.83%, #431E75 75%,
-                #137D76 75%, #137D76 79.16%,
-                #431E75 79.16%, #431E75 83.33%,
-                #137D76 83.33%, #137D76 87.5%,
-                #431E75 87.5%, #431E75 91.66%,
-                #137D76 91.66%, #137D76 95.83%,
-                #431E75 95.83%, #431E75 100%
-            );
+            height: 2px;
+            background: #137D76;
             margin-bottom: 12px;
+            margin-left: 12.5mm;
+            margin-right: 12.5mm;
         }
 
         .footer-content {
@@ -268,7 +244,7 @@
             grid-template-columns: auto 1fr auto;
             gap: 25px;
             align-items: center;
-            padding: 0 20mm 0 5mm;
+            padding: 0 12.5mm;
             font-size: 13px;
             color: #2d3748;
             font-weight: 500;
@@ -306,21 +282,91 @@
             font-weight: 700;
         }
 
+        /* Seções de informações com fonte menor */
+        .dados-info .numero-boleto {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .dados-info .datas {
+            font-size: 13px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .dados-info .numero-boleto {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .dados-info .datas {
+            font-size: 13px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        /* Seção de imóvel sem título, centralizada */
+        .dados-imovel {
+            border: 1px solid #cbd5e0;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .dados-imovel .info-imovel {
+            font-size: 13px;
+            color: #2d3748;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
         @media print {
             .prestacao-container {
                 margin: 0;
                 box-shadow: none;
+                padding: 20mm 12.5mm 100px 12.5mm !important;
             }
 
-            /* Garantir que listras aparecem na impressão */
+            .footer-content {
+                padding: 0 12.5mm !important;
+            }
+
+            .footer-faixa {
+                margin-left: 12.5mm !important;
+                margin-right: 12.5mm !important;
+            }
+
+            /* Garantir que linha aparece na impressão */
             .footer-faixa {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
-                background: repeating-linear-gradient(
-                    to right,
-                    #137D76 0px, #137D76 25px,
-                    #431E75 25px, #431E75 50px
-                ) !important;
+                background: #137D76 !important;
+            }
+
+            /* Controle básico de quebras - seções completas */
+            .secao {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .secao-titulo {
+                break-after: avoid;
+                page-break-after: avoid;
+            }
+
+            /* Info básicas não quebram */
+            .info-topo, .dados-boleto {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            /* Garantir que linha aparece na impressão */
+            .footer-faixa {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                background: #137D76 !important;
             }
 
             /* Controle básico de quebras - seções completas */
@@ -355,23 +401,26 @@
         </div>
 
         <div class="content-wrapper">
-        <!-- Informações do Topo -->
-        <div class="info-topo">
-            <div class="info-grid">
-                <div class="info-card">
-                    <h3>Proprietário</h3>
-                    <p class="destaque">Edilson Eloi Plombon</p>
-                    <p>CPF: 391.955.469-87</p>
-                </div>
+        <!-- Seção: Proprietário -->
+        <div class="dados-boleto dados-info">
+            <div class="numero-boleto">Proprietário</div>
+            <div class="datas">
+                <div><strong>Edilson Eloi Plombon</strong> - CPF: 391.955.469-87</div>
+            </div>
+        </div>
 
-                <div class="info-card">
-                    <h3>Locatário & Imóvel</h3>
-                    <p class="destaque">Jorge Roberto dos Santos Correia</p>
-                    <p>CPF: 320.471.429-20</p>
-                    <p>Apartamento 103</p>
-                    <p>R. Leôncio Correia, 600 - Água Verde</p>
-                    <p>CEP: 80240-320, Curitiba/PR</p>
-                </div>
+        <!-- Seção: Locatário -->
+        <div class="dados-boleto dados-info">
+            <div class="numero-boleto">Locatário</div>
+            <div class="datas">
+                <div><strong>Jorge Roberto dos Santos Correia</strong> - CPF: 320.471.429-20</div>
+            </div>
+        </div>
+
+        <!-- Informações do Imóvel -->
+        <div class="dados-imovel">
+            <div class="info-imovel">
+                <div><strong>Apartamento 103 - R. Leôncio Correia, 600 - Água Verde - CEP: 80240-320, Curitiba/PR</strong></div>
             </div>
         </div>
 
@@ -395,16 +444,21 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Aluguel</td><td class="valor">R$ 2.500,00</td></tr>
-                    <tr><td>Seguro incêndio</td><td class="valor">R$ 32,50</td></tr>
+                    <!-- VALORES COBRADOS -->
+                    <tr><td>Aluguel - Agosto/2025</td><td class="valor">R$ 2.500,00</td></tr>
+                    <tr><td>Seguro Incêndio</td><td class="valor">R$ 32,50</td></tr>
                     <tr><td>IPTU - Parcela 05/10</td><td class="valor">R$ 106,63</td></tr>
-                    <tr><td>Bonificação - Pagamento até o vencimento (-)</td><td class="valor valor-negativo">-R$ 500,00</td></tr>
-                    <tr><td>Reembolso - Fundo de Benfeitoria - Ref Julho</td><td class="valor valor-negativo">-R$ 17,00</td></tr>
-                    <tr><td>Reembolso - Fundo de Reserva - Ref Julho</td><td class="valor valor-negativo">-R$ 23,00</td></tr>
-                    <tr><td>Reembolso - Reforma Telhado 4/36 - Ref Julho</td><td class="valor valor-negativo">-R$ 100,00</td></tr>
-                    <tr><td>Reembolso - Fundo de Benfeitoria - Ref Agosto</td><td class="valor valor-negativo">-R$ 17,00</td></tr>
-                    <tr><td>Reembolso - Fundo de Reserva - Ref Agosto</td><td class="valor valor-negativo">-R$ 23,00</td></tr>
-                    <tr><td>Reembolso - Reforma Telhado 5/36 - Ref Agosto</td><td class="valor valor-negativo">-R$ 100,00</td></tr>
+
+                    <!-- DESCONTOS E REEMBOLSOS -->
+                    <tr><td>Bonificação - Pagamento no vencimento</td><td class="valor valor-negativo">-R$ 500,00</td></tr>
+                    <tr><td>Reembolso - Fundo de Benfeitoria (Jul/2025)</td><td class="valor valor-negativo">-R$ 17,00</td></tr>
+                    <tr><td>Reembolso - Fundo de Reserva (Jul/2025)</td><td class="valor valor-negativo">-R$ 23,00</td></tr>
+                    <tr><td>Reembolso - Reforma Telhado 4/36 (Jul/2025)</td><td class="valor valor-negativo">-R$ 100,00</td></tr>
+                    <tr><td>Reembolso - Fundo de Benfeitoria (Ago/2025)</td><td class="valor valor-negativo">-R$ 17,00</td></tr>
+                    <tr><td>Reembolso - Fundo de Reserva (Ago/2025)</td><td class="valor valor-negativo">-R$ 23,00</td></tr>
+                    <tr><td>Reembolso - Reforma Telhado 5/36 (Ago/2025)</td><td class="valor valor-negativo">-R$ 100,00</td></tr>
+
+                    <!-- TOTAL FINAL -->
                     <tr class="total-row"><td><strong>VALOR TOTAL</strong></td><td class="valor"><strong>R$&nbsp;1.859,13</strong></td></tr>
                 </tbody>
             </table>
@@ -421,8 +475,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Taxa de administração 5% (-)</td><td class="valor">R$ 101,63</td></tr>
-                    <tr><td>Valor para pagamento Seguro Incêndio (-)</td><td class="valor">R$ 32,50</td></tr>
+                    <tr><td>Taxa de administração (5%)</td><td class="valor">R$ 101,63</td></tr>
+                    <tr><td>Pagamento Seguro Incêndio</td><td class="valor">R$ 32,50</td></tr>
                     <tr class="total-row"><td><strong>VALOR TOTAL RETIDO</strong></td><td class="valor"><strong>R$&nbsp;134,13</strong></td></tr>
                 </tbody>
             </table>
@@ -467,7 +521,7 @@
                 </div>
                 <div class="footer-contact">
                     contato@cobimob.com.br<br>
-                    <span class="footer-phone">☎ (41) 3501 5601</span>
+                    <span class="footer-phone">☎ (41) 3995-8200</span>
                 </div>
             </div>
         </div>

@@ -1,0 +1,50 @@
+# Docker Compose para Produção (VM)
+version: '3.8'
+
+services:
+  # Backend FastAPI
+  backend:
+    image: locacao-backend:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_DRIVER=ODBC Driver 17 for SQL Server
+      - DB_SERVER=192.168.1.45\SQLTESTES
+      - DB_DATABASE=Cobimob
+      - DB_USER=srvcondo1
+      - DB_PASSWORD=2025@Condo
+      - DB_ENCRYPT=yes
+      - DB_TRUST_CERT=yes
+      - API_HOST=192.168.1.159
+      - API_PORT=8080
+    restart: unless-stopped
+    networks:
+      - locacao-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React
+  frontend:
+    image: locacao-frontend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://192.168.1.159:8080
+      - VITE_API_BASE_URL=http://192.168.1.159:8080/api
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - locacao-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  locacao-network:
+    driver: bridge
