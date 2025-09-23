@@ -82,7 +82,9 @@
       "Bash(git push:*)",
       "Bash(start http://localhost:3000/contratos)",
       "Bash(start http://localhost:3000/dashboard)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(scriptsbuild.bat)",
+      "Bash(docker-compose:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

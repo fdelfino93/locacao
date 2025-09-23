@@ -17,3 +17,13 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Docker artifacts
+.dockerignore
+*.tar
+docker-serve/
+scripts/upload-*.bat
+
+# Backup files
+*.backup
+*.temp

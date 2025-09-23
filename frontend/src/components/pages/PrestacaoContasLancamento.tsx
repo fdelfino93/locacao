@@ -786,33 +786,22 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const lancamentosPositivos = lancamentos.filter(lanc => lanc.tipo !== 'desconto' && lanc.tipo !== 'ajuste');
     const descontos = lancamentos.filter(lanc => lanc.tipo === 'desconto' || lanc.tipo === 'ajuste');
     const valoresPorTipo = obterValoresPorTipo();
-    
-    const subtotalLancamentos = Object.values(valoresPorTipo).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) + 
+
+    // ✅ CORREÇÃO: Aplicar exclusões antes do cálculo (igual ao totalBoletoCalculado)
+    const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
+
+    const subtotalLancamentos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) => total + (typeof valor === 'number' ? valor : 0), 0) +
       lancamentosPositivos.reduce((total, lanc) => total + lanc.valor, 0);
     const totalBruto = subtotalLancamentos + valorVencido;
     const totalDescontos = descontos.reduce((total, desconto) => total + desconto.valor, 0);
-    
+
     // Incluir desconto por bonificação de pontualidade - apenas se não foi desabilitado
     const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
 
     return totalBruto - totalDescontos - descontoPontualidade;
   };
 
-  // Memoizar o cálculo do total para melhor performance
-  const totalBoletoCalculado = useMemo(() => {
-    const valoresPorTipo = obterValoresPorTipo();
-
-    // ✅ CORREÇÃO: Aplicar valores deletados nos fixos
-    const valoresFixosAplicados = aplicarValoresDesabilitados(valoresPorTipo);
-    const totalFixos = Object.values(valoresFixosAplicados).reduce((total: number, valor: any) =>
-      total + (typeof valor === 'number' ? valor : 0), 0);
-
-    const totalExtras = lancamentos.reduce((total, lanc) =>
-      lanc.tipo === 'desconto' || lanc.tipo === 'ajuste' ? total - lanc.valor : total + lanc.valor, 0);
-    const descontoPontualidade = (!valoresTermoDesabilitados['bonificacao'] && !valoresDeletados['bonificacao'] && contratoSelecionado?.bonificacao) ? contratoSelecionado.bonificacao : 0;
-    const multaRescisao = (tipoLancamento === 'rescisao' && resultadoCalculo?.multa && !valoresDeletados['multa_rescisao']) ? resultadoCalculo.multa : 0;
-    return totalFixos + totalExtras - descontoPontualidade + multaRescisao;
-  }, [lancamentos, valoresTermoDesabilitados, valoresDeletados, contratoSelecionado, tipoLancamento, resultadoCalculo]);
+  // Removido useMemo desnecessário - usando calcularTotais().valorBoleto diretamente
 
   const calcularTotais = () => {
     // Se temos um resultado calculado pela API, usar esses valores
@@ -1194,6 +1183,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
   };
 
   const salvarLancamento = async () => {
+    console.log("🔄 Versão: 1.0.1 - Correção aplicada"); // Força atualização
     try {
       // Validações para nova prestação
       if (isNovaPrestacao) {
@@ -1312,9 +1302,9 @@ export const PrestacaoContasLancamento: React.FC = () => {
             locadores: contratoSelecionado?.locadores || []
           },
 
-          // Lançamentos
+          // Lançamentos (corrigido - usando resultadoCalculo)
           lancamentos: {
-            principais: lancamentosPrincipais || [],
+            principais: resultadoCalculo?.lancamentos_adicionais || [],
             extras: lancamentos || []
           },
 
@@ -2725,7 +2715,7 @@ export const PrestacaoContasLancamento: React.FC = () => {
                             </span>
                           </div>
                           <span className="text-xl font-bold text-foreground">
-                            {formatCurrency(totalBoletoCalculado)}
+                            {formatCurrency(calcularTotais().valorBoleto)}
                           </span>
                         </div>
                       </div>

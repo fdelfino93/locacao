@@ -3985,6 +3985,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             cursor.execute("SELECT contrato_id FROM PrestacaoContas WHERE 1=0")
             tem_contrato_id = True
             print("Campo contrato_id já existe")
+            print(f"🚨 FORÇANDO DEBUG AQUI - Arquivo foi recarregado corretamente!")
         except:
             # print("AVISO: Campo contrato_id nao existe na tabela PrestacaoContas - adicionando...")
             try:
@@ -4077,7 +4078,8 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     status,
                     status == 'atrasado',
                     observacoes,
-                    data_vencimento_calculada
+                    data_vencimento_calculada,
+                    1  # ativo
                 ]
 
                 # ✅ ADICIONAR NOVOS CAMPOS (se fornecidos)
@@ -4106,19 +4108,28 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     campos_insert.append('detalhamento_json')
                     valores_insert.append(json.dumps(detalhamento_completo, ensure_ascii=False))
 
-                # Adicionar campos de data e ativo por último
-                campos_insert.extend(['data_criacao', 'data_atualizacao', 'ativo'])
-                valores_insert.extend([data_vencimento_calculada, 'GETDATE()', 1])
+                # Os campos data_criacao, data_atualizacao, ativo já estão na lista inicial
 
                 # Montar SQL dinamicamente
                 placeholders = []
                 valores_final = []
+                print(f"🔍 DEBUG FINAL: campos_insert({len(campos_insert)}): {campos_insert}")
+                print(f"🔍 DEBUG FINAL: valores_insert({len(valores_insert)}): {valores_insert}")
+
+                valor_index = 0  # Contador separado para valores
                 for i, campo in enumerate(campos_insert):
                     if campo in ['data_atualizacao']:
                         placeholders.append('GETDATE()')
+                        print(f"  ✅ Campo {i} '{campo}' -> GETDATE() (não consome valor)")
                     else:
                         placeholders.append('?')
-                        valores_final.append(valores_insert[i])
+                        if valor_index < len(valores_insert):
+                            valores_final.append(valores_insert[valor_index])
+                            print(f"  ✅ Campo {i} '{campo}' -> valor '{valores_insert[valor_index]}'")
+                            valor_index += 1
+                        else:
+                            print(f"  ❌ ERRO: Campo {i} '{campo}' -> ÍNDICE VALOR {valor_index} FORA DE RANGE! (max={len(valores_insert)-1})")
+                            raise IndexError(f"Campo '{campo}' índice valor {valor_index} fora de range. campos={len(campos_insert)}, valores={len(valores_insert)}")
 
                 sql_insert = f"""
                     INSERT INTO PrestacaoContas ({', '.join(campos_insert)})
