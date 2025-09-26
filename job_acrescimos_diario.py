@@ -360,7 +360,7 @@ def atualizar_acrescimos_prestacao(prestacao: Dict[str, Any]) -> bool:
                                 data_atualizacao = GETDATE()
                             WHERE prestacao_id = ? AND locador_id = ?
                         """, (valor_final, round(100.0 / len(locadores), 2), prestacao['id'], locador_id))
-                        logger.debug(f"  ↻ Atualizado {nome}: R$ {valor_final:.2f}")
+                        logger.debug(f"  Atualizado {nome}: R$ {valor_final:.2f}")
                     else:
                         # Criar novo registro
                         cursor.execute("""
@@ -370,7 +370,7 @@ def atualizar_acrescimos_prestacao(prestacao: Dict[str, Any]) -> bool:
                             VALUES (?, ?, ?, ?, ?, ?, GETDATE(), 1)
                         """, (prestacao['id'], locador_id, nome, round(100.0 / len(locadores), 2),
                               valor_final, eh_principal))
-                        logger.debug(f"  ⊕ Criado {nome}: R$ {valor_final:.2f}")
+                        logger.debug(f"  Criado {nome}: R$ {valor_final:.2f}")
 
         except Exception as e:
             logger.warning(f"Erro ao atualizar distribuição para prestação {prestacao['id']}: {e}")
@@ -390,9 +390,9 @@ def atualizar_acrescimos_prestacao(prestacao: Dict[str, Any]) -> bool:
         conn.commit()
 
         logger.info(
-            f"Prestação {prestacao['id']}: "
-            f"Acréscimos: R$ {prestacao['valor_acrescimos_atual']:.2f} → R$ {acrescimos['total_acrescimo']:.2f} "
-            f"| Repasse: R$ {total_liquido:.2f} → R$ {novo_valor_repasse:.2f} "
+            f"Prestacao {prestacao['id']}: "
+            f"Acrescimos: R$ {prestacao['valor_acrescimos_atual']:.2f} para R$ {acrescimos['total_acrescimo']:.2f} "
+            f"| Repasse: R$ {total_liquido:.2f} para R$ {novo_valor_repasse:.2f} "
             f"({dias_atraso_atual} dias de atraso)"
         )
 

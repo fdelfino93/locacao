@@ -351,22 +351,22 @@ def buscar_locador_por_id(locador_id):
             # Se não tem endereço estruturado, manter endereço string como fallback
             row_dict['endereco_estruturado'] = None
 
-        # 🔧 CORREÇÃO: Buscar contas bancárias do locador
-        print(f"🏦 Buscando contas bancárias para locador ID {locador_id}")
+        #  CORREÇÃO: Buscar contas bancárias do locador
+        print(f"Buscando contas bancarias para locador ID {locador_id}")
         contas_bancarias = buscar_contas_bancarias_locador(locador_id)
         row_dict['contas_bancarias'] = contas_bancarias
-        print(f"📋 Encontradas {len(contas_bancarias)} contas bancárias")
+        print(f"Encontradas {len(contas_bancarias)} contas bancarias")
 
         # Buscar representante legal se for PJ
         if row_dict.get('tipo_pessoa') == 'PJ':
-            print(f"🏢 Buscando representante legal para PJ - locador ID {locador_id}")
+            print(f"Buscando representante legal para PJ - locador ID {locador_id}")
             representante = buscar_representante_legal_locador(locador_id)
             if representante:
                 row_dict['representante_legal'] = representante
-                print(f"✅ Representante legal encontrado: {representante.get('nome', 'Nome não informado')}")
+                print(f"Representante legal encontrado: {representante.get('nome', 'Nome nao informado')}")
             else:
                 row_dict['representante_legal'] = None
-                print(f"⚠️ Nenhum representante legal encontrado")
+                print(f"AVISO: Nenhum representante legal encontrado")
 
         conn.close()
         print(f"ADAPTER: Locador ID {locador_id} encontrado completo (endereço estruturado + contas bancárias + representante legal)")
@@ -422,19 +422,40 @@ def buscar_imoveis():
                 else:
                     row_dict[columns[i]] = value
             
-            # Buscar todos os locadores deste imóvel na tabela N:N
+            # Buscar todos os locadores deste imóvel na tabela N:N com dados completos
             cursor.execute("""
-                SELECT locador_id, porcentagem, responsabilidade_principal 
-                FROM ImovelLocadores 
-                WHERE imovel_id = ? AND ativo = 1
-                ORDER BY responsabilidade_principal DESC, porcentagem DESC
+                SELECT il.locador_id, il.porcentagem, il.responsabilidade_principal,
+                       l.nome, l.cpf_cnpj, l.tipo_pessoa, l.email, l.telefone
+                FROM ImovelLocadores il
+                INNER JOIN Locadores l ON il.locador_id = l.id
+                WHERE il.imovel_id = ? AND il.ativo = 1
+                ORDER BY il.responsabilidade_principal DESC, il.porcentagem DESC
             """, (row_dict['id'],))
-            
+
             locadores_imovel = cursor.fetchall()
-            
-            # Adicionar array de locadores ao imóvel
-            row_dict['locadores_ids'] = [loc[0] for loc in locadores_imovel]
-            
+
+            # Montar array de locadores com dados completos
+            locadores_completos = []
+            locadores_ids = []
+
+            for loc in locadores_imovel:
+                locador_obj = {
+                    'id': loc[0],
+                    'porcentagem': float(loc[1]) if loc[1] else 0.0,
+                    'responsabilidade_principal': bool(loc[2]),
+                    'nome': loc[3],
+                    'cpf_cnpj': loc[4],
+                    'tipo_pessoa': loc[5],
+                    'email': loc[6],
+                    'telefone': loc[7]
+                }
+                locadores_completos.append(locador_obj)
+                locadores_ids.append(loc[0])
+
+            # Adicionar arrays de locadores ao imóvel
+            row_dict['locadores'] = locadores_completos
+            row_dict['locadores_ids'] = locadores_ids
+
             # Manter compatibilidade: se tem locadores na N:N, usar o principal
             # Se não tem, usar o campo antigo id_locador
             if locadores_imovel:
@@ -458,7 +479,7 @@ from locacao.repositories.locatario_repository_v4_final import (
     buscar_locatario_completo,
     buscar_inquilinos as buscar_locatarios_v4
 )
-# from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
+from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
 # from locacao.repositories.contrato_repository import inserir_contrato
 
 def inserir_cliente(**kwargs):
@@ -613,7 +634,7 @@ def inserir_imovel(**kwargs):
                         kwargs['endereco_id'] = endereco_id
                         print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
             except Exception as endereco_error:
-                print(f"AVISO:️ Erro ao processar endereço na insercao, usando fallback: {endereco_error}")
+                print(f"AVISO: Erro ao processar endereco na insercao, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
         
@@ -906,7 +927,7 @@ def atualizar_cliente(cliente_id, **kwargs):
             print(f"SUCESSO: Cliente {cliente_id} atualizado com sucesso! ({linhas_afetadas} linha(s))")
             return True
         else:
-            print(f"AVISO:️ Nenhuma linha foi atualizada - cliente {cliente_id} pode nao existir")
+            print(f"AVISO: Nenhuma linha foi atualizada - cliente {cliente_id} pode nao existir")
             return False
             
     except Exception as e:
@@ -1098,7 +1119,7 @@ def buscar_contratos_ativos():
                     else:
                         contrato_dict[columns[i]] = value
                 
-                # 🔧 USAR LÓGICA HÍBRIDA UNIFICADA para buscar locadores e locatários
+                # USAR LOGICA HIBRIDA UNIFICADA para buscar locadores e locatarios
                 contrato_id = contrato_dict['id']
                 
                 # Buscar locadores usando nova função unificada com dados completos
@@ -1148,7 +1169,7 @@ def buscar_contratos_ativos():
                         'responsabilidade_principal': locat_data[3]
                     })
                 
-                # 📈 Adicionar informações de contagem para debug
+                # Adicionar informacoes de contagem para debug
                 contrato_dict['num_locadores'] = len(contrato_dict['locadores'])
                 contrato_dict['num_locatarios'] = len(contrato_dict['locatarios'])
                 
@@ -1700,7 +1721,7 @@ def buscar_contrato_por_id(contrato_id):
                     row_dict['locatario_telefone'] = locatario_row[3]
                     row_dict['locatario_email'] = locatario_row[4]
 
-            # 🔧 BUSCAR TODOS OS LOCADORES COM PORCENTAGENS E DADOS BANCÁRIOS
+            #  BUSCAR TODOS OS LOCADORES COM PORCENTAGENS E DADOS BANCÁRIOS
             locadores_data = obter_locadores_contrato_unificado(contrato_id)
             row_dict['locadores'] = []
 
@@ -2722,7 +2743,7 @@ def atualizar_imovel(imovel_id, **kwargs):
                         kwargs['endereco_id'] = endereco_id
                         print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
             except Exception as endereco_error:
-                print(f"AVISO:️ Erro ao processar endereço, usando fallback: {endereco_error}")
+                print(f"AVISO: Erro ao processar endereco, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
         
@@ -2795,7 +2816,9 @@ def atualizar_imovel(imovel_id, **kwargs):
         return True
         
     except Exception as e:
-        print(f"Erro ao atualizar imóvel {imovel_id}: {e}")
+        # Print seguro para evitar problemas de encoding
+        erro_msg = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"Erro ao atualizar imovel {imovel_id}: {erro_msg}")
         if 'conn' in locals():
             conn.close()
         return False
@@ -4123,7 +4146,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         ids_existentes = resultado[1]
 
         if prestacao_existente > 0:
-            print(f"⚠️ AVISO: Já existem {prestacao_existente} prestação(ões) para contrato {contrato_id} em {mes:02d}/{ano}")
+            print(f"AVISO: Ja existem {prestacao_existente} prestacao(oes) para contrato {contrato_id} em {mes:02d}/{ano}")
             print(f"   IDs existentes: {ids_existentes}")
             raise Exception(f"Já existe prestação de contas para este período. IDs: {ids_existentes}")
 
@@ -4237,7 +4260,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             # Inserir nova prestação com contrato_id
             if tem_contrato_id:
                 # print(f"Criando nova prestacao para contrato {contrato_id}")
-                # ✅ EXPANDIDO: Incluir novos campos se existirem
+                #  EXPANDIDO: Incluir novos campos se existirem
                 campos_insert = [
                     'locador_id', 'contrato_id', 'mes', 'ano', 'referencia', 'valor_pago', 'valor_vencido',
                     'encargos', 'deducoes', 'total_bruto', 'total_liquido', 'status',
@@ -4262,7 +4285,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     1  # ativo
                 ]
 
-                # ✅ ADICIONAR NOVOS CAMPOS (se fornecidos)
+                #  ADICIONAR NOVOS CAMPOS (se fornecidos)
                 if valor_boleto is not None:
                     campos_insert.append('valor_boleto')
                     valores_insert.append(valor_boleto)
@@ -4288,7 +4311,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     campos_insert.append('detalhamento_json')
                     valores_insert.append(json.dumps(detalhamento_completo, ensure_ascii=False))
 
-                # ✅ ADICIONAR dados_financeiros completos em JSON (incluindo descontos)
+                #  ADICIONAR dados_financeiros completos em JSON (incluindo descontos)
                 if dados_financeiros is not None:
                     import json
                     campos_insert.append('dados_financeiros_json')
@@ -4306,15 +4329,15 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                 for i, campo in enumerate(campos_insert):
                     if campo in ['data_atualizacao']:
                         placeholders.append('GETDATE()')
-                        print(f"  ✅ Campo {i} '{campo}' -> GETDATE() (não consome valor)")
+                        print(f"   Campo {i} '{campo}' -> GETDATE() (no consome valor)")
                     else:
                         placeholders.append('?')
                         if valor_index < len(valores_insert):
                             valores_final.append(valores_insert[valor_index])
-                            print(f"  ✅ Campo {i} '{campo}' -> valor '{valores_insert[valor_index]}'")
+                            print(f"   Campo {i} '{campo}' -> valor '{valores_insert[valor_index]}'")
                             valor_index += 1
                         else:
-                            print(f"  ❌ ERRO: Campo {i} '{campo}' -> ÍNDICE VALOR {valor_index} FORA DE RANGE! (max={len(valores_insert)-1})")
+                            print(f"   ERRO: Campo {i} '{campo}' -> NDICE VALOR {valor_index} FORA DE RANGE! (max={len(valores_insert)-1})")
                             raise IndexError(f"Campo '{campo}' índice valor {valor_index} fora de range. campos={len(campos_insert)}, valores={len(valores_insert)}")
 
                 sql_insert = f"""
@@ -4370,7 +4393,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                 ))
                 ordem += 1
         
-        # ✅ LANÇAMENTOS AUTOMÁTICOS REMOVIDOS
+        #  LANÇAMENTOS AUTOMÁTICOS REMOVIDOS
         # Agora todos os lançamentos são gerados pelo frontend e salvos via salvar_lancamentos_detalhados_completos()
         # Isso garante que apenas os itens que o usuário NÃO deletou sejam salvos no banco
         if False:  # BLOCO AUTOMATICO COMPLETAMENTE DESABILITADO
@@ -6292,7 +6315,7 @@ def inserir_contrato_completo(**kwargs):
 def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
     """Salva descontos e ajustes na tabela LancamentosPrestacaoContas"""
     try:
-        print(f"💰 INICIO salvar_descontos_ajustes")
+        print(f"INICIO salvar_descontos_ajustes")
         print(f"   prestacao_id={prestacao_id}")
         print(f"   descontos: {len(descontos_ajustes) if descontos_ajustes else 0}")
 
@@ -6328,7 +6351,7 @@ def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
             ordem += 1
 
         # Recalcular totais após salvar descontos - CORRIGIDO para separar descontos de retidos
-        print(f"📊 Recalculando totais após salvar descontos...")
+        print(f" Recalculando totais aps salvar descontos...")
         cursor.execute("""
             SELECT
                 SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END) as total_positivo,
@@ -6346,7 +6369,7 @@ def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
         # Valor do boleto = soma de positivos - descontos (NÃO inclui retidos)
         valor_boleto_final = total_positivo_real - total_descontos_real
 
-        print(f"📊 Após salvar descontos:")
+        print(f" Aps salvar descontos:")
         print(f"   Total positivo: R$ {total_positivo_real:.2f}")
         print(f"   Total retido: R$ {total_retido_real:.2f}")
         print(f"   Total descontos: R$ {total_descontos_real:.2f}")
@@ -6360,11 +6383,11 @@ def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
         """, (valor_boleto_final, total_retido_real, prestacao_id))
 
         conn.commit()
-        print(f"✅ Descontos/ajustes salvos com sucesso")
+        print(f" Descontos/ajustes salvos com sucesso")
         return {"success": True, "descontos_salvos": len(descontos_ajustes)}
 
     except Exception as e:
-        print(f"❌ Erro em salvar_descontos_ajustes: {str(e)}")
+        print(f" Erro em salvar_descontos_ajustes: {str(e)}")
         import traceback
         traceback.print_exc()
         raise
@@ -6372,7 +6395,7 @@ def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
 def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos, mes_referencia=None, repasse_por_locador=None):
     """Salva TODOS os lançamentos calculados no frontend"""
     try:
-        print(f"🔍 INICIO salvar_lancamentos_detalhados_completos")
+        print(f"INICIO salvar_lancamentos_detalhados_completos")
         print(f"   prestacao_id={prestacao_id} (tipo: {type(prestacao_id)})")
         print(f"   lancamentos: {len(lancamentos_completos) if lancamentos_completos else 0}")
         print(f"   repasse_por_locador: {len(repasse_por_locador) if repasse_por_locador else 0}")
@@ -6422,7 +6445,7 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
 
             if tipo in tipos_unicos:
                 if tipo in tipos_processados:
-                    print(f"   ⚠️ Ignorando duplicata: {tipo}")
+                    print(f"    Ignorando duplicata: {tipo}")
                     continue
                 tipos_processados.add(tipo)
 
@@ -6445,7 +6468,7 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
                     ordem_exibicao, data_lancamento, data_criacao, ativo
                 ) VALUES (?, ?, ?, ?, ?, 'frontend_calculado', ?, GETDATE(), GETDATE(), 1)
             """, (prestacao_id, tipo, descricao, valor, categoria, ordem))
-            print(f"   ✅ Lançamento {ordem} inserido")
+            print(f"    Lanamento {ordem} inserido")
 
             # Contabilizar totais para validação
             if valor > 0:
@@ -6457,7 +6480,7 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
             lancamentos_salvos += 1
 
         # Atualizar totais calculados incluindo descontos
-        print(f"📊 Atualizando totais na PrestacaoContas incluindo todos os lançamentos...")
+        print(f" Atualizando totais na PrestacaoContas incluindo todos os lanamentos...")
         try:
             # Recalcular totais separando descontos de valores retidos
             cursor.execute("""
@@ -6477,7 +6500,7 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
             # Valor do boleto = soma de positivos - descontos (mas NÃO retidos)
             valor_boleto_final = total_positivo_real - total_descontos_real
 
-            print(f"📊 Totais recalculados corretamente:")
+            print(f" Totais recalculados corretamente:")
             print(f"   Total positivo: R$ {total_positivo_real:.2f}")
             print(f"   Total retido: R$ {total_retido_real:.2f}")
             print(f"   Total descontos: R$ {total_descontos_real:.2f}")
@@ -6490,21 +6513,21 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
                     valor_repasse = ?
                 WHERE id = ?
             """, (valor_boleto_final, total_retido_real, valor_boleto_final - total_retido_real, prestacao_id))
-            print(f"✅ Totais atualizados com todos os lançamentos")
+            print(f" Totais atualizados com todos os lanamentos")
         except Exception as e:
-            print(f"❌ Erro ao atualizar totais: {e}")
+            print(f" Erro ao atualizar totais: {e}")
             # Continuar mesmo com erro
 
         # Fazer commit parcial para garantir que lançamentos foram salvos
-        print(f"💾 Fazendo commit parcial dos lançamentos...")
+        print(f" Fazendo commit parcial dos lanamentos...")
         try:
             conn.commit()
-            print(f"✅ Commit parcial realizado")
+            print(f" Commit parcial realizado")
         except Exception as e:
-            print(f"❌ Erro no commit parcial: {e}")
+            print(f" Erro no commit parcial: {e}")
 
         # Salvar distribuição de locadores se fornecida
-        print(f"👥 Salvando distribuição de {len(repasse_por_locador) if repasse_por_locador else 0} locadores...")
+        print(f" Salvando distribuio de {len(repasse_por_locador) if repasse_por_locador else 0} locadores...")
         if repasse_por_locador and len(repasse_por_locador) > 0:
             try:
                 # Usar conexão separada para evitar travamento
@@ -6537,15 +6560,15 @@ def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos,
 
                 conn2.commit()
                 conn2.close()
-                print(f"✅ Distribuição de {len(repasse_por_locador)} locadores salva")
+                print(f" Distribuio de {len(repasse_por_locador)} locadores salva")
             except Exception as e:
-                print(f"❌ Erro ao salvar distribuição de locadores: {e}")
+                print(f" Erro ao salvar distribuio de locadores: {e}")
                 import traceback
                 traceback.print_exc()
 
-        print(f"🔒 Fechando conexão principal...")
+        print(f" Fechando conexo principal...")
         conn.close()
-        print(f"✅ Conexão fechada")
+        print(f" Conexo fechada")
 
         print(f"{lancamentos_salvos} lançamentos salvos para prestação {prestacao_id}")
         print(f"Total boleto: {total_positivo}, Total retido: {total_negativo}, Repasse: {total_positivo - total_negativo}")

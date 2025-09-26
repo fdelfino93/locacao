@@ -1093,7 +1093,7 @@ async def criar_imovel(imovel: ImovelCreate):
         # ✅ CORREÇÃO: Passar locadores para o repository
         if locadores_data:
             imovel_data['locadores'] = locadores_data
-            print(f"✅ Enviando {len(locadores_data)} locadores para o repository: {locadores_data}")
+            print(f"Enviando {len(locadores_data)} locadores para o repository: {locadores_data}")
         
         # Chamar repository
         novo_imovel = inserir_imovel(**imovel_data)
@@ -1200,18 +1200,18 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
                     dados_filtrados[k] = v
         
         # ✅ CORREÇÃO: Processar múltiplos locadores se existirem
-        print(f"🔍 DEBUG MAIN.PY: Verificando locadores em dados_recebidos...")
-        print(f"🔍 DEBUG MAIN.PY: 'locadores' in dados_recebidos = {'locadores' in dados_recebidos}")
+        print(f"DEBUG MAIN.PY: Verificando locadores em dados_recebidos...")
+        print(f"DEBUG MAIN.PY: 'locadores' in dados_recebidos = {'locadores' in dados_recebidos}")
         if 'locadores' in dados_recebidos:
             locadores_data = dados_recebidos.get('locadores', [])
-            print(f"🔍 DEBUG MAIN.PY: locadores_data = {locadores_data}")
+            print(f"DEBUG MAIN.PY: locadores_data = {locadores_data}")
             if locadores_data:
                 dados_filtrados['locadores'] = locadores_data
-                print(f"✅ MAIN.PY: Enviando {len(locadores_data)} locadores para atualização: {locadores_data}")
+                print(f" MAIN.PY: Enviando {len(locadores_data)} locadores para atualização: {locadores_data}")
             else:
-                print("⚠️ MAIN.PY: locadores_data está vazio!")
+                print("AVISO MAIN.PY: locadores_data está vazio!")
         else:
-            print("⚠️ MAIN.PY: Campo 'locadores' NÃO encontrado em dados_recebidos!")
+            print("AVISO MAIN.PY: Campo 'locadores' NAO encontrado em dados_recebidos!")
         
         print(f"DADOS APOS PROCESSAR ({len(dados_filtrados)} campos):")
         for campo, valor in dados_filtrados.items():
@@ -1233,9 +1233,10 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {str(e)}")
-        print("Erro no processamento - detalhes removidos para evitar problemas de encoding")
-        raise HTTPException(status_code=500, detail=f"Erro ao atualizar imóvel: {str(e)}")
+        # Converter erro para formato seguro (encoding-safe)
+        erro_safe = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {erro_safe}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar imovel: {erro_safe}")
 
 @app.get("/api/imoveis/{imovel_id}")
 async def buscar_imovel_por_id(imovel_id: int):
@@ -1286,9 +1287,9 @@ async def buscar_imovel_por_id(imovel_id: int):
                     locadores.append(dict(zip(cols, row)))
                 
                 imovel['locadores'] = locadores
-                print(f"✅ {len(locadores)} locadores adicionados ao imóvel {imovel_id}")
+                print(f" {len(locadores)} locadores adicionados ao imóvel {imovel_id}")
         except Exception as e:
-            print(f"⚠️ Erro ao buscar locadores do imóvel {imovel_id}: {e}")
+            print(f"ERRO ao buscar locadores do imovel {imovel_id}: {e}")
             imovel['locadores'] = []
             
         return {"data": imovel, "success": True}
@@ -1593,35 +1594,35 @@ async def salvar_prestacao_contas(request: PrestacaoContasRequest):
 
         # ✅ NOVA FUNCIONALIDADE: Processar descontos_ajustes se fornecidos
         prestacao_id = resultado.get('prestacao_id') if isinstance(resultado, dict) else resultado
-        print(f"🔍 DEBUG - prestacao_id extraído: {prestacao_id}, tipo: {type(prestacao_id)}")
+        print(f"DEBUG - prestacao_id extraído: {prestacao_id}, tipo: {type(prestacao_id)}")
 
         # Converter Decimal para int
         if hasattr(prestacao_id, '__int__'):
             prestacao_id = int(prestacao_id)
-            print(f"🔍 DEBUG - prestacao_id convertido para int: {prestacao_id}")
+            print(f"DEBUG - prestacao_id convertido para int: {prestacao_id}")
 
         # Processar descontos_ajustes se fornecidos
         if hasattr(request, 'descontos_ajustes') and request.descontos_ajustes:
             try:
-                print(f"💰 PROCESSANDO {len(request.descontos_ajustes)} descontos/ajustes...")
+                print(f"PROCESSANDO {len(request.descontos_ajustes)} descontos/ajustes...")
                 from repositories_adapter import salvar_descontos_ajustes
                 salvar_descontos_ajustes(prestacao_id, request.descontos_ajustes)
-                print(f"✅ Descontos/ajustes processados com sucesso")
+                print(f" Descontos/ajustes processados com sucesso")
             except Exception as e_descontos:
                 print(f"❌ Erro ao processar descontos/ajustes: {str(e_descontos)}")
 
         # ✅ NOVA FUNCIONALIDADE: Salvar lançamentos detalhados (se fornecidos)
         # Mantém compatibilidade total - só executa se dados novos estiverem presentes
-        print(f"🔍 DEBUG - Verificando se tem lançamentos completos:")
+        print(f"DEBUG - Verificando se tem lançamentos completos:")
         print(f"  hasattr(request, 'lancamentos_completos'): {hasattr(request, 'lancamentos_completos')}")
         print(f"  request.lancamentos_completos: {getattr(request, 'lancamentos_completos', 'NAO_EXISTE')}")
         print(f"  request.repasse_por_locador: {getattr(request, 'repasse_por_locador', 'NAO_EXISTE')}")
 
         if hasattr(request, 'lancamentos_completos') and request.lancamentos_completos:
             try:
-                print(f"🚀 EXECUTANDO salvamento de lançamentos detalhados...")
+                print(f"EXECUTANDO salvamento de lancamentos detalhados...")
                 from repositories_adapter import salvar_lancamentos_detalhados_completos
-                print(f"🔍 DEBUG - resultado: {resultado}, tipo: {type(resultado)}")
+                print(f"DEBUG - resultado: {resultado}, tipo: {type(resultado)}")
 
                 resultado_detalhado = salvar_lancamentos_detalhados_completos(
                     prestacao_id=prestacao_id,
@@ -1630,17 +1631,17 @@ async def salvar_prestacao_contas(request: PrestacaoContasRequest):
                     repasse_por_locador=getattr(request, 'repasse_por_locador', None)
                 )
 
-                print(f"✅ Lançamentos detalhados salvos: {resultado_detalhado}")
-                print(f"🔍 DEBUG - Preparando resposta final...")
+                print(f" Lançamentos detalhados salvos: {resultado_detalhado}")
+                print(f"DEBUG - Preparando resposta final...")
             except Exception as e_detalhado:
                 # Se falhar os lançamentos detalhados, NÃO quebra o sistema principal
                 print(f"AVISO: Erro ao salvar lançamentos detalhados (sistema principal funcionou): {str(e_detalhado)}")
         else:
             print(f"❌ NÃO EXECUTANDO - lançamentos completos não encontrados ou vazios")
 
-        print(f"🎯 Retornando resposta final ao frontend...")
+        print(f"Retornando resposta final ao frontend...")
         resposta = {"success": True, "data": resultado, "message": "Prestação de contas salva com sucesso"}
-        print(f"📤 Resposta: {resposta}")
+        print(f"Resposta: {resposta}")
         return resposta
     except Exception as e:
         print(f"ERRO COMPLETO ao salvar prestacao de contas:")
