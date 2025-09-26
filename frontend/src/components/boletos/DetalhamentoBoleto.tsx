@@ -218,6 +218,28 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
     return meses[mesNum - 1] || '';
   };
 
+  // Função para calcular valor correto para e-mails (incluindo acréscimos se houver)
+  const getValorParaEmail = () => {
+    const valorBase = prestacaoDetalhada?.valor_boleto || boleto?.valor_total || 0;
+    const acrescimos = prestacaoDetalhada?.valor_acrescimos || 0;
+
+    if (acrescimos > 0) {
+      return prestacaoDetalhada?.valor_total_com_acrescimos || (valorBase + acrescimos);
+    }
+    return valorBase;
+  };
+
+  // Função para gerar texto de acréscimos para e-mail
+  const getTextoAcrescimosEmail = () => {
+    const acrescimos = prestacaoDetalhada?.valor_acrescimos || 0;
+    const dias = prestacaoDetalhada?.dias_atraso || 0;
+
+    if (acrescimos > 0) {
+      return `%0AAcréscimos por atraso: ${formatMoney(acrescimos)} (${dias} dias)%0A`;
+    }
+    return '';
+  };
+
   // 🆕 NOVA LÓGICA - Calcular valores dos lançamentos detalhados
   const calcularValoresDosLancamentos = () => {
     if (!prestacaoDetalhada?.lancamentos_detalhados) {
@@ -680,7 +702,11 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
             <div className="flex justify-between items-center p-4 bg-muted/20 rounded-lg">
               <span className="text-sm font-medium text-foreground">Valor Total do Boleto</span>
               <span className="text-sm font-bold text-foreground">
-                {formatMoney(prestacaoDetalhada?.valor_boleto || boleto?.valor_total || 0)}
+                {formatMoney(
+                  (prestacaoDetalhada?.valor_acrescimos || 0) > 0
+                    ? (prestacaoDetalhada?.valor_total_com_acrescimos || ((prestacaoDetalhada?.valor_boleto || 0) + (prestacaoDetalhada?.valor_acrescimos || 0)))
+                    : (prestacaoDetalhada?.valor_boleto || boleto?.valor_total || 0)
+                )}
               </span>
             </div>
           </div>
@@ -998,7 +1024,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
           <CardContent className="p-8">
             <div className="space-y-6">
               {/* Resumo de Cálculo */}
-              <div className="text-xs text-muted-foreground bg-muted/20 rounded-lg p-4 space-y-1">
+              <div className="text-sm text-muted-foreground bg-muted/20 rounded-lg p-4 space-y-2">
                 {/* Lançamentos do Boleto */}
                 {valoresBaseConfig.map(({ key, label }) => {
                   const valor = valoresBase[key] || 0;
@@ -1011,45 +1037,41 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                   );
                 })}
 
-                {/* Subtotal */}
-                <div className="flex justify-between">
-                  <span>Subtotal dos valores base:</span>
-                  <span>{formatMoney(valoresCalculados.totalBoleto)}</span>
-                </div>
-
-                {/* Acréscimos */}
-                {((prestacaoDetalhada?.acrescimos_atraso || 0) > 0 || (boleto?.acrescimos?.dias_atraso || 0) > 0) && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Acréscimos por atraso:</span>
-                    <span>+ {formatMoney(
-                      prestacaoDetalhada?.acrescimos_atraso ||
-                      boleto?.acrescimos?.valor_total || 0
-                    )}</span>
-                  </div>
-                )}
-                
-                {/* Descontos */}
-                {valoresCalculados.totalRetido > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Total de descontos:</span>
-                    <span>- {formatMoney(valoresCalculados.totalRetido)}</span>
-                  </div>
-                )}
-                
-                {/* Valor do Boleto */}
-                <div className="border-t pt-1 flex justify-between font-medium">
-                  <span>Valor total do boleto:</span>
+                {/* Valor base do boleto */}
+                <div className="flex justify-between border-b pb-2">
+                  <span>Valor base do boleto:</span>
                   <span>{formatMoney(prestacaoDetalhada?.valor_boleto || boleto?.valor_total || 0)}</span>
                 </div>
-                
-                {/* Total Retido - usar valor salvo no banco */}
-                <div className="border-t border-border pt-3 mt-2 flex justify-between font-medium text-red-600">
+
+                {/* Acréscimos por atraso - apenas se houver */}
+                {(prestacaoDetalhada?.valor_acrescimos || 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Acréscimos por atraso ({prestacaoDetalhada?.dias_atraso || 0} dias):</span>
+                    <span>+{formatMoney(prestacaoDetalhada?.valor_acrescimos || 0)}</span>
+                  </div>
+                )}
+
+                {/* Valor total a pagar - com acréscimos se houver */}
+                {(prestacaoDetalhada?.valor_acrescimos || 0) > 0 ? (
+                  <div className="border-t border-red-300 pt-2 flex justify-between font-bold text-red-700 text-base">
+                    <span>VALOR TOTAL A PAGAR:</span>
+                    <span>{formatMoney((prestacaoDetalhada?.valor_total_com_acrescimos || 0) || ((prestacaoDetalhada?.valor_boleto || 0) + (prestacaoDetalhada?.valor_acrescimos || 0)))}</span>
+                  </div>
+                ) : (
+                  <div className="border-t pt-2 flex justify-between font-medium">
+                    <span>Valor total do boleto:</span>
+                    <span>{formatMoney(prestacaoDetalhada?.valor_boleto || boleto?.valor_total || 0)}</span>
+                  </div>
+                )}
+
+                {/* Total Retido */}
+                <div className="border-t border-border pt-2 flex justify-between font-medium text-red-600">
                   <span>Total retido:</span>
                   <span>- {formatMoney(valoresCalculados.totalRetido)}</span>
                 </div>
-                
-                {/* Valor Final */}
-                <div className="border-t border-border pt-3 mt-2 flex justify-between font-bold text-green-600">
+
+                {/* Valor líquido para repasse */}
+                <div className="border-t border-border pt-2 flex justify-between font-bold text-green-600 text-base">
                   <span>Valor total a repassar:</span>
                   <span>{formatMoney(valoresCalculados.valorRepasse)}</span>
                 </div>
@@ -1115,7 +1137,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                           <div className="flex-1">
                             <p className="text-sm text-muted-foreground">E-mail</p>
                             <a 
-                              href={`mailto:${boleto?.contrato.locatario_email}?subject=Cobrança - Boleto ${boleto?.numero_boleto || getMesNome(boleto?.periodo?.mes || 1) + '/' + boleto?.periodo?.ano}&body=Prezado(a) ${boleto?.contrato.locatario_nome},%0A%0ASegue em anexo o boleto referente ao aluguel de ${getMesNome(boleto?.periodo?.mes || 1)}/${boleto?.periodo?.ano}.%0A%0AValor: ${formatMoney(boleto?.valor_total)}%0A${boleto?.numero_boleto ? 'Número do Boleto: ' + boleto?.numero_boleto + '%0A' : ''}Vencimento: ${formatDate(boleto?.periodo?.data_vencimento || new Date().toISOString())}%0A%0AAtenciosamente,`}
+                              href={`mailto:${boleto?.contrato.locatario_email}?subject=Cobrança - Boleto ${boleto?.numero_boleto || getMesNome(boleto?.periodo?.mes || 1) + '/' + boleto?.periodo?.ano}&body=Prezado(a) ${boleto?.contrato.locatario_nome},%0A%0ASegue em anexo o boleto referente ao aluguel de ${getMesNome(boleto?.periodo?.mes || 1)}/${boleto?.periodo?.ano}.%0A%0AValor a pagar: ${formatMoney(getValorParaEmail())}%0A${getTextoAcrescimosEmail()}${boleto?.numero_boleto ? 'Número do Boleto: ' + boleto?.numero_boleto + '%0A' : ''}Vencimento: ${formatDate(boleto?.periodo?.data_vencimento || new Date().toISOString())}%0A%0AAtenciosamente,`}
                               className="text-sm font-semibold text-green-600 hover:text-green-700 transition-colors break-all"
                               title="Clique para enviar cobrança por e-mail"
                             >
@@ -1158,7 +1180,7 @@ export const DetalhamentoBoleto: React.FC<DetalhamentoBoletoProps> = ({ boleto, 
                           <div className="flex-1">
                             <p className="text-sm text-muted-foreground">E-mail</p>
                             <a 
-                              href={`mailto:${boleto?.contrato.proprietario_email}?subject=Relatório - Boleto ${boleto?.numero_boleto || getMesNome(boleto?.periodo?.mes || 1) + '/' + boleto?.periodo?.ano}&body=Prezado(a) ${boleto?.contrato.proprietario_nome},%0A%0ASegue relatório do boleto referente ao aluguel de ${getMesNome(boleto?.periodo?.mes || 1)}/${boleto?.periodo?.ano}.%0A%0AValor: ${formatMoney(boleto?.valor_total)}%0A${boleto?.numero_boleto ? 'Número do Boleto: ' + boleto?.numero_boleto + '%0A' : ''}Locatário: ${boleto?.contrato.locatario_nome}%0A%0AAtenciosamente,`}
+                              href={`mailto:${boleto?.contrato.proprietario_email}?subject=Relatório - Boleto ${boleto?.numero_boleto || getMesNome(boleto?.periodo?.mes || 1) + '/' + boleto?.periodo?.ano}&body=Prezado(a) ${boleto?.contrato.proprietario_nome},%0A%0ASegue relatório do boleto referente ao aluguel de ${getMesNome(boleto?.periodo?.mes || 1)}/${boleto?.periodo?.ano}.%0A%0AValor do boleto: ${formatMoney(getValorParaEmail())}%0A${getTextoAcrescimosEmail()}${boleto?.numero_boleto ? 'Número do Boleto: ' + boleto?.numero_boleto + '%0A' : ''}Locatário: ${boleto?.contrato.locatario_nome}%0A%0AAtenciosamente,`}
                               className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors break-all"
                               title="Clique para enviar relatório por e-mail"
                             >

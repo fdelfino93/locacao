@@ -97,8 +97,16 @@ def gerar_pdf_de_html(prestacao_data):
 
         y -= 20
 
-        # Valores
-        valor_boleto = prestacao_data.get('valor_boleto', prestacao_data.get('valor_total', 0))
+        # Valores - CONDICIONAL: se há acréscimos, usar total com acréscimos
+        valor_acrescimos = prestacao_data.get('valor_acrescimos', 0) or 0
+        valor_boleto_base = prestacao_data.get('valor_boleto', prestacao_data.get('valor_total', 0))
+
+        # Se há acréscimos, usar valor total com acréscimos
+        if valor_acrescimos > 0:
+            valor_boleto = prestacao_data.get('valor_total_com_acrescimos', valor_boleto_base + valor_acrescimos)
+        else:
+            valor_boleto = valor_boleto_base
+
         total_retido = prestacao_data.get('total_retido', 0)
         valor_repasse = prestacao_data.get('valor_repasse', prestacao_data.get('valor_liquido', 0))
 
@@ -116,11 +124,11 @@ def gerar_pdf_de_html(prestacao_data):
         p.save()
         buffer.seek(0)
 
-        print("✅ PDF gerado com sucesso usando dados do template personalizado")
+        print("PDF gerado com sucesso usando dados do template personalizado")
         return buffer
 
     except Exception as e:
-        print(f"🚨 Erro ao gerar PDF HTML: {e}")
+        print(f"ERRO ao gerar PDF HTML: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -128,8 +136,8 @@ def gerar_pdf_de_html(prestacao_data):
 def popular_template_com_dados(html_template, dados):
     """Popula o template HTML com os dados reais da prestação"""
 
-    print(f"🔍 DEBUG: Tipo de dados recebido: {type(dados)}")
-    print(f"🔍 DEBUG: Primeiras chaves/índices: {list(dados.keys()) if isinstance(dados, dict) else 'É uma lista'}")
+    print(f"DEBUG: Tipo de dados recebido: {type(dados)}")
+    print(f"DEBUG: Primeiras chaves/índices: {list(dados.keys()) if isinstance(dados, dict) else 'É uma lista'}")
 
     # Converter logos para base64
     import base64
@@ -140,18 +148,18 @@ def popular_template_com_dados(html_template, dados):
         with open('Cobimob logos-01.png', 'rb') as f:
             logo1_base64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
     except:
-        print("⚠️ Logo 1 não encontrada")
+        print("AVISO: Logo 1 não encontrada")
 
     try:
         with open('Cobimob logos-03.png', 'rb') as f:
             logo2_base64 = f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
     except:
-        print("⚠️ Logo 2 não encontrada")
+        print("AVISO: Logo 2 não encontrada")
 
     # Se dados for uma lista, pega o primeiro item
     if isinstance(dados, list) and len(dados) > 0:
         dados = dados[0]
-        print("🔍 DEBUG: Convertido lista para primeiro item")
+        print("DEBUG: Convertido lista para primeiro item")
 
     # Dados básicos
     prestacao_id = dados.get('id', 'N/A')
@@ -201,8 +209,20 @@ def popular_template_com_dados(html_template, dados):
         locatario_email = contrato.get('locatario_email', 'Email não informado')
         imovel_endereco = contrato.get('imovel_endereco', 'Endereço não informado')
 
-    # Valores financeiros
-    valor_boleto = dados.get('valor_boleto', dados.get('valor_total', 0))
+    # Valores financeiros - CONDICIONAL: se há acréscimos, usar total com acréscimos
+    valor_acrescimos = dados.get('valor_acrescimos', 0) or 0
+    dias_atraso = dados.get('dias_atraso', 0) or 0
+
+    # Valor base do boleto
+    valor_boleto_base = dados.get('valor_boleto', dados.get('valor_total', 0))
+
+    # Se há acréscimos, usar valor total com acréscimos
+    if valor_acrescimos > 0:
+        # Usar valor total com acréscimos se disponível, senão calcular
+        valor_boleto = dados.get('valor_total_com_acrescimos', float(valor_boleto_base) + float(valor_acrescimos))
+    else:
+        valor_boleto = valor_boleto_base
+
     total_retido = dados.get('total_retido', 0)
     valor_repasse = dados.get('valor_repasse', dados.get('valor_liquido', 0))
 
@@ -256,10 +276,15 @@ def popular_template_com_dados(html_template, dados):
         # Imóvel
         '{{IMOVEL_ENDERECO}}': imovel_endereco,
 
-        # Valores
+        # Valores - CONDICIONAL: incluir acréscimos se houver
         '{{VALOR_BOLETO}}': formatar_moeda(valor_boleto),
+        '{{VALOR_BOLETO_BASE}}': formatar_moeda(valor_boleto_base),
+        '{{VALOR_ACRESCIMOS}}': formatar_moeda(valor_acrescimos),
+        '{{DIAS_ATRASO}}': str(dias_atraso),
         '{{TOTAL_RETIDO}}': formatar_moeda(total_retido),
         '{{VALOR_REPASSE}}': formatar_moeda(valor_repasse),
+
+        # Seção de acréscimos removida - acréscimos aparecem como lançamento normal
 
         # Proprietários
         '{{PROPRIETARIOS_INFO}}': gerar_html_proprietarios(locadores),
@@ -285,7 +310,7 @@ def popular_template_com_dados(html_template, dados):
     }
 
     # Aplicar todas as substituições
-    print(f"🔍 DEBUG - Substituições que serão aplicadas:")
+    print(f"DEBUG - Substituições que serão aplicadas:")
     print(f"   - LOCATARIO_NOME: {replacements.get('{{LOCATARIO_NOME}}')}")
     print(f"   - IMOVEL_ENDERECO: {replacements.get('{{IMOVEL_ENDERECO}}')}")
     print(f"   - VALOR_BOLETO: {replacements.get('{{VALOR_BOLETO}}')}")
@@ -296,7 +321,7 @@ def popular_template_com_dados(html_template, dados):
     for placeholder, value in replacements.items():
         html_final = html_final.replace(placeholder, str(value))
         if placeholder in ['{{LOCATARIO_NOME}}', '{{VALOR_BOLETO}}', '{{TOTAL_RETIDO}}']:
-            print(f"   ✅ Substituído {placeholder} -> {value}")
+            print(f"   Substituído {placeholder} -> {value}")
 
     return html_final
 
@@ -315,7 +340,7 @@ def gerar_html_proprietarios(locadores):
     return html if html else '<div><strong>Proprietário não informado</strong></div>'
 
 def gerar_html_valores_cobrados(lancamentos):
-    """Gera HTML para valores cobrados - incluindo descontos junto aos lançamentos do boleto"""
+    """Gera HTML para valores cobrados - incluindo acréscimos como lançamento normal"""
     if not lancamentos or not isinstance(lancamentos, list):
         return '<tr><td>Nenhum lançamento encontrado</td><td class="valor">R$ 0,00</td></tr>'
 
@@ -324,7 +349,7 @@ def gerar_html_valores_cobrados(lancamentos):
 
     # Primeira passagem: agrupar lançamentos por tipo, mantendo o de maior valor absoluto
     for lancamento in lancamentos:
-        if isinstance(lancamento, dict) and lancamento.get('categoria') in ['termo', 'desconto']:
+        if isinstance(lancamento, dict) and lancamento.get('categoria') in ['termo', 'desconto', 'acrescimo']:
             tipo = lancamento.get('tipo', '')
             descricao = lancamento.get('descricao', 'N/A')
             valor = lancamento.get('valor', 0)
@@ -422,6 +447,38 @@ def determinar_tipo_pagamento(locadores):
                 return 'TED'
 
     return 'PIX'
+
+def gerar_secao_acrescimos(valor_acrescimos, dias_atraso, valor_base):
+    """Gera seção HTML para acréscimos por atraso - APENAS quando há acréscimos"""
+    if not valor_acrescimos or valor_acrescimos <= 0:
+        return ''  # Não mostra nada se não há acréscimos
+
+    return f'''
+    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 15px 0; border-radius: 5px;">
+        <h3 style="color: #856404; margin: 0 0 10px 0; font-size: 14px;">ACRÉSCIMOS POR ATRASO</h3>
+        <table style="width: 100%; font-size: 12px;">
+            <tr>
+                <td><strong>Valor original do boleto:</strong></td>
+                <td style="text-align: right;">{formatar_moeda(valor_base)}</td>
+            </tr>
+            <tr>
+                <td><strong>Dias em atraso:</strong></td>
+                <td style="text-align: right; color: #d63031;">{dias_atraso} dias</td>
+            </tr>
+            <tr>
+                <td><strong>Acréscimos aplicados:</strong></td>
+                <td style="text-align: right; color: #d63031;">+{formatar_moeda(valor_acrescimos)}</td>
+            </tr>
+            <tr style="border-top: 2px solid #856404;">
+                <td><strong>VALOR TOTAL A PAGAR:</strong></td>
+                <td style="text-align: right; font-weight: bold; color: #d63031; font-size: 14px;">{formatar_moeda(valor_base + valor_acrescimos)}</td>
+            </tr>
+        </table>
+        <p style="margin: 10px 0 0 0; font-size: 10px; color: #856404;">
+            <em>* Acréscimos calculados automaticamente conforme contrato</em>
+        </p>
+    </div>
+    '''
 
 def gerar_html_repasses(distribuicao, locadores):
     """Gera HTML para repasses aos proprietários"""

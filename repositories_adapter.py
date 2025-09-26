@@ -988,7 +988,7 @@ def gerar_relatorio_pdf(dados):
         from gerar_pdf_html import gerar_pdf_de_html
         return gerar_pdf_de_html(dados)
     except Exception as e:
-        print(f"🚨 Erro ao gerar PDF personalizado: {e}")
+        print(f"ERRO ao gerar PDF personalizado: {e}")
         raise Exception(f"Falha na geração do PDF: {e}")
 
 def buscar_contratos_ativos():
@@ -4085,7 +4085,7 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             cursor.execute("SELECT contrato_id FROM PrestacaoContas WHERE 1=0")
             tem_contrato_id = True
             print("Campo contrato_id já existe")
-            print(f"🚨 FORÇANDO DEBUG AQUI - Arquivo foi recarregado corretamente!")
+            print(f"FORÇANDO DEBUG AQUI - Arquivo foi recarregado corretamente!")
         except:
             # print("AVISO: Campo contrato_id nao existe na tabela PrestacaoContas - adicionando...")
             try:

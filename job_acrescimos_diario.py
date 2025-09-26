@@ -318,30 +318,62 @@ def atualizar_acrescimos_prestacao(prestacao: Dict[str, Any]) -> bool:
             WHERE id = ?
         """, (novo_valor_repasse, prestacao['id']))
 
-        # PASSO 3: Log da distribuição (informativo - a distribuição é calculada dinamicamente)
+        # PASSO 3: Atualizar/criar distribuição quando há acréscimos
         try:
-            # Buscar locadores do contrato para log
+            # Buscar locadores do contrato
             cursor.execute("""
-                SELECT cl.locador_id, l.nome, cl.porcentagem
+                SELECT cl.locador_id, l.nome, cl.responsabilidade_principal
                 FROM ContratoLocadores cl
                 JOIN Locadores l ON cl.locador_id = l.id
                 WHERE cl.contrato_id = (SELECT contrato_id FROM PrestacaoContas WHERE id = ?)
-                AND cl.porcentagem IS NOT NULL
-                AND cl.porcentagem > 0
+                AND cl.ativo = 1
+                ORDER BY cl.responsabilidade_principal DESC, cl.locador_id
             """, (prestacao['id'],))
 
             locadores = cursor.fetchall()
 
-            if locadores:
-                # Log informativo da distribuição (calculada dinamicamente baseada na porcentagem)
-                for locador_id, nome, porcentagem in locadores:
-                    valor_locador = novo_valor_repasse * (float(porcentagem) / 100)
-                    logger.debug(
-                        f"  → Locador {nome}: {porcentagem:.2f}% = R$ {valor_locador:.2f}"
-                    )
+            if locadores and len(locadores) > 0:
+                # Calcular distribuição igual (dividir por 3)
+                valor_base = novo_valor_repasse / len(locadores)
+                valor_base_arredondado = round(valor_base - 0.005, 2)  # Arredondar para baixo
+                diferenca = novo_valor_repasse - (valor_base_arredondado * len(locadores))
+
+                # Atualizar/criar distribuição na tabela
+                for i, (locador_id, nome, eh_principal) in enumerate(locadores):
+                    # Responsável principal recebe os centavos extras
+                    valor_final = valor_base_arredondado + (diferenca if eh_principal else 0)
+
+                    # Verificar se já existe distribuição para esta prestação e locador
+                    cursor.execute("""
+                        SELECT id FROM DistribuicaoRepasseLocadores
+                        WHERE prestacao_id = ? AND locador_id = ?
+                    """, (prestacao['id'], locador_id))
+
+                    existe = cursor.fetchone()
+
+                    if existe:
+                        # Atualizar existente
+                        cursor.execute("""
+                            UPDATE DistribuicaoRepasseLocadores
+                            SET valor_repasse = ?,
+                                percentual_participacao = ?,
+                                data_atualizacao = GETDATE()
+                            WHERE prestacao_id = ? AND locador_id = ?
+                        """, (valor_final, round(100.0 / len(locadores), 2), prestacao['id'], locador_id))
+                        logger.debug(f"  ↻ Atualizado {nome}: R$ {valor_final:.2f}")
+                    else:
+                        # Criar novo registro
+                        cursor.execute("""
+                            INSERT INTO DistribuicaoRepasseLocadores
+                            (prestacao_id, locador_id, locador_nome, percentual_participacao,
+                             valor_repasse, responsabilidade_principal, data_criacao, ativo)
+                            VALUES (?, ?, ?, ?, ?, ?, GETDATE(), 1)
+                        """, (prestacao['id'], locador_id, nome, round(100.0 / len(locadores), 2),
+                              valor_final, eh_principal))
+                        logger.debug(f"  ⊕ Criado {nome}: R$ {valor_final:.2f}")
 
         except Exception as e:
-            logger.debug(f"Não foi possível listar distribuição: {e}")
+            logger.warning(f"Erro ao atualizar distribuição para prestação {prestacao['id']}: {e}")
 
         # Registrar log de alteração
         cursor.execute("""

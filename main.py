@@ -1007,13 +1007,13 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         
         # DEBUG ESPECÍFICO PARA FORMAS DE COBRANÇA
         if 'formas_envio_cobranca' in dados_filtrados:
-            print(f"🚨 DEBUG FORMAS_ENVIO_COBRANCA: {dados_filtrados['formas_envio_cobranca']}")
-            print(f"🚨 TIPO: {type(dados_filtrados['formas_envio_cobranca'])}")
+            print(f"DEBUG FORMAS_ENVIO_COBRANCA: {dados_filtrados['formas_envio_cobranca']}")
+            print(f"TIPO: {type(dados_filtrados['formas_envio_cobranca'])}")
             if dados_filtrados['formas_envio_cobranca']:
                 for i, forma in enumerate(dados_filtrados['formas_envio_cobranca']):
-                    print(f"🚨 FORMA {i}: {forma} (tipo: {type(forma)})")
+                    print(f"FORMA {i}: {forma} (tipo: {type(forma)})")
         else:
-            print(f"🚨 DEBUG: formas_envio_cobranca NÃO ENCONTRADA em dados_filtrados")
+            print(f"DEBUG: formas_envio_cobranca NÃO ENCONTRADA em dados_filtrados")
         
         resultado = atualizar_locatario_db(locatario_id, **dados_filtrados)
         
