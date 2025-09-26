@@ -283,13 +283,11 @@ class LocadorCreate(BaseModel):
     email_recebimento: Optional[str] = None
     usa_multiplos_metodos: Optional[Union[bool, int, str]] = False
     representante_legal: Optional[dict] = None
-    
+
     # Campos para funcionalidades avançadas
-    contas_bancarias: Optional[list] = None
-    representante_legal: Optional[dict] = None
     dados_bancarios: Optional[dict] = None
     documentos_empresa: Optional[dict] = None
-    
+
     # Campos de arrays do frontend
     telefones: Optional[list] = None
     emails: Optional[list] = None
@@ -852,16 +850,11 @@ class ContratoUpdate(BaseModel):
 async def criar_locador(locador: LocadorCreate):
     try:
         print(f"Criando novo locador: {locador.nome}")
-        
-        # Usar adapter
-        resultado = inserir_locador(locador.dict(exclude_none=True))
-        
-        if resultado.get("success"):
-            return {"data": {"id": resultado["id"]}, "success": True, "message": resultado["message"]}
-        else:
-            raise HTTPException(status_code=500, detail=resultado.get("error", "Erro desconhecido"))
-    except HTTPException:
-        raise
+
+        # Usar adapter - converter para dict e passar como kwargs
+        dados_locador = locador.model_dump(exclude_none=True)
+        resultado = inserir_locador(**dados_locador)
+        return {"data": resultado, "success": True}
     except Exception as e:
         print(f"Erro ao criar locador: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")

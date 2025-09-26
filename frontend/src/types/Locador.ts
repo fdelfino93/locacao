@@ -69,5 +69,11 @@ export interface Locador {
   comprovante_endereco?: string;
   observacoes_especiais?: string;
   endereco_estruturado?: any;
+
+  // Campos ausentes que estavam faltando
+  usa_multiplas_contas?: boolean | number;
+  data_cadastro?: string;
+  data_atualizacao?: string;
+  ativo?: boolean | number;
 }
 

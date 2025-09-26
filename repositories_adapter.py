@@ -351,8 +351,25 @@ def buscar_locador_por_id(locador_id):
             # Se não tem endereço estruturado, manter endereço string como fallback
             row_dict['endereco_estruturado'] = None
 
+        # 🔧 CORREÇÃO: Buscar contas bancárias do locador
+        print(f"🏦 Buscando contas bancárias para locador ID {locador_id}")
+        contas_bancarias = buscar_contas_bancarias_locador(locador_id)
+        row_dict['contas_bancarias'] = contas_bancarias
+        print(f"📋 Encontradas {len(contas_bancarias)} contas bancárias")
+
+        # Buscar representante legal se for PJ
+        if row_dict.get('tipo_pessoa') == 'PJ':
+            print(f"🏢 Buscando representante legal para PJ - locador ID {locador_id}")
+            representante = buscar_representante_legal_locador(locador_id)
+            if representante:
+                row_dict['representante_legal'] = representante
+                print(f"✅ Representante legal encontrado: {representante.get('nome', 'Nome não informado')}")
+            else:
+                row_dict['representante_legal'] = None
+                print(f"⚠️ Nenhum representante legal encontrado")
+
         conn.close()
-        print(f"ADAPTER: Locador ID {locador_id} encontrado com endereço estruturado")
+        print(f"ADAPTER: Locador ID {locador_id} encontrado completo (endereço estruturado + contas bancárias + representante legal)")
         return row_dict
 
     except Exception as e:
@@ -433,14 +450,14 @@ def buscar_imoveis():
         print(f"Erro ao buscar imóveis: {e}")
         return []
 
-# Funçoes de insercao (usar as existentes) - TEMPORARIAMENTE COMENTADO
+# Funçoes de insercao (usar as existentes) - REABILITADO PARA LOCATARIOS
 # from locacao.repositories.cliente_repository import inserir_cliente
 # from locacao.repositories.inquilino_repository import inserir_inquilino
-# from locacao.repositories.locatario_repository_v4_final import (
-#     inserir_locatario_v4, 
-#     buscar_locatario_completo, 
-#     buscar_inquilinos as buscar_locatarios_v4
-# )  
+from locacao.repositories.locatario_repository_v4_final import (
+    inserir_locatario_v4,
+    buscar_locatario_completo,
+    buscar_inquilinos as buscar_locatarios_v4
+)
 # from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
 # from locacao.repositories.contrato_repository import inserir_contrato
 
@@ -493,10 +510,16 @@ def inserir_cliente(**kwargs):
             inscricao_municipal = kwargs.get('inscricao_municipal', '')
             atividade_principal = kwargs.get('atividade_principal', '')
             data_constituicao = kwargs.get('data_constituicao')
-            capital_social = kwargs.get('capital_social') 
+            capital_social = kwargs.get('capital_social')
             porte_empresa = kwargs.get('porte_empresa', '')
             regime_tributario = kwargs.get('regime_tributario', '')
-            
+
+            # Campos adicionais que estavam faltando
+            regime_bens = kwargs.get('regime_bens', '')
+            email_recebimento = kwargs.get('email_recebimento', '')
+            usa_multiplos_metodos = kwargs.get('usa_multiplos_metodos', 0)
+            usa_multiplas_contas = kwargs.get('usa_multiplas_contas', 0)
+
             # Campos de auditoria
             from datetime import datetime
             data_cadastro = datetime.now()
@@ -522,10 +545,11 @@ def inserir_cliente(**kwargs):
                     nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
                     tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
                     razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
-                    atividade_principal, data_constituicao, capital_social, porte_empresa, 
-                    regime_tributario, ativo, data_cadastro, data_atualizacao
+                    atividade_principal, data_constituicao, capital_social, porte_empresa,
+                    regime_tributario, regime_bens, email_recebimento, usa_multiplos_metodos,
+                    usa_multiplas_contas, ativo, data_cadastro, data_atualizacao
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 nome, cpf_cnpj, telefone, email, endereco_completo, endereco_id,
                 tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
@@ -534,8 +558,9 @@ def inserir_cliente(**kwargs):
                 nome_conjuge, cpf_conjuge, rg_conjuge, endereco_conjuge, telefone_conjuge,
                 tipo_cliente, data_nascimento, tipo_pessoa, observacoes,
                 razao_social, nome_fantasia, inscricao_estadual, inscricao_municipal,
-                atividade_principal, data_constituicao, capital_social, porte_empresa, 
-                regime_tributario, ativo, data_cadastro, data_atualizacao
+                atividade_principal, data_constituicao, capital_social, porte_empresa,
+                regime_tributario, regime_bens, email_recebimento, usa_multiplos_metodos,
+                usa_multiplas_contas, ativo, data_cadastro, data_atualizacao
             ))
             
             conn.commit()
@@ -645,7 +670,7 @@ def atualizar_locador(locador_id, **kwargs):
                 'endereco_conjuge', 'telefone_conjuge', 'regime_bens',
                 # Outros
                 'tipo_cliente', 'observacoes', 'ativo', 'endereco_id', 'dados_bancarios_id',
-                'email_recebimento', 'usa_multiplos_metodos', 'endereco_estruturado'
+                'email_recebimento', 'usa_multiplos_metodos', 'usa_multiplas_contas', 'endereco_estruturado'
             }
             
             # Filtrar campos para atualizar
@@ -1187,6 +1212,37 @@ def buscar_contas_bancarias_locador(locador_id):
     except Exception as e:
         print(f"Erro ao buscar contas bancárias: {e}")
         return []
+
+def buscar_representante_legal_locador(locador_id):
+    """Busca representante legal de um locador PJ específico"""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    id, id_locador, nome, cpf, rg, endereco, telefone, email, cargo, created_at
+                FROM RepresentanteLegalLocador
+                WHERE id_locador = ?
+            """, (locador_id,))
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            # Converter para dicionário
+            columns = [column[0] for column in cursor.description]
+            result = {}
+            for i, value in enumerate(row):
+                if hasattr(value, 'strftime'):
+                    result[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    result[columns[i]] = value
+
+            return result
+
+    except Exception as e:
+        print(f"Erro ao buscar representante legal: {e}")
+        return None
 
 def inserir_conta_bancaria_locador_com_cursor(cursor, locador_id, dados_conta):
     """Insere uma conta bancária para um locador usando cursor existente"""
@@ -2475,16 +2531,23 @@ def atualizar_locatario(locatario_id, **kwargs):
                     elif valor == 0:
                         valor = None
                 campos_para_atualizar[campo] = valor
-        
+
         if not campos_para_atualizar:
-            print("Nenhum campo válido para atualizar")
-            conn.close()
-            return False
-            
-        # Construir query de UPDATE dinamicamente
-        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
-        valores = list(campos_para_atualizar.values())
-        valores.append(locatario_id)  # Para o WHERE
+            # Se não há campos da tabela principal mas há representante_legal, continuar
+            if 'representante_legal' not in kwargs:
+                print("Nenhum campo válido para atualizar")
+                conn.close()
+                return False
+            else:
+                print("Nenhum campo da tabela principal, mas processando representante_legal")
+                # Criar query mínima para não dar erro
+                set_clause = "data_atualizacao = GETDATE()"
+                valores = [locatario_id]
+        else:
+            # Construir query de UPDATE dinamicamente
+            set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
+            valores = list(campos_para_atualizar.values())
+            valores.append(locatario_id)  # Para o WHERE
         
         query = f"UPDATE Locatarios SET {set_clause} WHERE id = ?"
         
@@ -2492,63 +2555,68 @@ def atualizar_locatario(locatario_id, **kwargs):
         print(f"Valores: {valores}")
         
         cursor.execute(query, valores)
-        
-        # Verificar se alguma linha foi afetada
-        if cursor.rowcount == 0:
+
+        # Verificar se alguma linha foi afetada (mas não retornar ainda se temos representante_legal)
+        linhas_afetadas = cursor.rowcount
+        if linhas_afetadas == 0 and 'representante_legal' not in kwargs:
             print("Nenhuma linha foi afetada pela atualizacao")
             conn.close()
             return False
-        
+
         # Atualizar dados do representante legal se fornecidos e for PJ
-        if 'representante_legal' in kwargs and kwargs.get('tipo_pessoa') == 'PJ':
-            repr_legal = kwargs['representante_legal']
-            print(f"Processando dados do representante legal: {repr_legal}")
-            
-            if isinstance(repr_legal, dict) and repr_legal.get("nome"):
-                # Verificar se já existe um representante legal para este locatário
-                cursor.execute("""
-                    SELECT id FROM RepresentanteLegalLocatario 
-                    WHERE id_locatario = ?
-                """, (locatario_id,))
-                
-                representante_existente = cursor.fetchone()
-                
-                if representante_existente:
-                    # UPDATE - Atualizar representante existente
-                    print(f"Atualizando representante legal existente ID: {representante_existente[0]}")
+        if 'representante_legal' in kwargs:
+            # Verificar se o locatário é PJ buscando do banco
+            cursor.execute("SELECT tipo_pessoa FROM Locatarios WHERE id = ?", locatario_id)
+            tipo_pessoa_row = cursor.fetchone()
+            if tipo_pessoa_row and tipo_pessoa_row[0] == 'PJ':
+                repr_legal = kwargs['representante_legal']
+                print(f"Processando dados do representante legal: {repr_legal}")
+
+                if isinstance(repr_legal, dict) and repr_legal.get("nome"):
+                    # Verificar se já existe um representante legal para este locatário
                     cursor.execute("""
-                        UPDATE RepresentanteLegalLocatario 
-                        SET nome = ?, cpf = ?, rg = ?, endereco = ?, telefone = ?, email = ?, cargo = ?
+                        SELECT id FROM RepresentanteLegalLocatario
                         WHERE id_locatario = ?
-                    """, (
-                        repr_legal.get("nome", ""),
-                        repr_legal.get("cpf", ""),
-                        repr_legal.get("rg", ""),
-                        repr_legal.get("endereco", ""),
-                        repr_legal.get("telefone", ""),
-                        repr_legal.get("email", ""),
-                        repr_legal.get("cargo", ""),
-                        locatario_id
-                    ))
-                    print(f"Representante legal atualizado para locatário {locatario_id}")
-                else:
-                    # INSERT - Criar novo representante legal
-                    print(f"Inserindo novo representante legal para locatário {locatario_id}")
-                    cursor.execute("""
-                        INSERT INTO RepresentanteLegalLocatario 
-                        (id_locatario, nome, cpf, rg, endereco, telefone, email, cargo, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
-                    """, (
-                        locatario_id,
-                        repr_legal.get("nome", ""),
-                        repr_legal.get("cpf", ""),
-                        repr_legal.get("rg", ""),
-                        repr_legal.get("endereco", ""),
-                        repr_legal.get("telefone", ""),
-                        repr_legal.get("email", ""),
-                        repr_legal.get("cargo", "")
-                    ))
-                    print(f"Novo representante legal inserido para locatário {locatario_id}")
+                    """, (locatario_id,))
+
+                    representante_existente = cursor.fetchone()
+
+                    if representante_existente:
+                        # UPDATE - Atualizar representante existente
+                        print(f"Atualizando representante legal existente ID: {representante_existente[0]}")
+                        cursor.execute("""
+                            UPDATE RepresentanteLegalLocatario
+                            SET nome = ?, cpf = ?, rg = ?, endereco = ?, telefone = ?, email = ?, cargo = ?
+                            WHERE id_locatario = ?
+                        """, (
+                            repr_legal.get("nome", ""),
+                            repr_legal.get("cpf", ""),
+                            repr_legal.get("rg", ""),
+                            repr_legal.get("endereco", ""),
+                            repr_legal.get("telefone", ""),
+                            repr_legal.get("email", ""),
+                            repr_legal.get("cargo", ""),
+                            locatario_id
+                        ))
+                        print(f"Representante legal atualizado para locatário {locatario_id}")
+                    else:
+                        # INSERT - Criar novo representante legal
+                        print(f"Inserindo novo representante legal para locatário {locatario_id}")
+                        cursor.execute("""
+                            INSERT INTO RepresentanteLegalLocatario
+                            (id_locatario, nome, cpf, rg, endereco, telefone, email, cargo, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, GETDATE())
+                        """, (
+                            locatario_id,
+                            repr_legal.get("nome", ""),
+                            repr_legal.get("cpf", ""),
+                            repr_legal.get("rg", ""),
+                            repr_legal.get("endereco", ""),
+                            repr_legal.get("telefone", ""),
+                            repr_legal.get("email", ""),
+                            repr_legal.get("cargo", "")
+                        ))
+                        print(f"Novo representante legal inserido para locatário {locatario_id}")
         
         # Atualizar telefones se fornecidos
         if 'telefones' in kwargs:
