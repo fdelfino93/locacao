@@ -46,10 +46,55 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('pt-BR');
 };
 
+// Função para controlar quais botões exibir baseado no status
+const getButtonsForStatus = (status: string) => {
+  const buttons = {
+    showRegistrarPagamento: false,
+    showGerarBoleto: false,
+    showLancarPrestacao: false,
+    showVerPDF: true, // SEMPRE disponível
+    showEditar: false,
+    showMenu: false
+  };
+
+  switch (status) {
+    case 'pendente':
+    case 'em_atraso':
+      buttons.showRegistrarPagamento = true;
+      buttons.showGerarBoleto = true;
+      buttons.showEditar = true;
+      buttons.showMenu = true;
+      break;
+
+    case 'paga':
+      buttons.showLancarPrestacao = true;
+      buttons.showEditar = false; // Não pode editar quando paga
+      buttons.showMenu = true;
+      break;
+
+    case 'lancada':
+      buttons.showEditar = false;
+      buttons.showMenu = false;
+      break;
+
+    case 'cancelada':
+      buttons.showEditar = false;
+      buttons.showMenu = false;
+      break;
+
+    default:
+      buttons.showEditar = true;
+      buttons.showMenu = true;
+  }
+
+  return buttons;
+};
+
 const getStatusBadge = (status: string) => {
   const statusConfig = {
     'aberta': { label: 'Aberta', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
     'paga': { label: 'Paga', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+    'lancada': { label: 'Lançada', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300' },
     'pendente': { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' },
     'em_atraso': { label: 'Em Atraso', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' },
     'cancelada': { label: 'Cancelada', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300' }
@@ -70,7 +115,7 @@ export const PrestacaoContasModerna: React.FC = () => {
   const [activeTab, setActiveTab] = useState('todas');
   const [faturas, setFaturas] = useState<Fatura[]>([]);
   const [stats, setStats] = useState<FaturaStats>({
-    todas: 0, abertas: 0, pendentes: 0, pagas: 0, em_atraso: 0, canceladas: 0,
+    todas: 0, abertas: 0, pendentes: 0, pagas: 0, lancadas: 0, em_atraso: 0, canceladas: 0,
     valor_total_aberto: 0, valor_total_recebido: 0, valor_total_atrasado: 0
   });
   const [filtros, setFiltros] = useState<FaturaFilters>({});
@@ -593,50 +638,144 @@ export const PrestacaoContasModerna: React.FC = () => {
                                   {getStatusBadge(fatura.status)}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className="font-semibold text-foreground">
-                                    {formatCurrency(fatura.valor_total || 0)}
-                                  </span>
+                                  <div className="text-right">
+                                    <div className="font-semibold text-foreground">
+                                      {formatCurrency(fatura.valor_total || 0)}
+                                    </div>
+                                    {fatura.valor_acrescimos && fatura.valor_acrescimos > 0 && (
+                                      <div className="text-xs text-red-600 font-medium">
+                                        +{formatCurrency(fatura.valor_acrescimos)} ({fatura.dias_atraso || 0} dias)
+                                      </div>
+                                    )}
+                                    {fatura.valor_acrescimos && fatura.valor_acrescimos > 0 && (
+                                      <div className="text-xs text-muted-foreground border-t border-muted mt-1 pt-1">
+                                        Total: {formatCurrency((fatura.valor_total || 0) + fatura.valor_acrescimos)}
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <div className="flex items-center space-x-2">
-                                    <button 
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log('🔥 BOTÃO CLICADO! Fatura ID:', fatura?.id || 'ID não encontrado');
-                                        console.log('📊 Fatura completa:', fatura);
-                                        
-                                        const faturaId = fatura?.id || Math.floor(Math.random() * 1000); // fallback para teste
-                                        const url = `/prestacao-contas/editar/${faturaId}`;
-                                        console.log('🌐 Navegando para:', url);
-                                        
-                                        // Forçar navegação direta
-                                        window.location.replace(url);
-                                      }}
-                                      style={{
-                                        padding: '6px 12px',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '6px',
-                                        backgroundColor: 'white',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}
-                                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                                      onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                                      title="Editar Fatura"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                      <span style={{ fontSize: '12px' }}>Editar</span>
-                                    </button>
-                                    <Button size="sm" variant="outline" className="btn-outline">
-                                      <Receipt className="w-4 h-4" />
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="btn-outline">
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </div>
+                                  {(() => {
+                                    const buttonConfig = getButtonsForStatus(fatura.status);
+
+                                    return (
+                                      <div className="flex items-center space-x-2">
+                                        {/* Botão Registrar Pagamento */}
+                                        {buttonConfig.showRegistrarPagamento && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="btn-outline"
+                                            title="Registrar Pagamento"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              toast.success(`Registrar pagamento para fatura ${fatura.id}`);
+                                            }}
+                                          >
+                                            <DollarSign className="w-4 h-4" />
+                                          </Button>
+                                        )}
+
+                                        {/* Botão Gerar Boleto */}
+                                        {buttonConfig.showGerarBoleto && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="btn-outline"
+                                            title="Gerar Boleto"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              toast.success(`Gerar boleto para fatura ${fatura.id}`);
+                                            }}
+                                          >
+                                            <FileText className="w-4 h-4" />
+                                          </Button>
+                                        )}
+
+                                        {/* Botão Lançar Prestação */}
+                                        {buttonConfig.showLancarPrestacao && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="btn-outline bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                            title="Lançar Prestação"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              toast.success(`Lançar prestação ${fatura.id}`);
+                                            }}
+                                          >
+                                            <CheckCircle className="w-4 h-4" />
+                                          </Button>
+                                        )}
+
+                                        {/* Botão Editar - sempre condicional */}
+                                        {buttonConfig.showEditar && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              console.log('🔥 BOTÃO CLICADO! Fatura ID:', fatura?.id || 'ID não encontrado');
+                                              console.log('📊 Fatura completa:', fatura);
+
+                                              const faturaId = fatura?.id || Math.floor(Math.random() * 1000);
+                                              const url = `/prestacao-contas/editar/${faturaId}`;
+                                              console.log('🌐 Navegando para:', url);
+
+                                              window.location.replace(url);
+                                            }}
+                                            style={{
+                                              padding: '6px 12px',
+                                              border: '1px solid #d1d5db',
+                                              borderRadius: '6px',
+                                              backgroundColor: 'white',
+                                              cursor: 'pointer',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }}
+                                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
+                                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                            title="Editar Fatura"
+                                          >
+                                            <Eye className="w-4 h-4" />
+                                            <span style={{ fontSize: '12px' }}>Editar</span>
+                                          </button>
+                                        )}
+
+                                        {/* Botão Ver PDF - SEMPRE visível */}
+                                        {buttonConfig.showVerPDF && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="btn-outline"
+                                            title="Ver PDF"
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              toast.success(`Abrindo PDF da fatura ${fatura.id}`);
+                                            }}
+                                          >
+                                            <Receipt className="w-4 h-4" />
+                                          </Button>
+                                        )}
+
+                                        {/* Botão Menu - condicional */}
+                                        {buttonConfig.showMenu && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="btn-outline"
+                                            title="Mais opções"
+                                          >
+                                            <MoreVertical className="w-4 h-4" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
                               </motion.tr>
                             ))}

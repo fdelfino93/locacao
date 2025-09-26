@@ -37,7 +37,7 @@ export interface Fatura {
   referencia_display: string; // 'Janeiro/2024' formato
   
   // Status
-  status: 'aberta' | 'paga' | 'pendente' | 'em_atraso' | 'cancelada';
+  status: 'aberta' | 'paga' | 'lancada' | 'pendente' | 'em_atraso' | 'cancelada';
   situacao_pagamento: 'em_dia' | 'atrasado' | 'vencido' | 'quitado';
   dias_atraso: number;
   

@@ -98,7 +98,8 @@ def obter_locatarios_contrato_unificado(contrato_id):
                     100.00 as percentual_responsabilidade,
                     1 as responsabilidade_principal
                 FROM Contratos c
-                INNER JOIN Locatarios l ON c.id_locatario = l.id
+                INNER JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+                INNER JOIN Locatarios l ON cl.locatario_id = l.id
                 WHERE c.id = ? AND l.id IS NOT NULL
             """, (contrato_id,))
             
@@ -982,8 +983,13 @@ def gerar_relatorio_excel(dados):
     return None
 
 def gerar_relatorio_pdf(dados):
-    """Gera relatório em PDF da prestacao de contas"""
-    return None
+    """Gera relatório em PDF usando APENAS template HTML personalizado da COBIMOB"""
+    try:
+        from gerar_pdf_html import gerar_pdf_de_html
+        return gerar_pdf_de_html(dados)
+    except Exception as e:
+        print(f"🚨 Erro ao gerar PDF personalizado: {e}")
+        raise Exception(f"Falha na geração do PDF: {e}")
 
 def buscar_contratos_ativos():
     """Busca todos os contratos válidos (ativo, reajuste, vencendo) para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
@@ -1586,7 +1592,8 @@ def buscar_contrato_por_id(contrato_id):
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
             LEFT JOIN Locadores l ON i.id_locador = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON cl.locatario_id = loc.id
             WHERE c.id = ?
         """, (contrato_id,))
         
@@ -1834,57 +1841,143 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
                     END as imovel_endereco,
                     'Apartamento' as imovel_tipo,
                     ISNULL(p.total_bruto, 0) as valor_aluguel,
-                    CASE 
-                        WHEN p.contrato_id IS NOT NULL THEN 
-                            ISNULL((SELECT TOP 1 lt.nome FROM Contratos c 
-                                   LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                    CASE
+                        WHEN p.contrato_id IS NOT NULL THEN
+                            ISNULL((SELECT TOP 1 lt.nome FROM Contratos c
+                                   LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+                                   LEFT JOIN Locatarios lt ON cl.locatario_id = lt.id
                                    WHERE c.id = p.contrato_id), 'Nome não encontrado')
                         ELSE 'Nome não informado'
                     END as locatario_nome,
-                    CASE 
-                        WHEN p.contrato_id IS NOT NULL THEN 
-                            ISNULL((SELECT TOP 1 lt.cpf_cnpj FROM Contratos c 
-                                   LEFT JOIN Locatarios lt ON c.id_locatario = lt.id 
+                    CASE
+                        WHEN p.contrato_id IS NOT NULL THEN
+                            ISNULL((SELECT TOP 1 lt.cpf_cnpj FROM Contratos c
+                                   LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+                                   LEFT JOIN Locatarios lt ON cl.locatario_id = lt.id
                                    WHERE c.id = p.contrato_id), 'CPF não encontrado')
                         ELSE 'CPF não informado'
                     END as locatario_cpf,
                     ISNULL(l.nome, 'Nome não informado') as locador_nome,
                     ISNULL(l.nome, 'Nome não informado') as proprietario_nome,
                     ISNULL(l.cpf_cnpj, 'CPF não informado') as proprietario_cpf,
-                    -- Calcular dias de atraso automaticamente baseado na data de vencimento
-                    CASE 
-                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() 
-                        THEN DATEDIFF(day, p.data_criacao, GETDATE())
-                        ELSE 0 
+                    -- Calcular dias de atraso baseado na data de vencimento do contrato
+                    CASE
+                        WHEN p.data_pagamento IS NULL AND p.contrato_id IS NOT NULL
+                             AND cont.vencimento_dia IS NOT NULL
+                             AND p.ano > 1900 AND p.ano < 2100
+                             AND p.mes >= 1 AND p.mes <= 12
+                        THEN
+                            CASE
+                                WHEN TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) IS NOT NULL
+                                AND TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) < CAST(GETDATE() AS DATE)
+                                THEN DATEDIFF(day,
+                                    TRY_CAST(
+                                        CAST(p.ano AS VARCHAR(4)) + '-' +
+                                        RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                        RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                        AS DATE
+                                    ),
+                                    CAST(GETDATE() AS DATE)
+                                )
+                                ELSE 0
+                            END
+                        ELSE 0
                     END as dias_atraso,
                     ISNULL(p.total_liquido, 0) as valor_liquido,
                     ISNULL(p.valor_pago, 0) as valor_pago,
                     ISNULL(p.locador_id, 0) as locador_id,
-                    -- Calcular acréscimos automaticamente quando em atraso
-                    CASE 
-                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN
-                            -- Calcular baseado no percentual_multa_atraso do contrato
-                            ISNULL(p.total_bruto, 0) * (
-                                -- Multa do contrato (ex: 2% = 0.02)
-                                ISNULL((SELECT TOP 1 c.percentual_multa_atraso FROM Contratos c WHERE c.id = p.contrato_id), 2) / 100 +
-                                -- Juros proporcionais (1% ao mês = 0.01/30 por dia)
-                                (DATEDIFF(day, p.data_criacao, GETDATE()) * (0.01 / 30))
-                            )
+                    -- Calcular acréscimos usando mesma lógica do buscar_prestacao_detalhada
+                    CASE
+                        WHEN p.data_pagamento IS NULL AND p.contrato_id IS NOT NULL
+                             AND cont.vencimento_dia IS NOT NULL
+                             AND p.ano > 1900 AND p.ano < 2100
+                             AND p.mes >= 1 AND p.mes <= 12
+                        THEN
+                            CASE
+                                WHEN TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) IS NOT NULL
+                                AND TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) < CAST(GETDATE() AS DATE)
+                                THEN
+                                    -- Usar valor_boleto como base ou total_bruto se não houver
+                                    ISNULL(ISNULL(p.valor_boleto, p.total_bruto), 0) * (
+                                        -- Multa: percentual do contrato (padrão 2%)
+                                        ISNULL(cont.percentual_multa_atraso, 2) / 100 +
+                                        -- Juros: 1% ao mês = 0.033% ao dia (dias_atraso * 0.00033)
+                                        (DATEDIFF(day,
+                                            TRY_CAST(
+                                                CAST(p.ano AS VARCHAR(4)) + '-' +
+                                                RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                                RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                                AS DATE
+                                            ),
+                                            CAST(GETDATE() AS DATE)
+                                        ) * 0.00033)
+                                    )
+                                ELSE ISNULL(p.valor_acrescimos, 0)
+                            END
                         ELSE ISNULL(p.valor_acrescimos, 0)
                     END as valor_acrescimos,
-                    -- Valor total com acréscimos
-                    ISNULL(p.total_bruto, 0) + 
-                    CASE 
-                        WHEN p.data_pagamento IS NULL AND p.data_criacao < GETDATE() THEN
-                            ISNULL(p.total_bruto, 0) * (
-                                ISNULL((SELECT TOP 1 c.percentual_multa_atraso FROM Contratos c WHERE c.id = p.contrato_id), 2) / 100 +
-                                (DATEDIFF(day, p.data_criacao, GETDATE()) * (0.01 / 30))
-                            )
+                    -- Valor total com acréscimos (usar mesma base)
+                    ISNULL(ISNULL(p.valor_boleto, p.total_bruto), 0) +
+                    CASE
+                        WHEN p.data_pagamento IS NULL AND p.contrato_id IS NOT NULL
+                             AND cont.vencimento_dia IS NOT NULL
+                             AND p.ano > 1900 AND p.ano < 2100
+                             AND p.mes >= 1 AND p.mes <= 12
+                        THEN
+                            CASE
+                                WHEN TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) IS NOT NULL
+                                AND TRY_CAST(
+                                    CAST(p.ano AS VARCHAR(4)) + '-' +
+                                    RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                    RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                    AS DATE
+                                ) < CAST(GETDATE() AS DATE)
+                                THEN
+                                    ISNULL(ISNULL(p.valor_boleto, p.total_bruto), 0) * (
+                                        ISNULL(cont.percentual_multa_atraso, 2) / 100 +
+                                        (DATEDIFF(day,
+                                            TRY_CAST(
+                                                CAST(p.ano AS VARCHAR(4)) + '-' +
+                                                RIGHT('0' + CAST(p.mes AS VARCHAR(2)), 2) + '-' +
+                                                RIGHT('0' + CAST(cont.vencimento_dia AS VARCHAR(2)), 2)
+                                                AS DATE
+                                            ),
+                                            CAST(GETDATE() AS DATE)
+                                        ) * 0.00033)
+                                    )
+                                ELSE ISNULL(p.valor_acrescimos, 0)
+                            END
                         ELSE ISNULL(p.valor_acrescimos, 0)
                     END as valor_total_com_acrescimos,
                     p.data_calculo_acrescimos
                 FROM PrestacaoContas p
                 LEFT JOIN Locadores l ON p.locador_id = l.id
+                LEFT JOIN Contratos cont ON p.contrato_id = cont.id
                 WHERE p.ativo = 1
                 ORDER BY p.id DESC
         """
@@ -2051,7 +2144,8 @@ def buscar_faturas(filtros=None, page=1, limit=20, order_by='data_vencimento', o
                 DATEDIFF(day, c.data_fim, GETDATE()) as dias_atraso
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON cl.locatario_id = loc.id
             LEFT JOIN Locadores l ON i.id_locador = l.id
         """
         
@@ -2224,7 +2318,8 @@ def buscar_fatura_por_id(fatura_id):
                 l.nome as locador_nome
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON cl.locatario_id = loc.id
             LEFT JOIN Locadores l ON i.id_locador = l.id
             WHERE c.id = ?
         """, (fatura_id,))
@@ -3950,14 +4045,19 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
 
         # VALIDACAO 2: Verificar se já existe prestação para este contrato no mesmo mês
         cursor.execute("""
-            SELECT COUNT(*)
+            SELECT COUNT(*), STRING_AGG(CAST(id AS VARCHAR), ', ')
             FROM PrestacaoContas
-            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1 AND status = 'lancada'
+            WHERE contrato_id = ? AND mes = ? AND ano = ? AND ativo = 1
         """, (contrato_id, f"{mes:02d}", str(ano)))
 
-        prestacao_existente = cursor.fetchone()[0]
+        resultado = cursor.fetchone()
+        prestacao_existente = resultado[0]
+        ids_existentes = resultado[1]
+
         if prestacao_existente > 0:
-            raise Exception("FATURA JÁ LANÇADA")
+            print(f"⚠️ AVISO: Já existem {prestacao_existente} prestação(ões) para contrato {contrato_id} em {mes:02d}/{ano}")
+            print(f"   IDs existentes: {ids_existentes}")
+            raise Exception(f"Já existe prestação de contas para este período. IDs: {ids_existentes}")
 
         # VALIDACAO 3: Se status for 'lancada', verificar se existe prestação PAGA anteriormente
         if status == 'lancada':
@@ -3996,6 +4096,18 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
             except Exception as alter_error:
                 print(f"Erro ao adicionar campo contrato_id: {alter_error}")
                 tem_contrato_id = False
+
+        # Verificar/criar campo para dados_financeiros_json
+        try:
+            cursor.execute("SELECT dados_financeiros_json FROM PrestacaoContas WHERE 1=0")
+            print("Campo dados_financeiros_json já existe")
+        except:
+            try:
+                cursor.execute("ALTER TABLE PrestacaoContas ADD dados_financeiros_json NVARCHAR(MAX)")
+                print("Campo dados_financeiros_json adicionado para salvar descontos")
+                conn.commit()
+            except Exception as alter_error:
+                print(f"Erro ao adicionar campo dados_financeiros_json: {alter_error}")
         
         # Remover qualquer constraint UNIQUE que impeça histórico completo
         try:
@@ -4108,13 +4220,19 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
                     campos_insert.append('detalhamento_json')
                     valores_insert.append(json.dumps(detalhamento_completo, ensure_ascii=False))
 
+                # ✅ ADICIONAR dados_financeiros completos em JSON (incluindo descontos)
+                if dados_financeiros is not None:
+                    import json
+                    campos_insert.append('dados_financeiros_json')
+                    valores_insert.append(json.dumps(dados_financeiros, ensure_ascii=False))
+
                 # Os campos data_criacao, data_atualizacao, ativo já estão na lista inicial
 
                 # Montar SQL dinamicamente
                 placeholders = []
                 valores_final = []
-                print(f"🔍 DEBUG FINAL: campos_insert({len(campos_insert)}): {campos_insert}")
-                print(f"🔍 DEBUG FINAL: valores_insert({len(valores_insert)}): {valores_insert}")
+                print(f"DEBUG FINAL: campos_insert({len(campos_insert)}): {campos_insert}")
+                print(f"DEBUG FINAL: valores_insert({len(valores_insert)}): {valores_insert}")
 
                 valor_index = 0  # Contador separado para valores
                 for i, campo in enumerate(campos_insert):
@@ -4169,79 +4287,245 @@ def salvar_prestacao_contas(contrato_id, tipo_prestacao, dados_financeiros, stat
         
         # Inserir lançamentos extras se houver
         if lancamentos_extras:
+            ordem = 1000  # Começar lançamentos extras após os automáticos
             for lancamento in lancamentos_extras:
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, ?, ?, ?, GETDATE(), GETDATE(), 1)
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, ?, ?, ?, 'extra', 'usuario', ?, GETDATE(), GETDATE(), 1)
                 """, (
                     prestacao_id,
-                    lancamento.get('tipo', 'extra'),
+                    f"extra_{lancamento.get('tipo', 'indefinido')}",
                     lancamento.get('descricao', 'Lançamento extra'),
-                    lancamento.get('valor', 0)
+                    lancamento.get('valor', 0),
+                    ordem
                 ))
+                ordem += 1
         
-        # Inserir lançamentos automáticos baseados no contrato
-        if contrato_dados:
+        # ✅ LANÇAMENTOS AUTOMÁTICOS REMOVIDOS
+        # Agora todos os lançamentos são gerados pelo frontend e salvos via salvar_lancamentos_detalhados_completos()
+        # Isso garante que apenas os itens que o usuário NÃO deletou sejam salvos no banco
+        if False:  # BLOCO AUTOMATICO COMPLETAMENTE DESABILITADO
+            # Preparar informações de mês/ano para descrições
+            nomes_meses = {
+                1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
+                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+                9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+            }
+            nome_mes = nomes_meses.get(mes, str(mes))
+            ordem = 1
+
             # Aluguel
             if contrato_dados.get('valor_aluguel', 0) > 0:
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'aluguel', 'Valor do aluguel', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, contrato_dados['valor_aluguel']))
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_aluguel', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Aluguel - {mes:02d}/{ano}', contrato_dados.get('valor_aluguel', 0), ordem))
+                ordem += 1
             
-            # Valores retidos
+            # Primeiro adicionar valores do termo (boleto)
+            if contrato_dados.get('valor_condominio', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_condominio', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Condomínio - {mes:02d}/{ano}', contrato_dados.get('valor_condominio', 0), ordem))
+                ordem += 1
+
+            if contrato_dados.get('valor_fci', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_fci', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'FCI - {mes:02d}/{ano}', contrato_dados.get('valor_fci', 0), ordem))
+                ordem += 1
+
+            if contrato_dados.get('valor_iptu', 0) > 0:
+                # Calcular parcela de IPTU se houver informações
+                desc_iptu = f'IPTU - {nome_mes}/{ano}'
+                if contrato_dados.get('data_inicio_iptu') and contrato_dados.get('parcelas_iptu'):
+                    try:
+                        from datetime import datetime
+                        inicio_iptu = datetime.strptime(contrato_dados['data_inicio_iptu'], '%Y-%m-%d')
+                        mes_atual = datetime(ano, mes, 1)
+                        meses_diff = (mes_atual.year - inicio_iptu.year) * 12 + (mes_atual.month - inicio_iptu.month)
+                        parcela_atual = meses_diff + 1
+                        total_parcelas = contrato_dados['parcelas_iptu']
+                        if 1 <= parcela_atual <= total_parcelas:
+                            desc_iptu = f'IPTU - {nome_mes}/{ano} (Parcela {parcela_atual}/{total_parcelas})'
+                    except:
+                        pass
+
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_iptu', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, desc_iptu, contrato_dados.get('valor_iptu', 0), ordem))
+                ordem += 1
+
+            # Seguros (valores do termo)
+            if contrato_dados.get('valor_seguro_fianca', 0) > 0:
+                # Calcular parcela de Seguro Fiança
+                desc_seguro = f'Seguro Fiança - {nome_mes}/{ano}'
+                if contrato_dados.get('seguro_fianca_inicio') and contrato_dados.get('parcelas_seguro_fianca'):
+                    try:
+                        from datetime import datetime
+                        inicio_seguro = datetime.strptime(contrato_dados['seguro_fianca_inicio'], '%Y-%m-%d')
+                        mes_atual = datetime(ano, mes, 1)
+                        meses_diff = (mes_atual.year - inicio_seguro.year) * 12 + (mes_atual.month - inicio_seguro.month)
+                        parcela_atual = meses_diff + 1
+                        total_parcelas = contrato_dados['parcelas_seguro_fianca']
+                        if 1 <= parcela_atual <= total_parcelas:
+                            desc_seguro = f'Seguro Fiança - {nome_mes}/{ano} (Parcela {parcela_atual}/{total_parcelas})'
+                    except:
+                        pass
+
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_seguro_fianca', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, desc_seguro, contrato_dados.get('valor_seguro_fianca', 0), ordem))
+                ordem += 1
+
+            valor_seguro_incendio = contrato_dados.get('valor_seguro_incendio')
+            if valor_seguro_incendio is not None and valor_seguro_incendio > 0:
+                # Calcular parcela de Seguro Incêndio
+                desc_incendio = f'Seguro Incêndio - {nome_mes}/{ano}'
+                if contrato_dados.get('seguro_incendio_inicio') and contrato_dados.get('parcelas_seguro_incendio'):
+                    try:
+                        from datetime import datetime
+                        inicio_incendio = datetime.strptime(contrato_dados['seguro_incendio_inicio'], '%Y-%m-%d')
+                        mes_atual = datetime(ano, mes, 1)
+                        meses_diff = (mes_atual.year - inicio_incendio.year) * 12 + (mes_atual.month - inicio_incendio.month)
+                        parcela_atual = meses_diff + 1
+                        total_parcelas = contrato_dados['parcelas_seguro_incendio']
+                        if 1 <= parcela_atual <= total_parcelas:
+                            desc_incendio = f'Seguro Incêndio - {nome_mes}/{ano} (Parcela {parcela_atual}/{total_parcelas})'
+                    except:
+                        pass
+
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'termo_seguro_incendio', ?, ?, 'termo', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, desc_incendio, valor_seguro_incendio, ordem))
+                ordem += 1
+
+            # Valores retidos (deduzidos do repasse)
             if contrato_dados.get('retido_condominio') and contrato_dados.get('valor_condominio', 0) > 0:
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'retido', 'Condomínio (Retido)', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, -contrato_dados['valor_condominio']))
-            
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido_condominio', ?, ?, 'retido', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Condomínio (Retido) - {nome_mes}/{ano}', -contrato_dados.get('valor_condominio', 0), ordem))
+                ordem += 1
+
             if contrato_dados.get('retido_fci') and contrato_dados.get('valor_fci', 0) > 0:
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'retido', 'FCI (Retido)', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, -contrato_dados['valor_fci']))
-            
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido_fci', ?, ?, 'retido', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'FCI (Retido) - {nome_mes}/{ano}', -contrato_dados.get('valor_fci', 0), ordem))
+                ordem += 1
+
             if contrato_dados.get('retido_iptu') and contrato_dados.get('valor_iptu', 0) > 0:
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'retido', 'IPTU (Retido)', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, -contrato_dados['valor_iptu']))
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido_iptu', ?, ?, 'retido', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'IPTU (Retido) - {nome_mes}/{ano}', -contrato_dados.get('valor_iptu', 0), ordem))
+                ordem += 1
+
+            if contrato_dados.get('retido_seguro_fianca') and contrato_dados.get('valor_seguro_fianca', 0) > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido_seguro_fianca', ?, ?, 'retido', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Seguro Fiança (Retido) - {nome_mes}/{ano}', -contrato_dados.get('valor_seguro_fianca', 0), ordem))
+                ordem += 1
+
+            if contrato_dados.get('retido_seguro_incendio') and valor_seguro_incendio is not None and valor_seguro_incendio > 0:
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'retido_seguro_incendio', ?, ?, 'retido', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Seguro Incêndio (Retido) - {nome_mes}/{ano}', -valor_seguro_incendio, ordem))
+                ordem += 1
             
             # Antecipações (5% de taxa)
             if contrato_dados.get('antecipa_condominio') and contrato_dados.get('valor_condominio', 0) > 0:
-                taxa = contrato_dados['valor_condominio'] * 0.05
+                taxa = contrato_dados.get('valor_condominio', 0) * 0.05
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'taxa', 'Taxa Antecipação Condomínio (5%)', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, -taxa))
-            
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa_antecipacao_condominio', ?, ?, 'taxa', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa Antecipação Condomínio (5%) - {nome_mes}/{ano}', -taxa, ordem))
+                ordem += 1
+
             if contrato_dados.get('antecipa_seguro_fianca') and contrato_dados.get('valor_seguro_fianca', 0) > 0:
-                taxa = contrato_dados['valor_seguro_fianca'] * 0.05
+                taxa = contrato_dados.get('valor_seguro_fianca', 0) * 0.05
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'taxa', 'Taxa Antecipação Seguro Fiança (5%)', ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, -taxa))
-            
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa_antecipacao_seguro_fianca', ?, ?, 'taxa', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa Antecipação Seguro Fiança (5%) - {nome_mes}/{ano}', -taxa, ordem))
+                ordem += 1
+
+            if contrato_dados.get('antecipa_iptu') and contrato_dados.get('valor_iptu', 0) > 0:
+                taxa = contrato_dados.get('valor_iptu', 0) * 0.05
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa_antecipacao_iptu', ?, ?, 'taxa', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa Antecipação IPTU (5%) - {nome_mes}/{ano}', -taxa, ordem))
+                ordem += 1
+
+            if contrato_dados.get('antecipa_seguro_incendio') and valor_seguro_incendio is not None and valor_seguro_incendio > 0:
+                taxa = valor_seguro_incendio * 0.05
+                cursor.execute("""
+                    INSERT INTO LancamentosPrestacaoContas (
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa_antecipacao_seguro_incendio', ?, ?, 'taxa', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa Antecipação Seguro Incêndio (5%) - {nome_mes}/{ano}', -taxa, ordem))
+                ordem += 1
+
             # Taxa de administração
             if contrato_dados.get('taxa_administracao', 0) > 0 and contrato_dados.get('valor_aluguel', 0) > 0:
-                aluguel = contrato_dados['valor_aluguel']
+                aluguel = contrato_dados.get('valor_aluguel', 0)
                 desconto = contrato_dados.get('bonificacao', 0)
                 base_calculo = aluguel - desconto
-                taxa_admin = base_calculo * (contrato_dados['taxa_administracao'] / 100)
-                
+                taxa_admin = base_calculo * (contrato_dados.get('taxa_administracao', 0) / 100)
+
                 cursor.execute("""
                     INSERT INTO LancamentosPrestacaoContas (
-                        prestacao_id, tipo, descricao, valor, data_lancamento, data_criacao, ativo
-                    ) VALUES (?, 'taxa', ?, ?, GETDATE(), GETDATE(), 1)
-                """, (prestacao_id, f'Taxa de Administração ({contrato_dados["taxa_administracao"]}%)', -taxa_admin))
+                        prestacao_id, tipo, descricao, valor, categoria, origem, ordem_exibicao, data_lancamento, data_criacao, ativo
+                    ) VALUES (?, 'taxa_administracao', ?, ?, 'taxa', 'sistema_automatico', ?, GETDATE(), GETDATE(), 1)
+                """, (prestacao_id, f'Taxa de Administração ({contrato_dados["taxa_administracao"]}%) - {nome_mes}/{ano}', -taxa_admin, ordem))
+                ordem += 1
+
+            # Atualizar totais calculados na prestação principal
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END) as total_positivo,
+                    SUM(CASE WHEN valor < 0 THEN ABS(valor) ELSE 0 END) as total_negativo
+                FROM LancamentosPrestacaoContas
+                WHERE prestacao_id = ? AND ativo = 1
+            """, (prestacao_id,))
+
+            totais = cursor.fetchone()
+            if totais:
+                total_pos = float(totais[0] or 0)
+                total_neg = float(totais[1] or 0)
+                valor_repasse = total_pos - total_neg
+
+                cursor.execute("""
+                    UPDATE PrestacaoContas
+                    SET valor_boleto = ?, total_retido = ?, valor_repasse = ?, data_atualizacao = GETDATE()
+                    WHERE id = ?
+                """, (total_pos, total_neg, valor_repasse, prestacao_id))
+
+                print(f"Totais atualizados: Boleto=R$ {total_pos:.2f}, Retido=R$ {total_neg:.2f}, Repasse=R$ {valor_repasse:.2f}")
 
         # FUNCIONALIDADE 1: Marcar APENAS faturas PAGAS como "Lancada"
         if faturas_relacionadas:
@@ -4299,7 +4583,11 @@ def buscar_prestacao_detalhada(prestacao_id):
                 data_criacao, data_atualizacao,
                 -- Novos campos
                 valor_boleto, total_retido, valor_repasse, tipo_calculo,
-                multa_rescisoria, detalhamento_json
+                multa_rescisoria, detalhamento_json,
+                -- Campos de acréscimos
+                valor_acrescimos, valor_total_com_acrescimos, data_calculo_acrescimos,
+                -- Campo de pagamento
+                data_pagamento
             FROM PrestacaoContas
             WHERE id = ? AND ativo = 1
         """, (prestacao_id,))
@@ -4330,8 +4618,33 @@ def buscar_prestacao_detalhada(prestacao_id):
             'valor_repasse': prestacao[16],
             'tipo_calculo': prestacao[17],
             'multa_rescisoria': prestacao[18],
-            'detalhamento_json': prestacao[19]
+            'detalhamento_json': prestacao[19],
+            # Campos de acréscimos
+            'valor_acrescimos': prestacao[20] if len(prestacao) > 20 else 0,
+            'valor_total_com_acrescimos': prestacao[21] if len(prestacao) > 21 else None,
+            'data_calculo_acrescimos': prestacao[22] if len(prestacao) > 22 else None,
+            # Campo de pagamento - DEBUG DETALHADO
+            'data_pagamento': prestacao[23].isoformat() if len(prestacao) > 23 and prestacao[23] else None
         }
+
+
+        # Calcular data_vencimento usando vencimento_dia do contrato
+        cursor.execute("SELECT vencimento_dia FROM Contratos WHERE id = ?", (prestacao_dict['contrato_id'],))
+        contrato_result = cursor.fetchone()
+        dia_vencimento = contrato_result[0] if contrato_result and contrato_result[0] else 10
+
+        # Construir data_vencimento completa
+        try:
+            import calendar
+            from datetime import datetime
+            mes = int(prestacao_dict['mes'])
+            ano = int(prestacao_dict['ano'])
+            max_dia = calendar.monthrange(ano, mes)[1]
+            dia_vencimento = min(dia_vencimento, max_dia)
+            data_vencimento = datetime(ano, mes, dia_vencimento).strftime('%Y-%m-%d')
+            prestacao_dict['data_vencimento'] = data_vencimento
+        except:
+            prestacao_dict['data_vencimento'] = None
 
         # Parse do JSON se existir
         if prestacao_dict['detalhamento_json']:
@@ -4341,29 +4654,192 @@ def buscar_prestacao_detalhada(prestacao_id):
             except:
                 prestacao_dict['detalhamento_json'] = None
 
-        # Buscar dados do contrato
+        # Buscar dados do contrato incluindo dia de vencimento
+        print(f"DEBUG - Buscando dados do contrato_id: {prestacao_dict['contrato_id']}")
         cursor.execute("""
-            SELECT c.id, c.codigo, c.valor_aluguel, c.taxa_administracao,
-                   i.endereco_completo, l.nome as locatario_nome,
-                   l.telefone as locatario_telefone, l.email as locatario_email
+            SELECT c.id, c.valor_aluguel, c.taxa_administracao, c.vencimento_dia,
+                   c.id_imovel, cl.locatario_id,
+                   i.endereco as imovel_endereco, i.tipo as imovel_tipo,
+                   l.nome as locatario_nome, l.telefone as locatario_telefone,
+                   l.email as locatario_email, l.cpf_cnpj as locatario_cpf,
+                   c.percentual_multa_atraso
             FROM Contratos c
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
-            LEFT JOIN Locatarios l ON c.id_locatario = l.id
+            LEFT JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
+            LEFT JOIN Locatarios l ON cl.locatario_id = l.id
             WHERE c.id = ?
         """, (prestacao_dict['contrato_id'],))
 
         contrato = cursor.fetchone()
+        print(f"DEBUG - Dados do contrato encontrados: {contrato}")
         if contrato:
             prestacao_dict['contrato'] = {
                 'id': contrato[0],
-                'codigo': contrato[1],
-                'valor_aluguel': contrato[2],
-                'taxa_administracao': contrato[3],
-                'imovel_endereco': contrato[4],
-                'locatario_nome': contrato[5],
-                'locatario_telefone': contrato[6],
-                'locatario_email': contrato[7]
+                'valor_aluguel': contrato[1],
+                'taxa_administracao': contrato[2],
+                'vencimento_dia': contrato[3],
+                'id_imovel': contrato[4],
+                'id_locatario': contrato[5],
+                'imovel_endereco': contrato[6],
+                'imovel_tipo': contrato[7],
+                'locatario_nome': contrato[8],
+                'locatario_telefone': contrato[9],
+                'locatario_email': contrato[10],
+                'locatario_cpf': contrato[11],
+                'percentual_multa_atraso': contrato[12]
             }
+            print(f"DEBUG - Dados do contrato processados: {prestacao_dict['contrato']}")
+
+            # Calcular data de vencimento baseada no mês/ano da prestação e dia do contrato
+            import calendar
+            from datetime import datetime
+
+            # Garantir que mes e ano são inteiros
+            mes = int(prestacao_dict.get('mes', 1))
+            ano = int(prestacao_dict.get('ano', datetime.now().year))
+            dia_vencimento = int(contrato[3]) if contrato[3] else 10  # Default dia 10
+
+            # Ajustar dia se for maior que os dias do mês
+            max_dia = calendar.monthrange(ano, mes)[1]
+            dia_vencimento = min(dia_vencimento, max_dia)
+
+            data_vencimento = datetime(ano, mes, dia_vencimento).strftime('%Y-%m-%d')
+
+            # Adicionar as datas calculadas
+            prestacao_dict['data_vencimento'] = data_vencimento
+            # data_pagamento já foi definido corretamente na linha 4542
+
+            # Calcular acréscimos automaticamente se vencido
+            from datetime import datetime
+            data_venc_obj = datetime.strptime(data_vencimento, '%Y-%m-%d')
+            hoje = datetime.now()
+
+            if hoje > data_venc_obj and not prestacao_dict.get('data_pagamento'):
+                dias_atraso = (hoje - data_venc_obj).days
+                valor_boleto = float(prestacao_dict.get('valor_boleto', 0) or prestacao_dict.get('total_bruto', 0))
+
+                if dias_atraso > 0 and valor_boleto > 0:
+                    # Usar a mesma fórmula que o endpoint buscar_faturas
+                    # percentual_multa_atraso do contrato (padrão 2%) + juros de 0.033% ao dia
+                    percentual_multa = float(prestacao_dict['contrato'].get('percentual_multa_atraso', 2.0) or 2.0)
+                    valor_acrescimos = valor_boleto * (
+                        # Multa: percentual do contrato
+                        (percentual_multa / 100) +
+                        # Juros: 1% ao mês = 0.033% ao dia
+                        (dias_atraso * 0.00033)
+                    )
+
+                    prestacao_dict['dias_atraso'] = dias_atraso
+                    prestacao_dict['valor_acrescimos'] = valor_acrescimos
+                    prestacao_dict['valor_total_com_acrescimos'] = valor_boleto + valor_acrescimos
+
+                    print(f"ACRESCIMOS CALCULADOS: {dias_atraso} dias de atraso = R$ {valor_acrescimos:.2f}")
+            else:
+                prestacao_dict['dias_atraso'] = 0
+                if not prestacao_dict.get('valor_acrescimos'):
+                    prestacao_dict['valor_acrescimos'] = 0
+                    prestacao_dict['valor_total_com_acrescimos'] = float(prestacao_dict.get('valor_boleto', 0) or prestacao_dict.get('total_bruto', 0))
+        else:
+            print("DEBUG - Nenhum contrato encontrado!")
+
+        # BUSCAR LANÇAMENTOS DETALHADOS DA NOVA TABELA
+        cursor.execute("""
+            SELECT tipo, descricao, valor, categoria, origem, ordem_exibicao
+            FROM LancamentosPrestacaoContas
+            WHERE prestacao_id = ? AND ativo = 1
+            ORDER BY ordem_exibicao, id
+        """, (prestacao_id,))
+
+        lancamentos_detalhados = []
+        for row in cursor.fetchall():
+            lancamentos_detalhados.append({
+                'tipo': row[0],
+                'descricao': row[1],
+                'valor': float(row[2]) if row[2] else 0,
+                'categoria': row[3],
+                'origem': row[4],
+                'ordem': row[5]
+            })
+
+        # Adicionar acréscimos como lançamento se houver
+        if prestacao_dict.get('valor_acrescimos', 0) > 0:
+            lancamentos_detalhados.append({
+                'tipo': 'acrescimo_atraso',
+                'descricao': f'Acréscimos por atraso ({prestacao_dict.get("dias_atraso", 0)} dias)',
+                'valor': prestacao_dict['valor_acrescimos'],
+                'categoria': 'acrescimo',
+                'origem': 'sistema_automatico',
+                'ordem': len(lancamentos_detalhados) + 1
+            })
+
+        prestacao_dict['lancamentos_detalhados'] = lancamentos_detalhados
+        prestacao_dict['total_lancamentos'] = len(lancamentos_detalhados)
+
+        # 🆕 BUSCAR LOCADORES DO CONTRATO COM DADOS BANCÁRIOS DA CONTA SELECIONADA NO TERMO
+        print(f"DEBUG: Buscando locadores do contrato {prestacao_dict['contrato_id']}")
+        cursor.execute("""
+            SELECT loc.id, loc.nome, loc.telefone, loc.email, loc.cpf_cnpj,
+                   cl.porcentagem, cl.responsabilidade_principal, cl.conta_bancaria_id,
+                   cb.tipo_recebimento, cb.chave_pix, cb.banco, cb.agencia, cb.conta,
+                   cb.titular, cb.cpf_titular
+            FROM ContratoLocadores cl
+            INNER JOIN Locadores loc ON cl.locador_id = loc.id
+            LEFT JOIN ContasBancariasLocador cb ON cl.conta_bancaria_id = cb.id
+            WHERE cl.contrato_id = ? AND cl.ativo = 1
+            ORDER BY cl.responsabilidade_principal DESC, loc.nome
+        """, (prestacao_dict['contrato_id'],))
+
+        locadores = []
+        for row in cursor.fetchall():
+            locador_data = {
+                'locador_id': row[0],  # Usar locador_id para compatibilidade com frontend
+                'locador_nome': row[1],  # Usar locador_nome para compatibilidade
+                'telefone': row[2],
+                'email': row[3],
+                'cpf_cnpj': row[4],
+                'porcentagem': float(row[5]) if row[5] else 100.0,
+                'responsabilidade_principal': bool(row[6]),
+                'conta_bancaria_id': row[7]
+            }
+
+            # Adicionar dados bancários da conta selecionada no termo (se existir)
+            if row[7]:  # Se tem conta_bancaria_id
+                locador_data['conta_bancaria'] = {
+                    'tipo_recebimento': row[8],
+                    'pix_chave': row[9],
+                    'banco': row[10],
+                    'agencia': row[11],
+                    'conta': row[12],
+                    'titular': row[13],
+                    'cpf_titular': row[14]
+                }
+            else:
+                locador_data['conta_bancaria'] = None
+
+            locadores.append(locador_data)
+
+        prestacao_dict['locadores'] = locadores
+
+        # 🆕 BUSCAR DISTRIBUIÇÃO DE REPASSE SALVA
+        cursor.execute("""
+            SELECT locador_id, locador_nome, percentual_participacao,
+                   valor_repasse, responsabilidade_principal
+            FROM DistribuicaoRepasseLocadores
+            WHERE prestacao_id = ? AND ativo = 1
+            ORDER BY responsabilidade_principal DESC, locador_nome
+        """, (prestacao_id,))
+
+        distribuicao_repasse = []
+        for row in cursor.fetchall():
+            distribuicao_repasse.append({
+                'locador_id': row[0],
+                'locador_nome': row[1],
+                'percentual_participacao': float(row[2]) if row[2] else 100.0,
+                'valor_repasse': float(row[3]) if row[3] else 0.0,
+                'responsabilidade_principal': bool(row[4])
+            })
+
+        prestacao_dict['distribuicao_repasse'] = distribuicao_repasse
 
         conn.close()
         return prestacao_dict
@@ -4379,15 +4855,14 @@ def listar_prestacoes_contrato(contrato_id, limit=50):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT
+            SELECT TOP (?)
                 id, mes, ano, status, total_bruto, total_liquido,
                 valor_boleto, total_retido, valor_repasse, tipo_calculo,
                 data_criacao
             FROM PrestacaoContas
             WHERE contrato_id = ? AND ativo = 1
             ORDER BY ano DESC, mes DESC
-            LIMIT ?
-        """, (contrato_id, limit))
+        """, (limit, contrato_id))
 
         prestacoes = cursor.fetchall()
 
@@ -4450,7 +4925,8 @@ def calcular_prestacao_proporcional(contrato_id, data_entrada, data_saida, tipo_
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
             LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
             LEFT JOIN Locadores l ON cl.locador_id = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN ContratoLocatarios clt ON c.id = clt.contrato_id AND clt.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON clt.locatario_id = loc.id
             WHERE c.id = ?
         """, (contrato_id,))
         
@@ -4647,7 +5123,8 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
             LEFT JOIN Imoveis i ON c.id_imovel = i.id
             LEFT JOIN ContratoLocadores cl ON c.id = cl.contrato_id
             LEFT JOIN Locadores l ON cl.locador_id = l.id
-            LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+            LEFT JOIN ContratoLocatarios clt ON c.id = clt.contrato_id AND clt.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON clt.locatario_id = loc.id
             WHERE c.id = ?
         """, (contrato_id,))
         
@@ -5109,7 +5586,8 @@ def calcular_multa_proporcional(contrato_id, data_rescisao):
                     END as multa_meses,
                     COALESCE(loc.nome, 'N/A') as locatario_nome
                 FROM Contratos c
-                LEFT JOIN Locatarios loc ON c.id_locatario = loc.id
+                LEFT JOIN ContratoLocatarios clt ON c.id = clt.contrato_id AND clt.responsabilidade_principal = 1
+            LEFT JOIN Locatarios loc ON clt.locatario_id = loc.id
                 WHERE c.id = ?
             """, (contrato_id,))
             
@@ -5735,3 +6213,286 @@ def inserir_contrato_completo(**kwargs):
         import traceback
         traceback.print_exc()
         return {"success": False, "message": f"Erro ao inserir contrato: {str(e)}"}
+
+
+# ==========================================
+# NOVAS FUNÇÕES PARA LANÇAMENTOS DETALHADOS
+# ==========================================
+
+# Função removida - agora integrada em salvar_lancamentos_detalhados_completos
+
+def salvar_descontos_ajustes(prestacao_id, descontos_ajustes):
+    """Salva descontos e ajustes na tabela LancamentosPrestacaoContas"""
+    try:
+        print(f"💰 INICIO salvar_descontos_ajustes")
+        print(f"   prestacao_id={prestacao_id}")
+        print(f"   descontos: {len(descontos_ajustes) if descontos_ajustes else 0}")
+
+        conn = get_conexao()
+        cursor = conn.cursor()
+
+        # Garantir que prestacao_id é int
+        if hasattr(prestacao_id, '__int__'):
+            prestacao_id = int(prestacao_id)
+
+        ordem = 1000  # Começar após outros lançamentos
+        for desconto in descontos_ajustes:
+            tipo_desconto = desconto.get('tipo', 'desconto_generico')
+            descricao = desconto.get('label', desconto.get('descricao', 'Desconto'))
+            valor = float(desconto.get('valor', 0))
+
+            # Pular valores zerados
+            if valor == 0:
+                continue
+
+            # Descontos são valores negativos
+            if valor > 0:
+                valor = -valor
+
+            print(f"   Inserindo desconto: {tipo_desconto} - {descricao} - {valor}")
+            cursor.execute("""
+                INSERT INTO LancamentosPrestacaoContas (
+                    prestacao_id, tipo, descricao, valor, categoria, origem,
+                    ordem_exibicao, data_lancamento, data_criacao, ativo
+                ) VALUES (?, ?, ?, ?, 'desconto', 'frontend_desconto', ?, GETDATE(), GETDATE(), 1)
+            """, (prestacao_id, tipo_desconto, descricao, valor, ordem))
+
+            ordem += 1
+
+        # Recalcular totais após salvar descontos - CORRIGIDO para separar descontos de retidos
+        print(f"📊 Recalculando totais após salvar descontos...")
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END) as total_positivo,
+                SUM(CASE WHEN valor < 0 AND categoria IN ('retido', 'taxa') THEN ABS(valor) ELSE 0 END) as total_retido,
+                SUM(CASE WHEN valor < 0 AND categoria = 'desconto' THEN ABS(valor) ELSE 0 END) as total_descontos
+            FROM LancamentosPrestacaoContas
+            WHERE prestacao_id = ? AND ativo = 1
+        """, (prestacao_id,))
+
+        resultado = cursor.fetchone()
+        total_positivo_real = float(resultado[0] or 0)
+        total_retido_real = float(resultado[1] or 0)
+        total_descontos_real = float(resultado[2] or 0)
+
+        # Valor do boleto = soma de positivos - descontos (NÃO inclui retidos)
+        valor_boleto_final = total_positivo_real - total_descontos_real
+
+        print(f"📊 Após salvar descontos:")
+        print(f"   Total positivo: R$ {total_positivo_real:.2f}")
+        print(f"   Total retido: R$ {total_retido_real:.2f}")
+        print(f"   Total descontos: R$ {total_descontos_real:.2f}")
+        print(f"   Valor boleto final: R$ {valor_boleto_final:.2f}")
+
+        cursor.execute("""
+            UPDATE PrestacaoContas
+            SET valor_boleto = ?,
+                total_retido = ?
+            WHERE id = ?
+        """, (valor_boleto_final, total_retido_real, prestacao_id))
+
+        conn.commit()
+        print(f"✅ Descontos/ajustes salvos com sucesso")
+        return {"success": True, "descontos_salvos": len(descontos_ajustes)}
+
+    except Exception as e:
+        print(f"❌ Erro em salvar_descontos_ajustes: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
+
+def salvar_lancamentos_detalhados_completos(prestacao_id, lancamentos_completos, mes_referencia=None, repasse_por_locador=None):
+    """Salva TODOS os lançamentos calculados no frontend"""
+    try:
+        print(f"🔍 INICIO salvar_lancamentos_detalhados_completos")
+        print(f"   prestacao_id={prestacao_id} (tipo: {type(prestacao_id)})")
+        print(f"   lancamentos: {len(lancamentos_completos) if lancamentos_completos else 0}")
+        print(f"   repasse_por_locador: {len(repasse_por_locador) if repasse_por_locador else 0}")
+
+        # Garantir que prestacao_id é int
+        if hasattr(prestacao_id, '__int__'):
+            prestacao_id = int(prestacao_id)
+            print(f"   prestacao_id convertido para int: {prestacao_id}")
+
+        conn = get_conexao()
+        cursor = conn.cursor()
+
+        print(f"Salvando {len(lancamentos_completos)} lançamentos detalhados para prestação {prestacao_id}")
+
+        # Marcar TODOS os lançamentos anteriores como inativos para evitar duplicações
+        cursor.execute("""
+            UPDATE LancamentosPrestacaoContas
+            SET ativo = 0
+            WHERE prestacao_id = ? AND origem = 'frontend_calculado'
+        """, (prestacao_id,))
+
+        ordem = 1
+        total_positivo = 0
+        total_negativo = 0
+        lancamentos_salvos = 0
+        tipos_processados = set()  # Para evitar duplicação de tipos
+
+        # Inserir cada lançamento individual
+        for lancamento in lancamentos_completos:
+            tipo = lancamento.get('tipo', 'extra')
+            descricao = lancamento.get('descricao', 'Sem descrição')
+            valor = float(lancamento.get('valor', 0))
+            categoria = lancamento.get('categoria', 'indefinido')
+
+            # Skip valores zerados
+            if valor == 0:
+                continue
+
+            # Evitar duplicação de tipos específicos
+            # Para tipos críticos como seguro, iptu, etc., permitir apenas uma entrada
+            tipos_unicos = ['termo_seguro_incendio', 'retido_seguro_incendio',
+                           'termo_iptu', 'retido_iptu',
+                           'termo_seguro_fianca', 'retido_seguro_fianca',
+                           'termo_condominio', 'retido_condominio',
+                           'termo_fci', 'retido_fci',
+                           'taxa_administracao', 'taxa_transferencia']
+
+            if tipo in tipos_unicos:
+                if tipo in tipos_processados:
+                    print(f"   ⚠️ Ignorando duplicata: {tipo}")
+                    continue
+                tipos_processados.add(tipo)
+
+            # Categorizar automaticamente se não fornecido
+            if categoria == 'indefinido':
+                if tipo.startswith('termo_'):
+                    categoria = 'termo'
+                elif tipo.startswith('retido_'):
+                    categoria = 'retido'
+                elif tipo.startswith('taxa_'):
+                    categoria = 'taxa'
+                else:
+                    categoria = 'extra'
+
+            # Inserir lançamento
+            print(f"   Inserindo lançamento {ordem}: {tipo} - {valor}")
+            cursor.execute("""
+                INSERT INTO LancamentosPrestacaoContas (
+                    prestacao_id, tipo, descricao, valor, categoria, origem,
+                    ordem_exibicao, data_lancamento, data_criacao, ativo
+                ) VALUES (?, ?, ?, ?, ?, 'frontend_calculado', ?, GETDATE(), GETDATE(), 1)
+            """, (prestacao_id, tipo, descricao, valor, categoria, ordem))
+            print(f"   ✅ Lançamento {ordem} inserido")
+
+            # Contabilizar totais para validação
+            if valor > 0:
+                total_positivo += valor
+            else:
+                total_negativo += abs(valor)
+
+            ordem += 1
+            lancamentos_salvos += 1
+
+        # Atualizar totais calculados incluindo descontos
+        print(f"📊 Atualizando totais na PrestacaoContas incluindo todos os lançamentos...")
+        try:
+            # Recalcular totais separando descontos de valores retidos
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN valor > 0 THEN valor ELSE 0 END) as total_positivo,
+                    SUM(CASE WHEN valor < 0 AND categoria IN ('retido', 'taxa') THEN ABS(valor) ELSE 0 END) as total_retido,
+                    SUM(CASE WHEN valor < 0 AND categoria = 'desconto' THEN ABS(valor) ELSE 0 END) as total_descontos
+                FROM LancamentosPrestacaoContas
+                WHERE prestacao_id = ? AND ativo = 1
+            """, (prestacao_id,))
+
+            resultado = cursor.fetchone()
+            total_positivo_real = float(resultado[0] or 0)
+            total_retido_real = float(resultado[1] or 0)
+            total_descontos_real = float(resultado[2] or 0)
+
+            # Valor do boleto = soma de positivos - descontos (mas NÃO retidos)
+            valor_boleto_final = total_positivo_real - total_descontos_real
+
+            print(f"📊 Totais recalculados corretamente:")
+            print(f"   Total positivo: R$ {total_positivo_real:.2f}")
+            print(f"   Total retido: R$ {total_retido_real:.2f}")
+            print(f"   Total descontos: R$ {total_descontos_real:.2f}")
+            print(f"   Valor boleto final: R$ {valor_boleto_final:.2f}")
+
+            cursor.execute("""
+                UPDATE PrestacaoContas
+                SET valor_boleto = ?,
+                    total_retido = ?,
+                    valor_repasse = ?
+                WHERE id = ?
+            """, (valor_boleto_final, total_retido_real, valor_boleto_final - total_retido_real, prestacao_id))
+            print(f"✅ Totais atualizados com todos os lançamentos")
+        except Exception as e:
+            print(f"❌ Erro ao atualizar totais: {e}")
+            # Continuar mesmo com erro
+
+        # Fazer commit parcial para garantir que lançamentos foram salvos
+        print(f"💾 Fazendo commit parcial dos lançamentos...")
+        try:
+            conn.commit()
+            print(f"✅ Commit parcial realizado")
+        except Exception as e:
+            print(f"❌ Erro no commit parcial: {e}")
+
+        # Salvar distribuição de locadores se fornecida
+        print(f"👥 Salvando distribuição de {len(repasse_por_locador) if repasse_por_locador else 0} locadores...")
+        if repasse_por_locador and len(repasse_por_locador) > 0:
+            try:
+                # Usar conexão separada para evitar travamento
+                conn2 = get_conexao()
+                cursor2 = conn2.cursor()
+
+                # Marcar distribuições anteriores como inativas
+                cursor2.execute("""
+                    UPDATE DistribuicaoRepasseLocadores
+                    SET ativo = 0
+                    WHERE prestacao_id = ?
+                """, (prestacao_id,))
+
+                # Inserir novas distribuições
+                for i, distribuicao in enumerate(repasse_por_locador, 1):
+                    print(f"   Inserindo distribuição {i}: locador_id={distribuicao.get('locador_id')}")
+                    cursor2.execute("""
+                        INSERT INTO DistribuicaoRepasseLocadores (
+                            prestacao_id, locador_id, locador_nome, percentual_participacao,
+                            valor_repasse, responsabilidade_principal, data_criacao, ativo
+                        ) VALUES (?, ?, ?, ?, ?, ?, GETDATE(), 1)
+                    """, (
+                        prestacao_id,
+                        distribuicao.get('locador_id'),
+                        distribuicao.get('locador_nome'),
+                        distribuicao.get('porcentagem', 100),
+                        distribuicao.get('valor_repasse', 0),
+                        distribuicao.get('responsabilidade_principal', False)
+                    ))
+
+                conn2.commit()
+                conn2.close()
+                print(f"✅ Distribuição de {len(repasse_por_locador)} locadores salva")
+            except Exception as e:
+                print(f"❌ Erro ao salvar distribuição de locadores: {e}")
+                import traceback
+                traceback.print_exc()
+
+        print(f"🔒 Fechando conexão principal...")
+        conn.close()
+        print(f"✅ Conexão fechada")
+
+        print(f"{lancamentos_salvos} lançamentos salvos para prestação {prestacao_id}")
+        print(f"Total boleto: {total_positivo}, Total retido: {total_negativo}, Repasse: {total_positivo - total_negativo}")
+
+        return {
+            "success": True,
+            "lancamentos_salvos": lancamentos_salvos,
+            "total_boleto": total_positivo,
+            "total_retido": total_negativo,
+            "valor_repasse": total_positivo - total_negativo,
+            "locadores_distribuidos": len(repasse_por_locador) if repasse_por_locador else 0
+        }
+
+    except Exception as e:
+        print(f"Erro ao salvar lançamentos detalhados: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": f"Erro: {str(e)}"}

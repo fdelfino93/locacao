@@ -84,7 +84,8 @@
       "Bash(start http://localhost:3000/dashboard)",
       "Bash(start:*)",
       "Bash(scriptsbuild.bat)",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

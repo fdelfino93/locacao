@@ -1,11 +1,18 @@
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Union, List
 from datetime import date
+from contextlib import asynccontextmanager
 import os
 import json
+import io
 from dotenv import load_dotenv
+
+# Importar scheduler de acréscimos
+from scheduler_acrescimos import iniciar_scheduler, parar_scheduler, status_scheduler
 
 # Importar repositórios existentes via adapter
 from repositories_adapter import (
@@ -23,7 +30,9 @@ from repositories_adapter import (
     obter_locadores_contrato_unificado, obter_locatarios_contrato_unificado,
     buscar_contratos_ativos,
     # Funções de prestação detalhada
-    buscar_prestacao_detalhada, listar_prestacoes_contrato
+    buscar_prestacao_detalhada, listar_prestacoes_contrato,
+    # Função de PDF
+    gerar_relatorio_pdf
 )
 
 # Importar funções específicas para dashboard
@@ -45,12 +54,157 @@ from datetime import datetime
 
 load_dotenv()
 
-app = FastAPI(title="Cobimob API", version="1.0.0", description="Sistema de Locações")
+def _formatar_data_para_pdf(data_iso):
+    """Converte data ISO (yyyy-mm-dd) para formato brasileiro (dd/mm/yyyy)"""
+    if not data_iso:
+        return None
+    try:
+        # Se já está no formato ISO com T, extrair só a data
+        if 'T' in data_iso:
+            data_parte = data_iso.split('T')[0]
+        else:
+            data_parte = data_iso
+
+        # Converter de yyyy-mm-dd para dd/mm/yyyy
+        from datetime import datetime
+        data_obj = datetime.strptime(data_parte, '%Y-%m-%d')
+        return data_obj.strftime('%d/%m/%Y')
+    except:
+        return data_iso  # Retorna original se não conseguir converter
+
+def transformar_dados_para_pdf(prestacao_data):
+    """Transforma dados da prestação para o formato esperado pelo gerador PDF"""
+
+    print(f"DEBUG - Dados recebidos para PDF:")
+    print(f"   - valor_boleto: {prestacao_data.get('valor_boleto')}")
+    print(f"   - total_bruto: {prestacao_data.get('total_bruto')}")
+    print(f"   - total_retido: {prestacao_data.get('total_retido')}")
+    print(f"   - valor_repasse: {prestacao_data.get('valor_repasse')}")
+    print(f"   - contrato: {prestacao_data.get('contrato')}")
+    print(f"   - locadores: {len(prestacao_data.get('locadores', []))} locadores")
+    print(f"   - distribuicao_repasse: {len(prestacao_data.get('distribuicao_repasse', []))} distribuições")
+
+    # 🛑 NÃO CALCULAR! Usar dados já salvos no banco
+    valor_boleto = prestacao_data.get('valor_boleto', 0) or prestacao_data.get('total_bruto', 0)
+    total_retido = prestacao_data.get('total_retido', 0)
+    valor_repasse = prestacao_data.get('valor_repasse', 0)
+
+    # Se não tem valor_repasse salvo, usar distribuição ou calcular fallback
+    if not valor_repasse and prestacao_data.get('distribuicao_repasse'):
+        valor_repasse = sum(d.get('valor_repasse', 0) for d in prestacao_data['distribuicao_repasse'])
+    elif not valor_repasse:
+        # Fallback apenas se não há dados salvos
+        valor_repasse = valor_boleto - total_retido
+
+    print(f"DADOS PROCESSADOS: Boleto=R$ {valor_boleto:.2f}, Retido=R$ {total_retido:.2f}, Repasse=R$ {valor_repasse:.2f}")
+
+    # Pegar o primeiro locador como "cliente" principal
+    locador_principal = None
+    if prestacao_data.get('locadores') and len(prestacao_data['locadores']) > 0:
+        # Buscar o locador com responsabilidade principal
+        for loc in prestacao_data['locadores']:
+            if loc.get('responsabilidade_principal'):
+                locador_principal = loc
+                break
+
+        # Se não achou, pega o primeiro
+        if not locador_principal:
+            locador_principal = prestacao_data['locadores'][0]
+
+    # Montar estrutura esperada pelo PDF
+    pdf_data = {
+        'id': prestacao_data.get('id'),
+        'mes': prestacao_data.get('mes'),
+        'ano': prestacao_data.get('ano'),
+        'cliente': {
+            'nome': locador_principal.get('locador_nome', 'Nome não informado') if locador_principal else 'Nome não informado',
+            'cpf_cnpj': locador_principal.get('cpf_cnpj', 'CPF não informado') if locador_principal else 'CPF não informado',
+            'telefone': locador_principal.get('telefone', 'Telefone não informado') if locador_principal else 'Telefone não informado',
+            'email': locador_principal.get('email', 'Email não informado') if locador_principal else 'Email não informado',
+            'tipo_recebimento': locador_principal.get('conta_bancaria', {}).get('tipo_recebimento', 'PIX') if locador_principal and locador_principal.get('conta_bancaria') else 'PIX',
+            # Dados bancários completos para TED/PIX
+            'conta_bancaria': {
+                'tipo_recebimento': locador_principal.get('conta_bancaria', {}).get('tipo_recebimento', 'PIX') if locador_principal and locador_principal.get('conta_bancaria') else 'PIX',
+                'pix_chave': locador_principal.get('conta_bancaria', {}).get('pix_chave', '') if locador_principal and locador_principal.get('conta_bancaria') else '',
+                'banco': locador_principal.get('conta_bancaria', {}).get('banco', '') if locador_principal and locador_principal.get('conta_bancaria') else '',
+                'agencia': locador_principal.get('conta_bancaria', {}).get('agencia', '') if locador_principal and locador_principal.get('conta_bancaria') else '',
+                'conta': locador_principal.get('conta_bancaria', {}).get('conta', '') if locador_principal and locador_principal.get('conta_bancaria') else '',
+                'titular': locador_principal.get('conta_bancaria', {}).get('titular', '') if locador_principal and locador_principal.get('conta_bancaria') else '',
+                'cpf_titular': locador_principal.get('conta_bancaria', {}).get('cpf_titular', '') if locador_principal and locador_principal.get('conta_bancaria') else ''
+            } if locador_principal and locador_principal.get('conta_bancaria') else None
+        },
+        'locatario': {
+            'nome': prestacao_data.get('contrato', {}).get('locatario_nome', 'Nome não informado'),
+            'cpf': prestacao_data.get('contrato', {}).get('locatario_cpf', 'CPF não informado'),
+            'telefone': prestacao_data.get('contrato', {}).get('locatario_telefone', 'Telefone não informado'),
+            'email': prestacao_data.get('contrato', {}).get('locatario_email', 'Email não informado')
+        },
+        'imovel': {
+            'endereco': prestacao_data.get('contrato', {}).get('imovel_endereco', 'Endereço não informado')
+        },
+        'valores': {
+            'valor_boleto': valor_boleto,
+            'total_retido': total_retido,
+            'valor_repasse': valor_repasse
+        },
+        'lancamentos_detalhados': prestacao_data.get('lancamentos_detalhados', []),
+        'locadores': prestacao_data.get('locadores', []),
+        'distribuicao_repasse': prestacao_data.get('distribuicao_repasse', []),
+        # Datas do sistema (formato brasileiro para PDF)
+        'data_vencimento': _formatar_data_para_pdf(prestacao_data.get('data_vencimento')),
+        'data_pagamento': _formatar_data_para_pdf(prestacao_data.get('data_pagamento')),
+
+        # Valores principais (para compatibilidade)
+        'valor_boleto': valor_boleto,
+        'total_retido': total_retido,
+        'valor_repasse': valor_repasse
+    }
+
+    return pdf_data
+
+# Lifespan - Gerencia inicialização e finalização do servidor
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        if iniciar_scheduler():
+            print("Scheduler de acréscimos iniciado com sucesso!")
+            print("Job executará automaticamente todos os dias às 00:00")
+        else:
+            print("Scheduler já estava rodando")
+    except Exception as e:
+        print(f"Erro ao iniciar scheduler: {e}")
+
+    yield
+
+    # Shutdown
+    try:
+        parar_scheduler()
+        print("Scheduler de acréscimos parado com sucesso")
+    except Exception as e:
+        print(f"Erro ao parar scheduler: {e}")
+
+app = FastAPI(
+    title="Cobimob API",
+    version="1.0.0",
+    description="Sistema de Locações",
+    lifespan=lifespan
+)
 
 # Endpoint de health check
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "message": "API funcionando"}
+
+# Endpoint para verificar status do scheduler
+@app.get("/api/scheduler/status")
+async def scheduler_status():
+    """Retorna o status do scheduler de acréscimos"""
+    status = status_scheduler()
+    return {
+        "scheduler_acrescimos": status,
+        "mensagem": "Scheduler rodando automático às 00:00 todos os dias" if status["status"] == "running" else "Scheduler parado"
+    }
 
 # Configurar CORS
 app.add_middleware(
@@ -745,9 +899,9 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
         for campo, valor in dados_filtrados.items():
             print(f"  - {campo}: {valor}")
         
-        print(f"🔧 DEBUG: Chamando atualizar_locador({locador_id}, **{list(dados_filtrados.keys())})")
+        print(f"DEBUG: Chamando atualizar_locador({locador_id}, **{list(dados_filtrados.keys())})")
         resultado = atualizar_locador_db(locador_id, **dados_filtrados)
-        print(f"🔧 DEBUG: Resultado do adapter: {resultado} (tipo: {type(resultado)})")
+        print(f"DEBUG: Resultado do adapter: {resultado} (tipo: {type(resultado)})")
         
         if resultado:
             print(f"✓ Locador {locador_id} atualizado com sucesso!")
@@ -1418,6 +1572,11 @@ class PrestacaoContasRequest(BaseModel):
     contrato_dados: Optional[dict] = None
     fatura_origem: Optional[dict] = None
     data_processamento: str
+    # ✅ NOVOS CAMPOS OPCIONAIS (compatibilidade total)
+    lancamentos_completos: Optional[list] = None
+    mes_referencia: Optional[str] = None
+    repasse_por_locador: Optional[list] = None
+    descontos_ajustes: Optional[list] = None
 
 @app.post("/api/prestacao-contas/salvar")
 async def salvar_prestacao_contas(request: PrestacaoContasRequest):
@@ -1438,11 +1597,65 @@ async def salvar_prestacao_contas(request: PrestacaoContasRequest):
             configuracao_calculo=request.configuracao_calculo,
             configuracao_fatura=request.configuracao_fatura
         )
-        return {"success": True, "data": resultado, "message": "Prestação de contas salva com sucesso"}
+
+        # ✅ NOVA FUNCIONALIDADE: Processar descontos_ajustes se fornecidos
+        prestacao_id = resultado.get('prestacao_id') if isinstance(resultado, dict) else resultado
+        print(f"🔍 DEBUG - prestacao_id extraído: {prestacao_id}, tipo: {type(prestacao_id)}")
+
+        # Converter Decimal para int
+        if hasattr(prestacao_id, '__int__'):
+            prestacao_id = int(prestacao_id)
+            print(f"🔍 DEBUG - prestacao_id convertido para int: {prestacao_id}")
+
+        # Processar descontos_ajustes se fornecidos
+        if hasattr(request, 'descontos_ajustes') and request.descontos_ajustes:
+            try:
+                print(f"💰 PROCESSANDO {len(request.descontos_ajustes)} descontos/ajustes...")
+                from repositories_adapter import salvar_descontos_ajustes
+                salvar_descontos_ajustes(prestacao_id, request.descontos_ajustes)
+                print(f"✅ Descontos/ajustes processados com sucesso")
+            except Exception as e_descontos:
+                print(f"❌ Erro ao processar descontos/ajustes: {str(e_descontos)}")
+
+        # ✅ NOVA FUNCIONALIDADE: Salvar lançamentos detalhados (se fornecidos)
+        # Mantém compatibilidade total - só executa se dados novos estiverem presentes
+        print(f"🔍 DEBUG - Verificando se tem lançamentos completos:")
+        print(f"  hasattr(request, 'lancamentos_completos'): {hasattr(request, 'lancamentos_completos')}")
+        print(f"  request.lancamentos_completos: {getattr(request, 'lancamentos_completos', 'NAO_EXISTE')}")
+        print(f"  request.repasse_por_locador: {getattr(request, 'repasse_por_locador', 'NAO_EXISTE')}")
+
+        if hasattr(request, 'lancamentos_completos') and request.lancamentos_completos:
+            try:
+                print(f"🚀 EXECUTANDO salvamento de lançamentos detalhados...")
+                from repositories_adapter import salvar_lancamentos_detalhados_completos
+                print(f"🔍 DEBUG - resultado: {resultado}, tipo: {type(resultado)}")
+
+                resultado_detalhado = salvar_lancamentos_detalhados_completos(
+                    prestacao_id=prestacao_id,
+                    lancamentos_completos=request.lancamentos_completos,
+                    mes_referencia=getattr(request, 'mes_referencia', None),
+                    repasse_por_locador=getattr(request, 'repasse_por_locador', None)
+                )
+
+                print(f"✅ Lançamentos detalhados salvos: {resultado_detalhado}")
+                print(f"🔍 DEBUG - Preparando resposta final...")
+            except Exception as e_detalhado:
+                # Se falhar os lançamentos detalhados, NÃO quebra o sistema principal
+                print(f"AVISO: Erro ao salvar lançamentos detalhados (sistema principal funcionou): {str(e_detalhado)}")
+        else:
+            print(f"❌ NÃO EXECUTANDO - lançamentos completos não encontrados ou vazios")
+
+        print(f"🎯 Retornando resposta final ao frontend...")
+        resposta = {"success": True, "data": resultado, "message": "Prestação de contas salva com sucesso"}
+        print(f"📤 Resposta: {resposta}")
+        return resposta
     except Exception as e:
         print(f"ERRO COMPLETO ao salvar prestacao de contas:")
         print(f"   Erro: {str(e)}")
-        print(f"   Traceback: {traceback.format_exc()}")
+        try:
+            print(f"   Traceback: {traceback.format_exc()}")
+        except UnicodeEncodeError:
+            print("   Traceback: [erro de encoding - detalhes no stderr]")
         raise HTTPException(status_code=500, detail=f"Erro ao salvar prestação de contas: {str(e)}")
 
 @app.get("/api/dashboard/completo")
@@ -1485,6 +1698,68 @@ async def listar_prestacoes_contrato_endpoint(contrato_id: int, limit: int = 50)
         return {"prestacoes": prestacoes, "total": len(prestacoes)}
     except Exception as e:
         print(f"Erro ao listar prestações do contrato: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+# Endpoint de PDF da Prestação
+@app.get("/api/prestacao-contas/{prestacao_id}/pdf")
+async def gerar_pdf_prestacao(prestacao_id: int, preview: Optional[str] = None):
+    """
+    Gera PDF da prestação de contas
+    - preview=true: retorna dados para visualização no frontend
+    - preview=false: retorna PDF para download
+    """
+    try:
+        # Buscar dados detalhados da prestação
+        prestacao_data = buscar_prestacao_detalhada(prestacao_id)
+        print(f"DEBUG PDF - Dados brutos da prestação: {prestacao_data}")
+
+        if not prestacao_data:
+            raise HTTPException(status_code=404, detail="Prestação não encontrada")
+
+        if preview:
+            # Se for preview=html, retornar HTML personalizado da COBIMOB
+            if preview == "html":
+                # 🛑 NÃO transformar os dados! Passar dados originais para o template
+                from gerar_pdf_html import popular_template_com_dados
+
+                # Carregar template HTML personalizado
+                import os
+                template_path = os.path.join(os.path.dirname(__file__), 'template_prestacao.html')
+                with open(template_path, 'r', encoding='utf-8') as file:
+                    html_template = file.read()
+
+                # Popular template com dados originais (não transformados)
+                html_content = popular_template_com_dados(html_template, prestacao_data)
+
+                return Response(content=html_content, media_type="text/html")
+            else:
+                # Preview normal (JSON)
+                pdf_data = transformar_dados_para_pdf(prestacao_data)
+                return {"data": pdf_data, "preview": True}
+        else:
+            # 🔄 IMPORTANTE: PDF deve usar EXATAMENTE os mesmos dados que o DetalhamentoBoleto
+            # Não transformar os dados - passar dados originais para o PDF também
+            pdf_buffer = gerar_relatorio_pdf(prestacao_data)
+
+            if not pdf_buffer:
+                raise HTTPException(status_code=500, detail="Erro ao gerar PDF")
+
+            # Resetar posição do buffer para o início
+            pdf_buffer.seek(0)
+
+            # Retornar PDF como stream
+            return StreamingResponse(
+                io.BytesIO(pdf_buffer.read()),
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"attachment; filename=prestacao-{prestacao_id}.pdf"
+                }
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Erro ao gerar PDF da prestação {prestacao_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 # Endpoints de Busca
@@ -2193,6 +2468,53 @@ async def registrar_pagamento_fatura(fatura_id: int, request: Request):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao registrar pagamento: {str(e)}")
+
+# === ENDPOINT PARA JOB DE ACRÉSCIMOS AUTOMÁTICO ===
+
+@app.post("/api/job/calcular-acrescimos-automatico")
+async def executar_job_acrescimos_manual():
+    """
+    Executa manualmente o job de cálculo automático de acréscimos
+    Útil para testes e execução sob demanda
+    """
+    try:
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        # Caminho para o script do job
+        job_script = Path(__file__).parent / "job_acrescimos_diario.py"
+
+        if not job_script.exists():
+            raise HTTPException(status_code=500, detail="Script de job não encontrado")
+
+        # Executar o job
+        result = subprocess.run(
+            [sys.executable, str(job_script)],
+            capture_output=True,
+            text=True,
+            cwd=str(Path(__file__).parent)
+        )
+
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "Job de acréscimos executado com sucesso",
+                "stdout": result.stdout,
+                "stderr": result.stderr if result.stderr else None
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"Job falhou com código {result.returncode}",
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao executar job: {str(e)}")
 
 
 if __name__ == "__main__":

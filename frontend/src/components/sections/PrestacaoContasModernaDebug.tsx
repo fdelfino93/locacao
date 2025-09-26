@@ -8,6 +8,7 @@ import { InputWithIcon } from "@/components/ui/input-with-icon";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Calculator, FileText, DollarSign, CheckCircle, AlertCircle, Search, Loader2, Eye, Receipt, MoreVertical, ArrowUpDown, ArrowUp, ArrowDown, X, Edit, XCircle, TrendingDown, Crown, Hash, Building, User, Users, Download } from 'lucide-react';
+import ExportarPrestacaoPDFServerSide from '../prestacao/ExportarPrestacaoPDFServerSide';
 import jsPDF from 'jspdf';
 import { Card, CardContent } from "@/components/ui/card";
 import type { Fatura, FaturaStats, FaturasResponse } from "@/types";
@@ -17,6 +18,7 @@ import { getApiUrl } from "../../config/api";
 
 export const PrestacaoContasModernaDebug: React.FC = () => {
   const [debugMessage, setDebugMessage] = useState("Componente carregado");
+
   const [activeTab, setActiveTab] = useState('todas');
   const [searchTerm, setSearchTerm] = useState('');
   const [mesSelecionado, setMesSelecionado] = useState('');
@@ -281,6 +283,8 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
     return sortDirection === 'ASC' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />;
   };
 
+  // Função para controlar quais botões exibir baseado no status
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'ASC' ? 'DESC' : 'ASC');
@@ -395,6 +399,27 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
   const gerarPDFDetalhamento = async (fatura: Fatura) => {
     try {
+      // Buscar dados atualizados da API antes de gerar PDF
+      let faturaAtualizada = fatura;
+      try {
+        const response = await fetch(getApiUrl(`/prestacao-contas/${fatura.id}`));
+        if (response.ok) {
+          const dadosAPI = await response.json();
+          console.log('📄 Dados da API para PDF:', dadosAPI);
+
+          // Atualizar fatura com dados da API se disponível
+          if (dadosAPI.valor_acrescimos !== undefined) {
+            faturaAtualizada = {
+              ...fatura,
+              valor_acrescimos: dadosAPI.valor_acrescimos,
+              dias_atraso: dadosAPI.dias_atraso
+            };
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ Erro ao buscar dados atualizados, usando dados da lista');
+      }
+
       const pdf = new jsPDF('p', 'mm', 'a4');
 
       // Helper para formatar moeda
@@ -483,10 +508,10 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       yPos += 10;
 
       // Acréscimos por atraso
-      if (fatura.valor_acrescimos && fatura.valor_acrescimos > 0) {
+      if (faturaAtualizada.valor_acrescimos && faturaAtualizada.valor_acrescimos > 0) {
         pdf.setTextColor(200, 0, 0);
-        pdf.text(`Acréscimos (${fatura.dias_atraso || 0} dias):`, 25, yPos);
-        pdf.text(formatMoney(fatura.valor_acrescimos), 150, yPos, { align: 'right' });
+        pdf.text(`Acréscimos (${faturaAtualizada.dias_atraso || 0} dias):`, 25, yPos);
+        pdf.text(formatMoney(faturaAtualizada.valor_acrescimos), 150, yPos, { align: 'right' });
         yPos += 6;
         pdf.setTextColor(0, 0, 0);
       }
@@ -498,7 +523,8 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       pdf.line(25, yPos, 190, yPos);
       yPos += 8;
       pdf.text('VALOR TOTAL DO BOLETO:', 25, yPos);
-      pdf.text(formatMoney(fatura.valor_total || 0), 150, yPos, { align: 'right' });
+      const valorTotalComAcrescimos = (faturaAtualizada.valor_total || 0) + (faturaAtualizada.valor_acrescimos || 0);
+      pdf.text(formatMoney(valorTotalComAcrescimos), 150, yPos, { align: 'right' });
       yPos += 15;
 
       // Valores Retidos
@@ -509,7 +535,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
       pdf.setFontSize(10);
       pdf.setTextColor(0, 0, 0);
-      const taxaAdmin = (fatura.valor_total || 0) * 0.1;
+      const taxaAdmin = valorTotalComAcrescimos * 0.1;
       const taxaTransferencia = 10.00;
       const totalRetido = taxaAdmin + taxaTransferencia;
 
@@ -534,7 +560,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
       pdf.text('REPASSE AO PROPRIETÁRIO', 20, yPos);
       yPos += 10;
 
-      const valorRepasse = (fatura.valor_total || 0) - totalRetido;
+      const valorRepasse = valorTotalComAcrescimos - totalRetido;
       pdf.setFontSize(12);
       pdf.setTextColor(0, 0, 0);
       pdf.text('Valor a Repassar:', 25, yPos);
@@ -1191,46 +1217,70 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                   {getStatusBadge(fatura.status)}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className="font-semibold text-foreground">
-                                    {formatCurrency(fatura.valor_total || 0)}
-                                  </span>
-                                  {/* Debug info */}
-                                  {fatura.id === 5 && (
-                                    <div className="text-xs text-red-500 mt-1">
-                                      Debug: ID={fatura.id}, valor_total={fatura.valor_total}
+                                  <div className="text-right">
+                                    <div className="font-semibold text-foreground">
+                                      {formatCurrency(fatura.valor_total || 0)}
                                     </div>
-                                  )}
+                                    {fatura.valor_acrescimos && fatura.valor_acrescimos > 0 && (
+                                      <div className="text-xs text-red-600 font-medium">
+                                        +{formatCurrency(fatura.valor_acrescimos)}
+                                      </div>
+                                    )}
+                                    {fatura.valor_acrescimos && fatura.valor_acrescimos > 0 && (
+                                      <div className="text-xs text-muted-foreground border-t border-muted mt-1 pt-1">
+                                        Total: {formatCurrency((fatura.valor_total || 0) + fatura.valor_acrescimos)}
+                                      </div>
+                                    )}
+                                  </div>
                                 </td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center space-x-2">
-                                    <Button 
-                                      size="sm" 
+                                    {/* Ver PDF - sempre disponível */}
+                                    <Button
+                                      size="sm"
                                       className="btn-gradient"
                                       onClick={() => abrirDetalheBoleto(fatura)}
-                                      title="Lançar Prestação"
+                                      title="Ver PDF"
                                     >
                                       <Receipt className="w-4 h-4" />
                                     </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      className="btn-outline"
-                                      onClick={() => editarFatura(fatura)}
-                                      title="Ver Detalhes"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
+
+
+                                    {/* Editar/Pagamento ou Status Visual */}
+                                    {(fatura.status === 'paga' || fatura.status === 'lancada') ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="btn-outline cursor-default"
+                                        disabled
+                                        title="Finalizada"
+                                      >
+                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="btn-outline"
+                                        onClick={() => editarFatura(fatura)}
+                                        title="Editar/Pagamento"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </Button>
+                                    )}
+
+                                    {/* Menu de 3 pontos - para alterar status */}
                                     <div className="relative">
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline" 
-                                        className="btn-outline" 
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="btn-outline"
                                         onClick={() => toggleMenu(fatura.id)}
                                         title="Mais Opções"
                                       >
                                         <MoreVertical className="w-4 h-4" />
                                       </Button>
-                                      
+
                                       {/* Menu Dropdown */}
                                       {menuAbertoId === fatura.id && (
                                         <div className="absolute right-0 top-full mt-1 w-56 bg-background border border-border rounded-md shadow-lg z-50">
@@ -1265,6 +1315,13 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                                             >
                                               <div className="w-2 h-2 rounded-full bg-red-500"></div>
                                               <span>Em Atraso</span>
+                                            </button>
+                                            <button
+                                              onClick={() => alterarStatusFatura(fatura, 'lancada')}
+                                              className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                            >
+                                              <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                              <span>Lançada</span>
                                             </button>
                                             <div className="border-t my-1"></div>
                                             <button
@@ -1306,7 +1363,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-background rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             {/* Header do Modal */}
             <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-6 py-4 flex items-center justify-between">
@@ -1336,58 +1393,10 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
 
             {/* Conteúdo do Modal */}
             <div className="p-6 overflow-y-auto flex-1">
-              {/* Debug info before passing to DetalhamentoBoleto */}
-              {console.log('🔀 Transformando dados para DetalhamentoBoleto:', {
-                id: faturaParaDetalhes.id,
-                numero_fatura: faturaParaDetalhes.numero_fatura,
-                valor_total_original: faturaParaDetalhes.valor_total
-              })}
+              {/* ✅ NOVA IMPLEMENTAÇÃO - Buscar dados da API */}
+              {console.log('🎯 Usando nova implementação - prestacao_id:', faturaParaDetalhes.id)}
               <DetalhamentoBoleto
-                boleto={{
-                  numero_boleto: faturaParaDetalhes.numero_fatura,
-                  valores_base: {
-                    aluguel: faturaParaDetalhes.valor_aluguel || 0,
-                    iptu: faturaParaDetalhes.valor_iptu || 0,
-                    seguro_fianca: faturaParaDetalhes.valor_seguro_fianca || 0,
-                    seguro_incendio: faturaParaDetalhes.valor_seguro_incendio || 0,
-                    condominio: faturaParaDetalhes.valor_condominio || 0,
-                    energia_eletrica: faturaParaDetalhes.valor_energia || 0,
-                    gas: faturaParaDetalhes.valor_gas || 0,
-                    fci: faturaParaDetalhes.valor_fci || 0,
-                  },
-                  acrescimos: {
-                    valor_total: faturaParaDetalhes.valor_acrescimos || 0,
-                    dias_atraso: faturaParaDetalhes.dias_atraso || 0,
-                  },
-                  descontos: {
-                    desconto_pontualidade: faturaParaDetalhes.desconto_pontualidade || 0,
-                    desconto_benfeitoria_1: faturaParaDetalhes.desconto_benfeitoria_1 || 0,
-                    desconto_benfeitoria_2: faturaParaDetalhes.desconto_benfeitoria_2 || 0,
-                    desconto_benfeitoria_3: faturaParaDetalhes.desconto_benfeitoria_3 || 0,
-                    reembolso_fundo_obras: faturaParaDetalhes.reembolso_fundo_obras || 0,
-                    fundo_reserva: faturaParaDetalhes.fundo_reserva || 0,
-                    fundo_iptu: faturaParaDetalhes.fundo_iptu || 0,
-                    fundo_outros: faturaParaDetalhes.fundo_outros || 0,
-                    honorario_advogados: faturaParaDetalhes.honorario_advogados || 0,
-                    boleto_advogados: faturaParaDetalhes.boleto_advogados || 0,
-                  },
-                  valor_total: faturaParaDetalhes.valor_total || 0,
-                  contrato: {
-                    locatario_nome: faturaParaDetalhes.locatario_nome || 'Nome não informado',
-                    imovel_endereco: faturaParaDetalhes.imovel_endereco || 'Endereço não informado',
-                    locatario_telefone: faturaParaDetalhes.locatario_telefone,
-                    locatario_email: faturaParaDetalhes.locatario_email,
-                    proprietario_nome: faturaParaDetalhes.proprietario_nome,
-                    proprietario_telefone: faturaParaDetalhes.proprietario_telefone,
-                    proprietario_email: faturaParaDetalhes.proprietario_email,
-                  },
-                  periodo: {
-                    mes: parseInt(faturaParaDetalhes.mes_referencia?.toString().split('/')[0] || '1'),
-                    ano: parseInt(faturaParaDetalhes.mes_referencia?.toString().split('/')[1] || new Date().getFullYear().toString()),
-                    data_vencimento: faturaParaDetalhes.data_vencimento || new Date().toISOString(),
-                    data_pagamento: faturaParaDetalhes.data_pagamento,
-                  },
-                }}
+                prestacao_id={faturaParaDetalhes.id}
               />
             </div>
 
@@ -1402,22 +1411,23 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 </Button>
 
                 <div className="flex items-center space-x-3">
-                  <Button
-                    onClick={() => gerarPDFDetalhamento(faturaParaDetalhes)}
+                  {/* Botão PDF personalizado da COBIMOB */}
+                  <ExportarPrestacaoPDFServerSide
+                    prestacaoId={faturaParaDetalhes.id}
                     variant="outline"
                     className="btn-outline"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Gerar PDF
-                  </Button>
+                  />
 
-                  <Button
-                    onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
-                    className="btn-gradient"
-                  >
-                    <Receipt className="w-4 h-4 mr-2" />
-                    Lançar Prestação
-                  </Button>
+                  {/* Botão Lançar Prestação - só aparece quando paga e ainda não lançada */}
+                  {faturaParaDetalhes.status === 'paga' && (
+                    <Button
+                      onClick={() => abrirLancamentoFatura(faturaParaDetalhes)}
+                      className="btn-gradient"
+                    >
+                      <Receipt className="w-4 h-4 mr-2" />
+                      Lançar Prestação
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1432,7 +1442,7 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-background rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-background rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
           >
             {/* Header do Modal */}
             <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-6 py-4 flex items-center justify-between">
@@ -1636,13 +1646,16 @@ export const PrestacaoContasModernaDebug: React.FC = () => {
                 </Button>
                 
                 <div className="flex items-center space-x-3">
-                  <Button 
-                    onClick={() => abrirLancamentoFatura(faturaParaEdicao)}
-                    variant="outline"
-                  >
-                    <Receipt className="w-4 h-4 mr-2" />
-                    Lançar Prestação
-                  </Button>
+                  {/* Botão Lançar Prestação - só aparece quando paga e ainda não lançada */}
+                  {faturaParaEdicao?.status === 'paga' && (
+                    <Button
+                      onClick={() => abrirLancamentoFatura(faturaParaEdicao)}
+                      variant="outline"
+                    >
+                      <Receipt className="w-4 h-4 mr-2" />
+                      Lançar Prestação
+                    </Button>
+                  )}
                   
                   <Button 
                     onClick={() => {

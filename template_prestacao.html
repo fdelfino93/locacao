@@ -13,8 +13,14 @@
 
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
-        body {
+        body, * {
             font-family: 'Poppins', sans-serif;
+            background: #ffffff;
+            color: #2d3748;
+            line-height: 1.5;
+        }
+
+        body {
             background: #ffffff;
             color: #2d3748;
             line-height: 1.5;
@@ -192,6 +198,10 @@
             color: #e53e3e !important;
         }
 
+        .valor-desconto {
+            color: #e53e3e !important;
+        }
+
         .valor-positivo {
             color: #2d3748 !important;
         }
@@ -215,9 +225,8 @@
         }
 
         .footer-content {
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 25px;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
             padding: 0 12.5mm;
             font-size: 13px;
@@ -231,6 +240,7 @@
         }
 
         .footer-address {
+            flex: 1;
             text-align: left;
             font-weight: 600;
             line-height: 1.4;
@@ -250,6 +260,7 @@
             font-weight: 600;
             line-height: 1.4;
             color: #2d3748;
+            white-space: nowrap;
         }
 
         .footer-phone {
@@ -382,10 +393,10 @@
 
         <!-- Header -->
         <div class="header">
-            <img src="Cobimob logos-01.png" alt="CobiMob" class="logo">
+            <img src="{{LOGO1_BASE64}}" alt="CobiMob" class="logo">
             <div class="titulo-principal">
                 <h1>PRESTAÇÃO DE CONTAS</h1>
-                <div class="subtitulo">Maio/2025</div>
+                <div class="subtitulo">{{MES_ANO}}</div>
             </div>
         </div>
 
@@ -394,9 +405,7 @@
         <div class="dados-boleto dados-info">
             <div class="numero-boleto">Proprietários</div>
             <div class="datas">
-                <div><strong>Camilo R. Gusso</strong> - CPF: 098.602.089-30</div>
-                <div><strong>Camila C. Gusso</strong> - CPF: 129.665.399-41</div>
-                <div><strong>Reinaldo José Gusso</strong> - CPF: 089.166.619-27</div>
+                {{PROPRIETARIOS_INFO}}
             </div>
         </div>
 
@@ -404,24 +413,23 @@
         <div class="dados-boleto dados-info">
             <div class="numero-boleto">Locatário</div>
             <div class="datas">
-                <div><strong>Vivaldo Valério da Silva</strong></div>
+                <div><strong>{{LOCATARIO_NOME}}</strong> - CPF: {{LOCATARIO_CPF}}</div>
             </div>
         </div>
 
         <!-- Informações do Imóvel -->
         <div class="dados-imovel">
             <div class="info-imovel">
-                <div><strong>Condomínio Alameda Club Residencial - Apartamento 207 - Bloco A, Vaga 203</strong></div>
-                <div>R. João Alencar Guimarães, 2580 - Campo Comprido, Curitiba/PR - CEP: 81.220-190</div>
+                <div><strong>{{IMOVEL_ENDERECO}}</strong></div>
             </div>
         </div>
 
         <!-- Dados do Boleto -->
         <div class="dados-boleto">
-            <div class="numero-boleto">Boleto Nº: 2025050001</div>
+            <div class="numero-boleto">Prestação Nº: {{PRESTACAO_ID}}</div>
             <div class="datas">
-                <div>Vencimento: 07/07/2025</div>
-                <div>Pagamento: 04/08/2025</div>
+                <div>Data Vencimento: {{DATA_VENCIMENTO}}</div>
+                <div>Data Pagamento: {{DATA_PAGAMENTO}}</div>
             </div>
         </div>
 
@@ -436,30 +444,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- VALORES COBRADOS -->
-                    <tr><td>Aluguel - Maio/2025</td><td class="valor">R$ 1.877,91</td></tr>
-                    <tr><td>Seguro Fiança - Parcela 22/27</td><td class="valor">R$ 165,00</td></tr>
-                    <tr><td>Condomínio - Vencimento 10/06/2025</td><td class="valor">R$ 929,16</td></tr>
-                    <tr><td>FCI - Fundo de Conservação</td><td class="valor">R$ 93,90</td></tr>
-                    <tr><td>IPTU Apartamento - Parcela 04/10</td><td class="valor">R$ 52,42</td></tr>
-                    <tr><td>IPTU Garagem - Parcela 04/07</td><td class="valor">R$ 20,82</td></tr>
-
-                    <!-- DESCONTOS E REEMBOLSOS -->
-                    <tr><td>Bonificação - Pagamento no vencimento</td><td class="valor">R$ -</td></tr>
-                    <tr><td>Reembolso - Fundo de Reserva</td><td class="valor valor-negativo">-R$ 43,64</td></tr>
-                    <tr><td>Reembolso - Fundo de Obras</td><td class="valor valor-negativo">-R$ 10,00</td></tr>
-                    <tr><td>Reembolso - Reforma do Hall (Parc. 06/24)</td><td class="valor valor-negativo">-R$ 127,89</td></tr>
-
-                    <!-- ACRÉSCIMOS POR ATRASO -->
-                    <tr><td>Acréscimos por Atraso - Aluguel</td><td class="valor">R$ 193,27</td></tr>
-                    <tr><td>Acréscimos por Atraso - Seguro Fiança</td><td class="valor">R$ 16,98</td></tr>
-                    <tr><td>Acréscimos por Atraso - Condomínio</td><td class="valor">R$ 95,62</td></tr>
-                    <tr><td>Acréscimos por Atraso - FCI</td><td class="valor">R$ 9,67</td></tr>
-                    <tr><td>Acréscimos por Atraso - IPTU</td><td class="valor">R$ 7,54</td></tr>
-                    <tr><td><strong>Subtotal Acréscimos</strong></td><td class="valor">R$ 323,08</td></tr>
-
-                    <!-- TOTAL FINAL -->
-                    <tr class="total-row"><td><strong>VALOR TOTAL</strong></td><td class="valor"><strong>R$&nbsp;3.280,76</strong></td></tr>
+                    {{VALORES_COBRADOS_HTML}}
+                    <tr class="total-row"><td><strong>VALOR TOTAL</strong></td><td class="valor"><strong>{{VALOR_BOLETO}}</strong></td></tr>
                 </tbody>
             </table>
         </div>
@@ -476,13 +462,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>Taxa de administração (5%)</td><td class="valor">R$ 150,02</td></tr>
-                    <tr><td>Transferências bancárias adicionais (2x R$ 10,00)</td><td class="valor">R$ 20,00</td></tr>
-                    <tr><td>Pagamento FCI</td><td class="valor">R$ 103,57</td></tr>
-                    <tr><td>Pagamento IPTU</td><td class="valor">R$ 80,78</td></tr>
-                    <tr><td>Pagamento Condomínio</td><td class="valor">R$ 1.024,78</td></tr>
-                    <tr><td>Pagamento Seguro Fiança</td><td class="valor">R$ 181,98</td></tr>
-                    <tr class="total-row"><td><strong>VALOR TOTAL RETIDO</strong></td><td class="valor"><strong>R$&nbsp;1.541,13</strong></td></tr>
+                    {{VALORES_RETIDOS_HTML}}
+                    <tr class="total-row"><td><strong>VALOR TOTAL RETIDO</strong></td><td class="valor"><strong>{{TOTAL_RETIDO}}</strong></td></tr>
                 </tbody>
             </table>
         </div>
@@ -495,29 +476,15 @@
                 <thead>
                     <tr>
                         <th>Titular</th>
-                        <th>PIX</th>
+                        <th>{{TIPO_PAGAMENTO}}</th>
                         <th style="width: 120px;">Valor</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td><strong>Camilo R. Gusso</strong><br><small>CPF: 098.602.089-30</small></td>
-                        <td>41996840799</td>
-                        <td class="valor valor-positivo">R$ 572,38</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Reinaldo José Gusso</strong><br><small>CPF: 089.166.619-27</small></td>
-                        <td>089.166.619-27</td>
-                        <td class="valor valor-positivo">R$ 572,38</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Camila C. Gusso</strong><br><small>CPF: 129.665.399-41</small></td>
-                        <td>41984411620</td>
-                        <td class="valor valor-positivo">R$ 572,37</td>
-                    </tr>
+                    {{REPASSES_HTML}}
                     <tr class="total-row">
-                        <td colspan="2"><strong>TOTAL A SER REPASSADO</strong><br><small>Repasse realizado em: 06/08/2025</small></td>
-                        <td class="valor"><strong>R$&nbsp;1.717,13</strong></td>
+                        <td colspan="2"><strong>TOTAL A SER REPASSADO</strong><br><small>Repasse realizado em: {{DATA_REPASSE}}</small></td>
+                        <td class="valor" style="text-align: right !important; padding-right: 10px;"><strong>{{VALOR_REPASSE}}</strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -529,15 +496,15 @@
             <div class="footer-faixa"></div>
             <div class="footer-content">
                 <div class="footer-logo">
-                    <img src="Cobimob logos-03.png" alt="CbiMb" style="height: 24px;">
+                    <img src="{{LOGO2_BASE64}}" alt="CbiMb" style="height: 24px;">
                 </div>
                 <div class="footer-address">
                     R. Presidente Faria, 431 | cj 42 | 4° andar | Centro | Curitiba | PR<br>
                     <span class="footer-website">www.<span class="cobimob">cobimob</span>.com.br</span>
                 </div>
                 <div class="footer-contact">
-                    atendimento@cobimob.com.br<br>
-                    <span class="footer-phone">☎ (41) 3995-8200</span>
+                    <span class="footer-phone">☎ (41) 3995-8200</span><br>
+                    atendimento@cobimob.com.br
                 </div>
             </div>
         </div>

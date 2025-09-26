@@ -270,6 +270,15 @@ export const PrestacaoContasLancamento: React.FC = () => {
       if (data.data && Array.isArray(data.data)) {
         setContratos(data.data);
         console.log('✅ Contratos definidos no estado:', data.data);
+
+        // 🔍 DEBUG: Verificar se locadores estão sendo carregados
+        data.data.forEach(contrato => {
+          console.log(`🔍 Contrato ${contrato.id}: ${contrato.locadores?.length || 0} locadores`, {
+            id: contrato.id,
+            locadores: contrato.locadores,
+            num_locadores: contrato.num_locadores
+          });
+        });
       } else {
         console.warn('⚠️ Formato de dados inesperado:', data);
         setContratos([]);
@@ -613,22 +622,30 @@ export const PrestacaoContasLancamento: React.FC = () => {
     const inicio = new Date(dataInicio);
     const fim = new Date(dataFim);
 
+    // Criar datas apenas com mês/ano para comparação de vigência
+    // Início: usar primeiro dia do mês da data de início
+    const inicioMesAno = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+    // Fim: usar último dia do mês da data de fim
+    const fimMesAno = new Date(fim.getFullYear(), fim.getMonth() + 1, 0);
+
     console.log(`🔍 ${tipo} - Verificação de vigência:`, {
       mesAtual: mesAtual.toISOString().split('T')[0],
-      inicio: inicio.toISOString().split('T')[0],
-      fim: fim.toISOString().split('T')[0],
-      dentroDaVigencia: mesAtual >= inicio && mesAtual <= fim
+      inicioOriginal: inicio.toISOString().split('T')[0],
+      fimOriginal: fim.toISOString().split('T')[0],
+      inicioMesAno: inicioMesAno.toISOString().split('T')[0],
+      fimMesAno: fimMesAno.toISOString().split('T')[0],
+      dentroDaVigencia: mesAtual >= inicioMesAno && mesAtual <= fimMesAno
     });
 
-    // Verificar se está dentro da vigência
-    if (mesAtual < inicio || mesAtual > fim) {
-      console.log(`🔍 ${tipo} - Fora da vigência`);
+    // Verificar se está dentro da vigência (comparando apenas mês/ano)
+    if (mesAtual < inicioMesAno || mesAtual > fimMesAno) {
+      console.log(`🔍 ${tipo} - Fora da vigência (mês/ano)`);
       return { ativo: false, parcela: 0, totalParcelas, descricao: '' };
     }
 
     // Calcular qual parcela baseada na diferença de meses
-    const inicioMes = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
-    const diffMeses = (mesAtual.getFullYear() - inicioMes.getFullYear()) * 12 + (mesAtual.getMonth() - inicioMes.getMonth());
+    // Usar inicioMesAno que já está no primeiro dia do mês
+    const diffMeses = (mesAtual.getFullYear() - inicioMesAno.getFullYear()) * 12 + (mesAtual.getMonth() - inicioMesAno.getMonth());
     const parcelaAtual = Math.min(diffMeses + 1, totalParcelasCalculado);
 
     console.log(`🔍 ${tipo} - Cálculo de parcela:`, {
@@ -859,6 +876,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
 
       const valorRepasse = valorBoletoCorrigido - totalRetidoCorrigido - deducoes;
       const numProprietarios = contratoSelecionado?.locadores?.length || 1;
+
+      // 🔍 DEBUG: Verificar cálculo de numProprietarios (calcularTotais)
+      console.log('🔧 calcularTotais - numProprietarios:', {
+        contratoSelecionado: contratoSelecionado?.id,
+        locadores: contratoSelecionado?.locadores,
+        locadoresLength: contratoSelecionado?.locadores?.length,
+        numProprietarios
+      });
       
       return {
         subtotalLancamentos: resultadoCalculo.total - (resultadoCalculo.desconto || 0) - (resultadoCalculo.multa || 0),
@@ -1024,6 +1049,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
     // Cálculos de retenção baseados na configuração
     // Para lançamento de fatura, usar locadores do contrato, não proprietarios do estado
     const numProprietarios = contratoSelecionado?.locadores?.length || 1;
+
+    // 🔍 DEBUG: Verificar cálculo de numProprietarios (calcularTotaisFatura)
+    console.log('🔧 calcularTotaisFatura - numProprietarios:', {
+      contratoSelecionado: contratoSelecionado?.id,
+      locadores: contratoSelecionado?.locadores,
+      locadoresLength: contratoSelecionado?.locadores?.length,
+      numProprietarios
+    });
     // Taxa de administração: (aluguel - desconto) × percentual do contrato
     const valorAluguel = contratoSelecionado?.valor_aluguel || 0;
     const baseCalculo = valorAluguel - descontoPontualidade;
@@ -1182,6 +1215,221 @@ export const PrestacaoContasLancamento: React.FC = () => {
     };
   };
 
+  // ✅ NOVA FUNÇÃO: Gerar todos os lançamentos detalhados para o backend
+  const gerarLancamentosCompletos = () => {
+    if (!contratoSelecionado || !mesReferencia) return [];
+
+    const lancamentosDetalhados = [];
+    const [ano, mes] = mesReferencia.split('-');
+    const nomesMeses = {
+      '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+      '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+      '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    };
+    const nomeMes = nomesMeses[mes] || mes;
+    const valoresPorTipo = obterValoresPorTipo();
+
+    // 1. VALORES DO TERMO (se não foram deletados)
+    if (!valoresDeletados['valor_aluguel'] && valoresPorTipo.valor_aluguel > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_aluguel',
+        descricao: `Aluguel - ${mes.toString().padStart(2, '0')}/${ano}`,
+        valor: valoresPorTipo.valor_aluguel,
+        categoria: 'termo'
+      });
+    }
+
+    if (!valoresDeletados['valor_condominio'] && valoresPorTipo.valor_condominio > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_condominio',
+        descricao: `Condomínio referente ao mês ${mes} de ${ano} (${nomeMes})`,
+        valor: valoresPorTipo.valor_condominio,
+        categoria: 'termo'
+      });
+    }
+
+    if (!valoresDeletados['valor_fci'] && valoresPorTipo.valor_fci > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_fci',
+        descricao: `FCI referente ao mês ${mes} de ${ano} (${nomeMes})`,
+        valor: valoresPorTipo.valor_fci,
+        categoria: 'termo'
+      });
+    }
+
+    if (!valoresDeletados['valor_seguro_fianca'] && valoresPorTipo.valor_seguro_fianca > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_seguro_fianca',
+        descricao: `Seguro Fiança - ${nomeMes}/${ano}`,
+        valor: valoresPorTipo.valor_seguro_fianca,
+        categoria: 'termo'
+      });
+    }
+
+    if (!valoresDeletados['valor_seguro_incendio'] && valoresPorTipo.valor_seguro_incendio > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_seguro_incendio',
+        descricao: `Seguro Incêndio - ${nomeMes}/${ano}`,
+        valor: valoresPorTipo.valor_seguro_incendio,
+        categoria: 'termo'
+      });
+    }
+
+    if (!valoresDeletados['valor_iptu'] && valoresPorTipo.valor_iptu > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'termo_iptu',
+        descricao: `IPTU - ${nomeMes}/${ano}`,
+        valor: valoresPorTipo.valor_iptu,
+        categoria: 'termo'
+      });
+    }
+
+    // 2. LANÇAMENTOS EXTRAS DO USUÁRIO (do estado lancamentos)
+    lancamentos.forEach((lancamentoExtra) => {
+      if (lancamentoExtra.valor !== 0) {
+        lancamentosDetalhados.push({
+          tipo: `extra_${lancamentoExtra.tipo}`,
+          descricao: `${lancamentoExtra.descricao} - ${nomeMes}/${ano}`,
+          valor: lancamentoExtra.valor,
+          categoria: 'extra'
+        });
+      }
+    });
+
+    // 3. ACRÉSCIMOS (se houver)
+    if (valorVencido > 0) {
+      lancamentosDetalhados.push({
+        tipo: 'acrescimo_atraso',
+        descricao: `Acréscimos por Atraso - ${nomeMes}/${ano}`,
+        valor: valorVencido,
+        categoria: 'acrescimo'
+      });
+    }
+
+    // 4. VALORES RETIDOS (TAXAS)
+    const totaisCalculados = calcularTotais();
+
+    // Taxa de Administração
+    if (!valoresDeletados['taxa_admin'] && totaisCalculados.taxaAdmin > 0) {
+      const percentualAdmin = contratoSelecionado?.taxa_administracao || configuracaoRetencoes.percentual_admin;
+      lancamentosDetalhados.push({
+        tipo: 'taxa_administracao',
+        descricao: `Taxa de Administração (${percentualAdmin}%) - ${nomeMes}/${ano}`,
+        valor: -totaisCalculados.taxaAdmin, // Negativo pois é retido
+        categoria: 'retido'
+      });
+    }
+
+    // Taxa de Transferência (TED/PIX) - só se houver múltiplos locadores
+    if (!valoresDeletados['taxa_transferencia'] && totaisCalculados.taxaTransferencia > 0) {
+      const numLocadores = contratoSelecionado?.locadores?.length || 1;
+      const locadoresAdicionais = Math.max(0, numLocadores - 1);
+      lancamentosDetalhados.push({
+        tipo: 'taxa_transferencia',
+        descricao: `Taxa TED/PIX Adicional - ${locadoresAdicionais} transferência(s) × R$ ${configuracaoRetencoes.taxa_transferencia} - ${nomeMes}/${ano}`,
+        valor: -totaisCalculados.taxaTransferencia, // Negativo pois é retido
+        categoria: 'taxa'
+      });
+    }
+
+    // ✅ CORREÇÃO: GERAR AUTOMATICAMENTE OS VALORES RETIDOS CORRESPONDENTES
+    // Para cada valor do termo que não foi deletado, gerar a retenção se configurada
+    if (!valoresDeletados['valor_condominio'] && valoresPorTipo.valor_condominio > 0 && contratoSelecionado?.retido_condominio) {
+      lancamentosDetalhados.push({
+        tipo: 'retido_condominio',
+        descricao: `Condomínio (Retido) - ${nomeMes}/${ano}`,
+        valor: -valoresPorTipo.valor_condominio,
+        categoria: 'retido'
+      });
+    }
+
+    if (!valoresDeletados['valor_fci'] && valoresPorTipo.valor_fci > 0 && contratoSelecionado?.retido_fci) {
+      lancamentosDetalhados.push({
+        tipo: 'retido_fci',
+        descricao: `FCI (Retido) - ${nomeMes}/${ano}`,
+        valor: -valoresPorTipo.valor_fci,
+        categoria: 'retido'
+      });
+    }
+
+    if (!valoresDeletados['valor_iptu'] && valoresPorTipo.valor_iptu > 0 && contratoSelecionado?.retido_iptu) {
+      lancamentosDetalhados.push({
+        tipo: 'retido_iptu',
+        descricao: `IPTU (Retido) - ${nomeMes}/${ano}`,
+        valor: -valoresPorTipo.valor_iptu,
+        categoria: 'retido'
+      });
+    }
+
+    if (!valoresDeletados['valor_seguro_fianca'] && valoresPorTipo.valor_seguro_fianca > 0 && contratoSelecionado?.retido_seguro_fianca) {
+      lancamentosDetalhados.push({
+        tipo: 'retido_seguro_fianca',
+        descricao: `Seguro Fiança (Retido) - ${nomeMes}/${ano}`,
+        valor: -valoresPorTipo.valor_seguro_fianca,
+        categoria: 'retido'
+      });
+    }
+
+    if (!valoresDeletados['valor_seguro_incendio'] && valoresPorTipo.valor_seguro_incendio > 0 && contratoSelecionado?.retido_seguro_incendio) {
+      lancamentosDetalhados.push({
+        tipo: 'retido_seguro_incendio',
+        descricao: `Seguro Incêndio (Retido) - ${nomeMes}/${ano}`,
+        valor: -valoresPorTipo.valor_seguro_incendio,
+        categoria: 'retido'
+      });
+    }
+
+    // Outros valores retidos do estado retidosExtras
+    retidosExtras.forEach((retido) => {
+      if (retido.valor !== 0) {
+        lancamentosDetalhados.push({
+          tipo: `retido_${retido.tipo}`,
+          descricao: `${retido.descricao} - ${nomeMes}/${ano}`,
+          valor: -Math.abs(retido.valor), // Negativo pois é retido
+          categoria: 'retido'
+        });
+      }
+    });
+
+    // 5. VALORES ESPECÍFICOS DE RESCISÃO (se aplicável)
+    if (tipoLancamento === 'rescisao' && resultadoCalculo) {
+      // Multa Rescisória
+      if (resultadoCalculo.multa > 0 && !valoresDeletados['multa_rescisao']) {
+        lancamentosDetalhados.push({
+          tipo: 'termo_multa_rescisoria',
+          descricao: `Multa Rescisória - ${nomeMes}/${ano}`,
+          valor: resultadoCalculo.multa,
+          categoria: 'termo'
+        });
+      }
+
+      // Taxa de Rescisão (20% da multa) - retida
+      const taxaRescisao = resultadoCalculo.multa * 0.20;
+      if (taxaRescisao > 0 && !valoresDeletados['taxa_rescisao']) {
+        lancamentosDetalhados.push({
+          tipo: 'taxa_rescisao',
+          descricao: `Taxa de Rescisão (20%) - ${nomeMes}/${ano}`,
+          valor: -taxaRescisao, // Negativo pois é retido
+          categoria: 'retido'
+        });
+      }
+    }
+
+    // 6. DESCONTOS E AJUSTES (do estado descontosAjustes)
+    descontosAjustes.forEach((desconto) => {
+      if (desconto.valor > 0) {
+        lancamentosDetalhados.push({
+          tipo: desconto.tipo,
+          descricao: `${desconto.label} referente ao mês ${mes} de ${ano} (${nomeMes})`,
+          valor: -desconto.valor, // Negativo pois é desconto
+          categoria: 'desconto'
+        });
+      }
+    });
+
+    return lancamentosDetalhados;
+  };
+
   const salvarLancamento = async () => {
     console.log("🔄 Versão: 1.0.1 - Correção aplicada"); // Força atualização
     try {
@@ -1335,6 +1583,37 @@ export const PrestacaoContasLancamento: React.FC = () => {
         fatura_origem: !isNovaPrestacao ? faturaParaLancamento : null,
         data_processamento: new Date().toISOString()
       };
+
+      // ✅ NOVA FUNCIONALIDADE: Gerar lançamentos completos detalhados
+      // Mantém compatibilidade - só adiciona se conseguir gerar
+      try {
+        const lancamentosCompletos = gerarLancamentosCompletos();
+        console.log('🔍 DEBUG - Lançamentos completos gerados:', lancamentosCompletos);
+        if (lancamentosCompletos.length > 0) {
+          dadosParaAPI.lancamentos_completos = lancamentosCompletos;
+          dadosParaAPI.mes_referencia = mesReferencia;
+
+          // Adicionar distribuição de repasse por locador
+          const repasseCalculado = calcularTotais().repassePorLocador;
+          console.log('🔍 DEBUG - Repasse calculado:', repasseCalculado);
+          console.log('🔍 DEBUG - Locadores do contrato:', contratoSelecionado?.locadores);
+          if (repasseCalculado && repasseCalculado.length > 0) {
+            dadosParaAPI.repasse_por_locador = repasseCalculado;
+            console.log('👥 Distribuição de locadores:', repasseCalculado);
+          } else {
+            console.log('❌ Nenhum repasse calculado - motivo:', {
+              repasseCalculado,
+              length: repasseCalculado?.length,
+              locadores: contratoSelecionado?.locadores
+            });
+          }
+
+          console.log('📊 Lançamentos detalhados gerados:', lancamentosCompletos.length);
+        }
+      } catch (erro_lancamentos) {
+        console.warn('⚠️ Não foi possível gerar lançamentos detalhados:', erro_lancamentos);
+        // Continua sem os lançamentos detalhados - sistema principal não quebra
+      }
 
       try {
         // Chamada real para API que processará via SQL Server
@@ -1639,7 +1918,14 @@ export const PrestacaoContasLancamento: React.FC = () => {
                               key={contrato.id}
                               whileHover={{ scale: 1.01 }}
                               whileTap={{ scale: 0.99 }}
-                              onClick={() => setContratoSelecionado(contrato)}
+                              onClick={() => {
+                                console.log('🏠 Contrato selecionado:', contrato.id, {
+                                  locadores: contrato.locadores,
+                                  num_locadores: contrato.num_locadores,
+                                  locador_nome: contrato.locador_nome
+                                });
+                                setContratoSelecionado(contrato);
+                              }}
                               className="p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 border-border bg-background hover:border-primary/50 hover:bg-primary/5"
                             >
                               <div className="flex items-center justify-between">
