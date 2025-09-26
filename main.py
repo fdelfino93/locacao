@@ -897,10 +897,10 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
         print(f"DEBUG: Resultado do adapter: {resultado} (tipo: {type(resultado)})")
         
         if resultado:
-            print(f"✓ Locador {locador_id} atualizado com sucesso!")
+            print(f" Locador {locador_id} atualizado com sucesso!")
             return {"message": f"Locador {locador_id} atualizado com sucesso", "success": True}
         else:
-            print(f"✗ Falha ao atualizar locador {locador_id}")
+            print(f" Falha ao atualizar locador {locador_id}")
             raise HTTPException(status_code=404, detail="Locador não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
@@ -1011,10 +1011,10 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         resultado = atualizar_locatario_db(locatario_id, **dados_filtrados)
         
         if resultado:
-            print(f"✓ Locatário {locatario_id} atualizado com sucesso!")
+            print(f" Locatário {locatario_id} atualizado com sucesso!")
             return {"message": f"Locatário {locatario_id} atualizado com sucesso", "success": True}
         else:
-            print(f"✗ Falha ao atualizar locatário {locatario_id}")
+            print(f" Falha ao atualizar locatário {locatario_id}")
             raise HTTPException(status_code=404, detail="Locatário não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
@@ -1393,7 +1393,7 @@ async def obter_historico_contrato(contrato_id: int):
 async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
     try:
         print(f"\n=== INICIANDO ATUALIZAÇÃO DO CONTRATO {contrato_id} ===")
-        dados_recebidos = contrato.dict(exclude_none=True)
+        dados_recebidos = contrato.model_dump(exclude_none=True)
         print(f"Dados recebidos do frontend:")
         for campo, valor in dados_recebidos.items():
             print(f"  - {campo}: {valor}")
@@ -1414,15 +1414,15 @@ async def atualizar_contrato(contrato_id: int, contrato: ContratoUpdate):
             salvar_dados_bancarios_corretor(contrato_id, dados_recebidos['dados_bancarios_corretor'])
         
         if resultado:
-            print(f"\u2713 Contrato {contrato_id} atualizado com sucesso!")
+            print(f"OK: Contrato {contrato_id} atualizado com sucesso!")
             return {"message": f"Contrato {contrato_id} atualizado com sucesso", "success": True}
         else:
-            print(f"\u2717 Falha ao atualizar contrato {contrato_id}")
+            print(f"ERRO: Falha ao atualizar contrato {contrato_id}")
             raise HTTPException(status_code=404, detail="Contrato não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
     except Exception as e:
-        print(f"\u2717 ERRO ao atualizar contrato: {str(e)}")
+        print(f"ERRO ao atualizar contrato: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar contrato: {str(e)}")
 
 # Endpoints para Prestação de Contas
