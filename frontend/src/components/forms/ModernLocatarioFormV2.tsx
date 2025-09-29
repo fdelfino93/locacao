@@ -63,6 +63,9 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
   // Estados para dados bancários e cônjuge
   const [showConjuge, setShowConjuge] = useState<boolean>(false);
   const [conjugeSelectValue, setConjugeSelectValue] = useState<string>('');
+
+  // Estados para moradores
+  const [moradoresSelectValue, setMoradoresSelectValue] = useState<string>('');
   const [showRepresentante, setShowRepresentante] = useState<boolean>(false);
   const [showMoradores, setShowMoradores] = useState<boolean>(false);
   const [showFiador, setShowFiador] = useState<boolean>(false);
@@ -209,6 +212,21 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
           setConjugeSelectValue('Sim');
         } else {
           setConjugeSelectValue('Não');
+        }
+
+        // Verificar se tem moradores (apenas para PF)
+        const hasMoradores = !!(locatario.tem_moradores || (locatario.moradores && locatario.moradores.length > 0));
+        if (hasMoradores && locatario.tipo_pessoa === 'PF') {
+          console.log('👥 Ativando seção de moradores');
+          setShowMoradores(true);
+          setMoradoresSelectValue('Sim');
+
+          // Carregar dados dos moradores se existirem
+          if (locatario.moradores && Array.isArray(locatario.moradores)) {
+            setMoradores(locatario.moradores);
+          }
+        } else {
+          setMoradoresSelectValue('Não');
         }
         
         // Verificar se é PJ e tem representante
@@ -513,6 +531,17 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     setFormData(prev => ({
       ...prev,
       existe_conjuge: hasConjuge ? 1 : 0
+    }));
+  };
+
+  // Função para gerenciar moradores
+  const handleMoradoresChange = (value: string) => {
+    const hasMoradores = value === 'Sim';
+    setShowMoradores(hasMoradores);
+    setMoradoresSelectValue(value);
+    setFormData(prev => ({
+      ...prev,
+      tem_moradores: hasMoradores
     }));
   };
 
@@ -1039,6 +1068,22 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
                               Necessário para regime de bens
                             </p>
                           </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-foreground">Possui moradores no imóvel?</Label>
+                            <Select value={moradoresSelectValue} onValueChange={handleMoradoresChange} disabled={isReadOnly}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Sim">Sim</SelectItem>
+                                <SelectItem value="Não">Não</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Pessoas que residem no imóvel além do locatário
+                            </p>
+                          </div>
                         </>
                       )}
 
@@ -1272,6 +1317,176 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
                             />
                           </div>
                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Formulário dos Moradores - Apenas para Pessoa Física */}
+                  {showMoradores && formData.tipo_pessoa === 'PF' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.4 }}
+                      className="card-glass p-6 rounded-xl border border-border shadow-sm"
+                    >
+                      <div className="mb-6">
+                        <div className="flex items-center gap-3 mb-3">
+                          <motion.div
+                            className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg shadow-md"
+                            whileHover={{ scale: 1.05 }}
+                          >
+                            <Users className="w-5 h-5 text-white" />
+                          </motion.div>
+                          <div>
+                            <h3 className="text-lg font-semibold text-foreground">
+                              Dados dos Moradores
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Pessoas que residem no imóvel além do locatário
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        {moradores.map((morador, index) => (
+                          <div key={index} className="p-4 border border-border rounded-lg bg-muted/30">
+                            <div className="flex items-center justify-between mb-4">
+                              <h4 className="text-sm font-semibold text-foreground">Morador {index + 1}</h4>
+                              {moradores.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removerMorador(index)}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  disabled={isReadOnly}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Nome Completo *</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={morador.nome}
+                                  onChange={(e) => atualizarMorador(index, 'nome', e.target.value)}
+                                  placeholder="Nome do morador"
+                                  icon={User}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Parentesco</Label>
+                                <Select
+                                  value={morador.parentesco || ''}
+                                  onValueChange={(value) => atualizarMorador(index, 'parentesco', value)}
+                                  disabled={isReadOnly}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Filho(a)">Filho(a)</SelectItem>
+                                    <SelectItem value="Cônjuge">Cônjuge</SelectItem>
+                                    <SelectItem value="Irmão(ã)">Irmão(ã)</SelectItem>
+                                    <SelectItem value="Pai/Mãe">Pai/Mãe</SelectItem>
+                                    <SelectItem value="Avô/Avó">Avô/Avó</SelectItem>
+                                    <SelectItem value="Outros">Outros</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">CPF</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={morador.cpf || ''}
+                                  onChange={(e) => atualizarMorador(index, 'cpf', formatarCPFCNPJ(e.target.value))}
+                                  placeholder="000.000.000-00"
+                                  icon={CreditCard}
+                                  maxLength={14}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">RG</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={morador.rg || ''}
+                                  onChange={(e) => atualizarMorador(index, 'rg', e.target.value)}
+                                  placeholder="00.000.000-0"
+                                  icon={CreditCard}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Data de Nascimento</Label>
+                                <InputWithIcon
+                                  type="date"
+                                  value={morador.data_nascimento || ''}
+                                  onChange={(e) => atualizarMorador(index, 'data_nascimento', e.target.value)}
+                                  icon={Calendar}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Profissão</Label>
+                                <InputWithIcon
+                                  type="text"
+                                  value={morador.profissao || ''}
+                                  onChange={(e) => atualizarMorador(index, 'profissao', e.target.value)}
+                                  placeholder="Profissão"
+                                  icon={Briefcase}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Telefone</Label>
+                                <InputWithIcon
+                                  type="tel"
+                                  value={morador.telefone || ''}
+                                  onChange={(e) => atualizarMorador(index, 'telefone', e.target.value)}
+                                  placeholder="(41) 99999-9999"
+                                  icon={Phone}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium text-foreground">Email</Label>
+                                <InputWithIcon
+                                  type="email"
+                                  value={morador.email || ''}
+                                  onChange={(e) => atualizarMorador(index, 'email', e.target.value)}
+                                  placeholder="email@exemplo.com"
+                                  icon={Mail}
+                                  disabled={isReadOnly}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {!isReadOnly && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={adicionarMorador}
+                            className="w-full border-dashed border-2 hover:bg-muted/50"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Adicionar Morador
+                          </Button>
+                        )}
                       </div>
                     </motion.div>
                   )}

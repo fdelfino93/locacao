@@ -5435,10 +5435,13 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
         # Retenções variáveis (podem ser proporcionais): taxa admin + encargos
         retencoes_variaveis = taxa_admin_completa + valor_retencoes_adicionais
         
+        # Normalizar tipo_calculo para case-insensitive
+        tipo_calculo = tipo_calculo.capitalize() if tipo_calculo else 'Mensal'
+
         if tipo_calculo == 'Mensal':
             # Mês completo = retenção completa
             valor_total_retido = retencoes_variaveis + taxas_fixas
-            
+
         elif tipo_calculo == 'Rescisão':
             # Rescisão usa retenção proporcional aos dias ocupados + taxa de rescisão
             if data_saida:
@@ -5475,6 +5478,12 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
                 dias_utilizados = dias_no_mes - int(data_entrada) + 1
                 retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
                 valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
+            else:
+                # Fallback para método não reconhecido - usar proporcional
+                print(f"ALERTA: Método '{metodo_calculo}' não reconhecido para Entrada, usando proporcional")
+                dias_utilizados = dias_no_mes - int(data_entrada) + 1
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + taxas_fixas
                 
         elif tipo_calculo == 'Saída':
             if metodo_calculo == "proporcional-dias":
@@ -5487,6 +5496,17 @@ def calcular_prestacao_mensal(contrato_id, mes, ano, tipo_calculo, data_entrada=
                 dias_utilizados = int(data_saida)
                 retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
                 valor_total_retido = retencao_proporcional + retencoes_variaveis + taxas_fixas
+            else:
+                # Fallback para método não reconhecido - usar proporcional
+                print(f"ALERTA: Método '{metodo_calculo}' não reconhecido para Saída, usando proporcional")
+                dias_utilizados = int(data_saida)
+                retencao_proporcional = retencoes_variaveis * (dias_utilizados / dias_no_mes)
+                valor_total_retido = retencao_proporcional + taxas_fixas
+
+        else:
+            # Fallback para casos não cobertos - usar como mês completo
+            print(f"ALERTA: Tipo de cálculo '{tipo_calculo}' não reconhecido, usando mês completo")
+            valor_total_retido = retencoes_variaveis + taxas_fixas
         
         # Breakdown correto com taxas fixas
         if metodo_calculo == "dias-completo" and tipo_calculo in ['Entrada', 'Saída', 'Rescisão']:
