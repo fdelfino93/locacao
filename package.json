@@ -8,6 +8,7 @@
     "docker:save": ".\\scripts\\save-images.bat",
     "docker:upload": ".\\scripts\\upload-webhook.bat",
     "docker:deploy": ".\\scripts\\full-deploy.bat",
+    "docker:serve": ".\\scripts\\serve-files.bat",
     "serve-images": ".\\scripts\\serve-images.bat",
     "share-to-vm": ".\\scripts\\share-to-vm.bat",
     "prepare-usb": ".\\scripts\\prepare-usb.bat",
