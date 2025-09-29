@@ -502,16 +502,29 @@ def inserir_cliente(**kwargs):
             conta_bancaria = kwargs.get('conta_bancaria', '')
             deseja_fci = kwargs.get('deseja_fci', 'Não')
             deseja_seguro_fianca = kwargs.get('deseja_seguro_fianca', 'Não')
-            deseja_seguro_incendio = kwargs.get('deseja_seguro_incendio', 0)
+
+            # Converter deseja_seguro_incendio para inteiro
+            deseja_seguro_incendio_raw = kwargs.get('deseja_seguro_incendio', 0)
+            if isinstance(deseja_seguro_incendio_raw, str):
+                deseja_seguro_incendio = 1 if deseja_seguro_incendio_raw.lower() in ['sim', 'yes', '1', 'true'] else 0
+            else:
+                deseja_seguro_incendio = int(deseja_seguro_incendio_raw) if deseja_seguro_incendio_raw else 0
+
             rg = kwargs.get('rg', '')
             dados_empresa = kwargs.get('dados_empresa', '')
             representante = kwargs.get('representante', '')
             nacionalidade = kwargs.get('nacionalidade', 'Brasileira')
             estado_civil = kwargs.get('estado_civil', 'Solteiro')
             profissao = kwargs.get('profissao', '')
-            
-            # Campos cônjuge
-            existe_conjuge = kwargs.get('existe_conjuge', 0)
+
+            # Campos cônjuge - CORREÇÃO DE TIPOS
+            existe_conjuge_raw = kwargs.get('existe_conjuge', 0)
+            if isinstance(existe_conjuge_raw, bool):
+                existe_conjuge = 1 if existe_conjuge_raw else 0
+            elif isinstance(existe_conjuge_raw, str):
+                existe_conjuge = 1 if existe_conjuge_raw.lower() in ['sim', 'yes', '1', 'true'] else 0
+            else:
+                existe_conjuge = int(existe_conjuge_raw) if existe_conjuge_raw else 0
             nome_conjuge = kwargs.get('nome_conjuge', '')
             cpf_conjuge = kwargs.get('cpf_conjuge', '')
             rg_conjuge = kwargs.get('rg_conjuge', '')
@@ -530,22 +543,39 @@ def inserir_cliente(**kwargs):
             inscricao_estadual = kwargs.get('inscricao_estadual', '')
             inscricao_municipal = kwargs.get('inscricao_municipal', '')
             atividade_principal = kwargs.get('atividade_principal', '')
-            data_constituicao = kwargs.get('data_constituicao')
-            capital_social = kwargs.get('capital_social')
+            data_constituicao = kwargs.get('data_constituicao') or None
+
+            # Converter capital_social (pode vir como string vazia)
+            capital_social_raw = kwargs.get('capital_social')
+            capital_social = float(capital_social_raw) if capital_social_raw and str(capital_social_raw).strip() not in ['', 'null', 'None'] else None
+
             porte_empresa = kwargs.get('porte_empresa', '')
             regime_tributario = kwargs.get('regime_tributario', '')
 
             # Campos adicionais que estavam faltando
             regime_bens = kwargs.get('regime_bens', '')
             email_recebimento = kwargs.get('email_recebimento', '')
-            usa_multiplos_metodos = kwargs.get('usa_multiplos_metodos', 0)
-            usa_multiplas_contas = kwargs.get('usa_multiplas_contas', 0)
+
+            # Converter campos booleanos/inteiros
+            usa_multiplos_metodos_raw = kwargs.get('usa_multiplos_metodos', 0)
+            usa_multiplos_metodos = 1 if usa_multiplos_metodos_raw in [True, 1, '1', 'true', 'True', 'sim', 'Sim'] else 0
+
+            usa_multiplas_contas_raw = kwargs.get('usa_multiplas_contas', 0)
+            usa_multiplas_contas = 1 if usa_multiplas_contas_raw in [True, 1, '1', 'true', 'True', 'sim', 'Sim'] else 0
 
             # Campos de auditoria
             from datetime import datetime
             data_cadastro = datetime.now()
             data_atualizacao = data_cadastro
-            ativo = kwargs.get('ativo', True)
+
+            # Converter ativo para inteiro se necessário
+            ativo_raw = kwargs.get('ativo', True)
+            if isinstance(ativo_raw, bool):
+                ativo = 1 if ativo_raw else 0
+            elif isinstance(ativo_raw, str):
+                ativo = 1 if ativo_raw.lower() in ['sim', 'yes', '1', 'true'] else 0
+            else:
+                ativo = int(ativo_raw) if ativo_raw else 0
             
             # Processar endereço estruturado se fornecido
             endereco_id = None
@@ -1337,7 +1367,14 @@ def inserir_conta_bancaria_locador(locador_id, dados_conta):
             tipo_conta = dados_conta.get('tipo_conta', 'Conta Corrente')
             if len(tipo_conta) > 20:
                 tipo_conta = tipo_conta[:17] + '...'  # Truncar para 20 chars
-            
+
+            # Converter campos booleanos
+            principal_raw = dados_conta.get('principal', False)
+            principal_value = 1 if principal_raw in [True, 1, '1', 'true', 'True', 'sim', 'Sim'] else 0
+
+            ativo_raw = dados_conta.get('ativo', True)
+            ativo_value = 1 if ativo_raw in [True, 1, '1', 'true', 'True', 'sim', 'Sim'] else 0
+
             cursor.execute("""
                 INSERT INTO ContasBancariasLocador (
                     locador_id, tipo_recebimento, principal, chave_pix,
@@ -1348,7 +1385,7 @@ def inserir_conta_bancaria_locador(locador_id, dados_conta):
             """, (
                 locador_id,
                 dados_conta.get('tipo_recebimento', 'PIX'),
-                dados_conta.get('principal', False),
+                principal_value,
                 dados_conta.get('chave_pix', ''),
                 dados_conta.get('banco', ''),
                 dados_conta.get('agencia', ''),
@@ -1358,7 +1395,7 @@ def inserir_conta_bancaria_locador(locador_id, dados_conta):
                 dados_conta.get('cpf_titular', ''),
                 datetime.now(),
                 datetime.now(),
-                True
+                ativo_value
             ))
             
             conn.commit()

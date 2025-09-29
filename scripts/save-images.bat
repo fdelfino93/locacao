@@ -2,6 +2,17 @@
 echo 💾 Salvando imagens Docker para transferir para VM...
 
 echo.
+echo 🧹 Limpando arquivos .tar antigos...
+if exist locacao-backend.tar (
+    del /F /Q locacao-backend.tar
+    echo ✓ locacao-backend.tar antigo removido
+)
+if exist locacao-frontend.tar (
+    del /F /Q locacao-frontend.tar
+    echo ✓ locacao-frontend.tar antigo removido
+)
+
+echo.
 echo 📦 Exportando Backend...
 docker save locacao-backend:latest -o locacao-backend.tar
 if %ERRORLEVEL% neq 0 (

@@ -968,9 +968,22 @@ async def alterar_status_locador(locador_id: int, request: StatusRequest):
 @app.post("/api/locatarios")
 async def criar_locatario(locatario: LocatarioCreate):
     try:
-        novo_locatario = inserir_locatario(locatario)
-        return {"data": novo_locatario, "success": True}
+        print(f"Criando novo locatário: {locatario.nome}")
+        dados_dict = locatario.model_dump(exclude_none=True)
+        print(f"Dados convertidos para dict: {dados_dict}")
+
+        # Usar adapter com validação de retorno
+        resultado = inserir_locatario(dados_dict)
+
+        if resultado and resultado.get("success"):
+            return {"data": {"id": resultado["id"]}, "success": True, "message": "Locatário criado com sucesso"}
+        else:
+            print("❌ inserir_locatario retornou None ou falhou")
+            raise HTTPException(status_code=500, detail="Erro ao inserir locatário no banco de dados")
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Erro ao criar locatário: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar locatário: {str(e)}")
 
 @app.get("/api/locatarios")
@@ -1062,7 +1075,7 @@ async def alterar_status_locatario(locatario_id: int, request: StatusRequest):
 async def criar_imovel(imovel: ImovelCreate):
     try:
         # Converter para dict
-        imovel_data = imovel.dict()
+        imovel_data = imovel.model_dump(exclude_none=True)
         
         # ✅ CORREÇÃO: Os campos Encargos agora vem diretamente do frontend (não mais aninhados)
         # Removido processamento de informacoes_iptu e informacoes_condominio - campos vem diretos
@@ -1318,7 +1331,7 @@ async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
 async def criar_contrato(contrato: ContratoCreate):
     try:
         print(f"\n=== INICIANDO CRIAÇÃO DE NOVO CONTRATO ===")
-        dados_recebidos = contrato.dict(exclude_none=True)
+        dados_recebidos = contrato.model_dump(exclude_none=True)
         print(f"Dados recebidos do frontend:")
         for campo, valor in dados_recebidos.items():
             print(f"  - {campo}: {valor}")
@@ -1860,12 +1873,22 @@ async def criar_conta_bancaria_locador(locador_id: int, conta: ContaBancariaCrea
     """Cria uma nova conta bancária para um locador"""
     try:
         from repositories_adapter import inserir_conta_bancaria_locador
-        conta_id = inserir_conta_bancaria_locador(locador_id, conta.dict())
+        print(f"Criando conta bancária para locador {locador_id}")
+
+        dados_conta = conta.model_dump(exclude_none=True)
+        print(f"Dados da conta: {dados_conta}")
+
+        conta_id = inserir_conta_bancaria_locador(locador_id, dados_conta)
+
         if conta_id:
             return {"data": {"id": conta_id}, "success": True, "message": "Conta bancária criada com sucesso"}
         else:
+            print("❌ inserir_conta_bancaria_locador retornou None")
             raise HTTPException(status_code=500, detail="Erro ao criar conta bancária")
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Erro ao criar conta bancária: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar conta bancária: {str(e)}")
 
 class LocadoresContratoRequest(BaseModel):
@@ -1936,15 +1959,19 @@ async def salvar_garantias_contrato(contrato_id: int, request: GarantiasRequest)
     """Salva garantias (fiador, caução, título, apólice) para um contrato"""
     try:
         from repositories_adapter import salvar_garantias_individuais
-        
-        dados = request.dict(exclude_none=True)
+        print(f"Salvando garantias para contrato {contrato_id}")
+
+        dados = request.model_dump(exclude_none=True)
+        print(f"Dados de garantias: {dados}")
+
         resultado = salvar_garantias_individuais(contrato_id, dados)
-        
-        if resultado["success"]:
+
+        if resultado and resultado.get("success"):
             return {"message": resultado["message"], "success": True}
         else:
-            raise HTTPException(status_code=500, detail=resultado["message"])
-            
+            print("❌ salvar_garantias_individuais falhou")
+            raise HTTPException(status_code=500, detail=resultado.get("message", "Erro ao salvar garantias") if resultado else "Erro ao salvar garantias")
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1956,19 +1983,23 @@ class PetsRequest(BaseModel):
     pets_tamanhos: Optional[str] = None
 
 @app.post("/api/contratos/{contrato_id}/pets")
-async def salvar_pets_contrato(contrato_id: int, request: PetsRequest):
+async def salvar_pets_contrato_endpoint(contrato_id: int, request: PetsRequest):
     """Salva informações de pets para um contrato"""
     try:
         from repositories_adapter import salvar_pets_contrato
-        
-        dados = request.dict(exclude_none=True)
+        print(f"Salvando pets para contrato {contrato_id}")
+
+        dados = request.model_dump(exclude_none=True)
+        print(f"Dados de pets: {dados}")
+
         resultado = salvar_pets_contrato(contrato_id, dados)
-        
-        if resultado["success"]:
+
+        if resultado and resultado.get("success"):
             return {"message": resultado["message"], "success": True}
         else:
-            raise HTTPException(status_code=500, detail=resultado["message"])
-            
+            print("❌ salvar_pets_contrato falhou")
+            raise HTTPException(status_code=500, detail=resultado.get("message", "Erro ao salvar pets") if resultado else "Erro ao salvar pets")
+
     except HTTPException:
         raise
     except Exception as e:
