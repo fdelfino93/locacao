@@ -4,9 +4,96 @@ import pyodbc
 import os
 from dotenv import load_dotenv
 
+# ==================== FUNÇÕES DE GERENCIAMENTO DE EMPRESAS ====================
+
+def inserir_empresa(dados_empresa):
+    """Insere uma nova empresa no banco de dados."""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO Empresas (nome, cnpj, ativo)
+                VALUES (?, ?, 1)
+            """, (dados_empresa.get('nome'), dados_empresa.get('cnpj')))
+            conn.commit()
+            cursor.execute("SELECT @@IDENTITY")
+            empresa_id = cursor.fetchone()[0]
+            return {"success": True, "empresa_id": empresa_id}
+    except Exception as e:
+        print(f"Erro ao inserir empresa: {e}")
+        return {"success": False, "message": str(e)}
+
+def buscar_empresas():
+    """Busca todas as empresas cadastradas."""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome, cnpj, ativo FROM Empresas ORDER BY nome")
+            columns = [column[0] for column in cursor.description]
+            empresas = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            return {"success": True, "data": empresas}
+    except Exception as e:
+        print(f"Erro ao buscar empresas: {e}")
+        return {"success": False, "message": str(e)}
+
+def buscar_empresa_por_id(empresa_id):
+    """Busca uma empresa específica pelo ID."""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome, cnpj, ativo FROM Empresas WHERE id = ?", (empresa_id,))
+            columns = [column[0] for column in cursor.description]
+            empresa = cursor.fetchone()
+            if empresa:
+                return {"success": True, "data": dict(zip(columns, empresa))}
+            return {"success": False, "message": "Empresa não encontrada"}
+    except Exception as e:
+        print(f"Erro ao buscar empresa por ID: {e}")
+        return {"success": False, "message": str(e)}
+
+def atualizar_empresa(empresa_id, dados_empresa):
+    """Atualiza os dados de uma empresa."""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE Empresas
+                SET nome = ?, cnpj = ?, ativo = ?
+                WHERE id = ?
+            """, (
+                dados_empresa.get('nome'),
+                dados_empresa.get('cnpj'),
+                dados_empresa.get('ativo', 1),
+                empresa_id
+            ))
+            conn.commit()
+            if cursor.rowcount == 0:
+                return {"success": False, "message": "Empresa não encontrada"}
+            return {"success": True, "message": "Empresa atualizada com sucesso"}
+    except Exception as e:
+        print(f"Erro ao atualizar empresa: {e}")
+        return {"success": False, "message": str(e)}
+
+# ==================== FUNÇÕES DE AUTENTICAÇÃO ====================
+
+def buscar_usuario_por_email(email: str):
+    """Busca um usuário pelo email para autenticação."""
+    try:
+        with get_conexao() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, nome, email, senha_hash, empresa_id FROM Usuarios WHERE email = ?", (email,))
+            columns = [column[0] for column in cursor.description]
+            user = cursor.fetchone()
+            if user:
+                return dict(zip(columns, user))
+            return None
+    except Exception as e:
+        print(f"Erro ao buscar usuário por email: {e}")
+        return None
+
 # ==================== FUNÇÕES UNIFICADAS PARA ESTRUTURA HÍBRIDA ====================
 
-def obter_locadores_contrato_unificado(contrato_id):
+def obter_locadores_contrato_unificado(contrato_id, empresa_id):
     """
     Busca locadores de um contrato priorizando tabela N:N
     Fallback para estrutura antiga se N:N estiver vazia
@@ -26,9 +113,10 @@ def obter_locadores_contrato_unificado(contrato_id):
                     cl.ativo
                 FROM ContratoLocadores cl
                 INNER JOIN Locadores l ON cl.locador_id = l.id
-                WHERE cl.contrato_id = ? AND cl.ativo = 1
+                INNER JOIN Contratos c ON cl.contrato_id = c.id
+                WHERE cl.contrato_id = ? AND cl.ativo = 1 AND c.empresa_id = ?
                 ORDER BY cl.responsabilidade_principal DESC, cl.porcentagem DESC
-            """, (contrato_id,))
+            """, (contrato_id, empresa_id))
             
             locadores_nn = cursor.fetchall()
             
@@ -47,8 +135,8 @@ def obter_locadores_contrato_unificado(contrato_id):
                 FROM Contratos c
                 INNER JOIN Imoveis i ON c.id_imovel = i.id
                 INNER JOIN Locadores l ON i.id_locador = l.id
-                WHERE c.id = ? AND l.id IS NOT NULL
-            """, (contrato_id,))
+                WHERE c.id = ? AND l.id IS NOT NULL AND c.empresa_id = ?
+            """, (contrato_id, empresa_id))
             
             locadores_antigas = cursor.fetchall()
             resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locadores_antigas] if locadores_antigas else []
@@ -60,7 +148,7 @@ def obter_locadores_contrato_unificado(contrato_id):
         print(f"ERRO ao buscar locadores do contrato {contrato_id}: {e}")
         return []
 
-def obter_locatarios_contrato_unificado(contrato_id):
+def obter_locatarios_contrato_unificado(contrato_id, empresa_id):
     """
     Busca locatários de um contrato priorizando tabela N:N
     Fallback para FK antiga se N:N estiver vazia
@@ -79,9 +167,10 @@ def obter_locatarios_contrato_unificado(contrato_id):
                     cl.ativo
                 FROM ContratoLocatarios cl
                 INNER JOIN Locatarios l ON cl.locatario_id = l.id
-                WHERE cl.contrato_id = ? AND cl.ativo = 1
+                INNER JOIN Contratos c ON cl.contrato_id = c.id
+                WHERE cl.contrato_id = ? AND cl.ativo = 1 AND c.empresa_id = ?
                 ORDER BY cl.responsabilidade_principal DESC, cl.percentual_responsabilidade DESC
-            """, (contrato_id,))
+            """, (contrato_id, empresa_id))
             
             locatarios_nn = cursor.fetchall()
             
@@ -100,8 +189,8 @@ def obter_locatarios_contrato_unificado(contrato_id):
                 FROM Contratos c
                 INNER JOIN ContratoLocatarios cl ON c.id = cl.contrato_id AND cl.responsabilidade_principal = 1
                 INNER JOIN Locatarios l ON cl.locatario_id = l.id
-                WHERE c.id = ? AND l.id IS NOT NULL
-            """, (contrato_id,))
+                WHERE c.id = ? AND l.id IS NOT NULL AND c.empresa_id = ?
+            """, (contrato_id, empresa_id))
             
             locatarios_antigos = cursor.fetchall()
             resultado = [(row[0], row[1], float(row[2]), bool(row[3])) for row in locatarios_antigos] if locatarios_antigos else []
@@ -222,7 +311,7 @@ def processar_endereco_imovel(endereco_input):
         return str(endereco_input), None
 
 # Funçoes diretas para as tabelas corretas
-def buscar_locadores():
+def buscar_locadores(empresa_id):
     """Busca todos os locadores da tabela Locadores com endereços estruturados"""
     try:
         conn = get_conexao()
@@ -242,10 +331,11 @@ def buscar_locadores():
             e.cep as endereco_cep
         FROM Locadores l
         LEFT JOIN EnderecoLocador e ON l.endereco_id = e.id
+        WHERE l.empresa_id = ?
         ORDER BY l.ativo DESC, l.nome ASC
         """
 
-        cursor.execute(query)
+        cursor.execute(query, (empresa_id,))
 
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
@@ -286,7 +376,7 @@ def buscar_locadores():
         print(f"Erro ao buscar locadores: {e}")
         return []
 
-def buscar_locador_por_id(locador_id):
+def buscar_locador_por_id(locador_id, empresa_id):
     """Busca locador por ID com endereço estruturado (equivalente ao sistema de locatários)"""
     try:
         conn = get_conexao()
@@ -306,10 +396,10 @@ def buscar_locador_por_id(locador_id):
             e.cep as endereco_cep
         FROM Locadores l
         LEFT JOIN EnderecoLocador e ON l.endereco_id = e.id
-        WHERE l.id = ?
+        WHERE l.id = ? AND l.empresa_id = ?
         """
 
-        cursor.execute(query, (locador_id,))
+        cursor.execute(query, (locador_id, empresa_id))
 
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
@@ -376,12 +466,12 @@ def buscar_locador_por_id(locador_id):
         print(f"ADAPTER: Erro ao buscar locador por ID {locador_id}: {e}")
         return None
 
-def buscar_locatarios():
+def buscar_locatarios(empresa_id):
     """Busca todos os locatários da tabela Locatarios"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Locatarios ORDER BY nome")
+        cursor.execute("SELECT * FROM Locatarios WHERE empresa_id = ? ORDER BY nome", (empresa_id,))
 
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
@@ -401,14 +491,14 @@ def buscar_locatarios():
         print(f"Erro ao buscar locatarios: {e}")
         return []
 
-def buscar_imoveis():
+def buscar_imoveis(empresa_id):
     """Busca todos os imóveis da tabela Imoveis com seus locadores da tabela N:N"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
         # Primeiro buscar todos os imóveis
-        cursor.execute("SELECT * FROM Imoveis")
+        cursor.execute("SELECT * FROM Imoveis WHERE empresa_id = ?", (empresa_id,))
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
         result = []
@@ -482,10 +572,10 @@ from locacao.repositories.locatario_repository_v4_final import (
 from locacao.repositories.imovel_repository import inserir_imovel as _inserir_imovel_original
 # from locacao.repositories.contrato_repository import inserir_contrato
 
-def inserir_cliente(**kwargs):
+def inserir_cliente(empresa_id, **kwargs):
     """Insere um cliente (locador) na tabela Locadores com todos os campos suportados"""
     try:
-        print(f"Inserindo cliente/locador - Dados recebidos: {kwargs}")
+        print(f"Inserindo cliente/locador para empresa {empresa_id} - Dados recebidos: {kwargs}")
         
         with get_conexao() as conn:
             cursor = conn.cursor()
@@ -559,7 +649,7 @@ def inserir_cliente(**kwargs):
             
             cursor.execute("""
                 INSERT INTO Locadores (
-                    nome, cpf_cnpj, telefone, email, endereco, endereco_id,
+                    empresa_id, nome, cpf_cnpj, telefone, email, endereco, endereco_id,
                     tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
                     deseja_seguro_incendio, rg, dados_empresa, representante,
                     nacionalidade, estado_civil, profissao, existe_conjuge,
@@ -570,9 +660,9 @@ def inserir_cliente(**kwargs):
                     regime_tributario, regime_bens, email_recebimento, usa_multiplos_metodos,
                     usa_multiplas_contas, ativo, data_cadastro, data_atualizacao
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                nome, cpf_cnpj, telefone, email, endereco_completo, endereco_id,
+                empresa_id, nome, cpf_cnpj, telefone, email, endereco_completo, endereco_id,
                 tipo_recebimento, conta_bancaria, deseja_fci, deseja_seguro_fianca,
                 deseja_seguro_incendio, rg, dados_empresa, representante,
                 nacionalidade, estado_civil, profissao, existe_conjuge,
@@ -614,14 +704,16 @@ def inserir_cliente(**kwargs):
         traceback.print_exc()
         return None
 
-def inserir_locador(**kwargs):
-    return inserir_cliente(**kwargs)
+def inserir_locador(empresa_id, **kwargs):
+    return inserir_cliente(empresa_id, **kwargs)
 
-def inserir_imovel(**kwargs):
+def inserir_imovel(empresa_id, **kwargs):
     """Funcao híbrida segura para inserir imóveis - compatível com string e objeto"""
     try:
-        print(f"Inserindo imóvel - Dados recebidos: {kwargs}")
+        print(f"Inserindo imóvel para empresa {empresa_id} - Dados recebidos: {kwargs}")
         
+        kwargs['empresa_id'] = empresa_id
+
         # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
         if 'endereco' in kwargs:
             try:
@@ -654,21 +746,21 @@ def inserir_imovel(**kwargs):
             print(f"Erro no fallback de inserir imóvel: {e2}")
             raise e2
 
-def atualizar_locador(locador_id, **kwargs):
+def atualizar_locador(locador_id, empresa_id, **kwargs):
     """Atualiza um locador na tabela Locadores com suporte completo a todos os campos"""
     try:
-        print(f"ATUALIZANDO LOCADOR ID {locador_id} - Dados recebidos: {kwargs}")
+        print(f"ATUALIZANDO LOCADOR ID {locador_id} para empresa {empresa_id} - Dados recebidos: {kwargs}")
         
         conn = get_conexao()
         try:
             cursor = conn.cursor()
             
-            # Verificar se o locador existe
-            cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", (locador_id,))
+            # Verificar se o locador existe na empresa correta
+            cursor.execute("SELECT id, nome FROM Locadores WHERE id = ? AND empresa_id = ?", (locador_id, empresa_id))
             locador_existente = cursor.fetchone()
             
             if not locador_existente:
-                print(f"ERRO: Locador ID {locador_id} não encontrado")
+                print(f"ERRO: Locador ID {locador_id} não encontrado na empresa {empresa_id}")
                 return False
             
             print(f"Locador encontrado: {locador_existente[1]}")
@@ -761,8 +853,8 @@ def atualizar_locador(locador_id, **kwargs):
             
             # Construir e executar UPDATE
             set_clause = ", ".join([f"[{campo}] = ?" for campo in campos_para_atualizar.keys()])
-            query = f"UPDATE Locadores SET {set_clause} WHERE id = ?"
-            valores = list(campos_para_atualizar.values()) + [locador_id]
+            query = f"UPDATE Locadores SET {set_clause} WHERE id = ? AND empresa_id = ?"
+            valores = list(campos_para_atualizar.values()) + [locador_id, empresa_id]
             
             print(f"Executando UPDATE com {len(campos_para_atualizar)} campos")
             cursor.execute(query, valores)
@@ -839,33 +931,33 @@ def atualizar_locador(locador_id, **kwargs):
         traceback.print_exc()
         return False
 
-def alterar_status_locador(locador_id, ativo):
+def alterar_status_locador(locador_id, empresa_id, ativo):
     """Altera o status ativo/inativo de um locador"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        # Primeiro verificar se o locador existe
-        cursor.execute("SELECT id, nome FROM Locadores WHERE id = ?", locador_id)
+        # Primeiro verificar se o locador existe na empresa correta
+        cursor.execute("SELECT id, nome FROM Locadores WHERE id = ? AND empresa_id = ?", (locador_id, empresa_id))
         locador_existente = cursor.fetchone()
         
         if not locador_existente:
-            print(f"Locador ID {locador_id} nao encontrado na tabela Locadores")
+            print(f"Locador ID {locador_id} nao encontrado na tabela Locadores para a empresa {empresa_id}")
             
-            # Verificar se existe na tabela Clientes
-            cursor.execute("SELECT id, nome FROM Clientes WHERE id = ?", locador_id)
+            # Verificar se existe na tabela Clientes (legado)
+            cursor.execute("SELECT id, nome FROM Clientes WHERE id = ? AND empresa_id = ?", (locador_id, empresa_id))
             cliente_existente = cursor.fetchone()
             
             if cliente_existente:
                 print(f"Atualizando status na tabela Clientes para locador {locador_id}")
-                cursor.execute("UPDATE Clientes SET ativo = ? WHERE id = ?", (1 if ativo else 0, locador_id))
+                cursor.execute("UPDATE Clientes SET ativo = ? WHERE id = ? AND empresa_id = ?", (1 if ativo else 0, locador_id, empresa_id))
             else:
-                print(f"ID {locador_id} nao encontrado nem em Locadores nem em Clientes")
+                print(f"ID {locador_id} nao encontrado nem em Locadores nem em Clientes para a empresa {empresa_id}")
                 conn.close()
                 return False
         else:
             print(f"Atualizando status na tabela Locadores para locador {locador_id}")
-            cursor.execute("UPDATE Locadores SET ativo = ? WHERE id = ?", (1 if ativo else 0, locador_id))
+            cursor.execute("UPDATE Locadores SET ativo = ? WHERE id = ? AND empresa_id = ?", (1 if ativo else 0, locador_id, empresa_id))
         
         linhas_afetadas = cursor.rowcount
         conn.commit()
@@ -883,7 +975,7 @@ def alterar_status_locador(locador_id, ativo):
         print(f"Erro ao alterar status do locador {locador_id}: {e}")
         return False
 
-def atualizar_cliente(cliente_id, **kwargs):
+def atualizar_cliente(cliente_id, empresa_id, **kwargs):
     """Atualiza um cliente na tabela Clientes (para compatibilidade com locadores)"""
     try:
         conn = get_conexao()
@@ -911,9 +1003,9 @@ def atualizar_cliente(cliente_id, **kwargs):
             
         # Construir query de UPDATE dinamicamente
         set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
-        query = f"UPDATE Clientes SET {set_clause} WHERE id = ?"
+        query = f"UPDATE Clientes SET {set_clause} WHERE id = ? AND empresa_id = ?"
         
-        valores = list(campos_para_atualizar.values()) + [cliente_id]
+        valores = list(campos_para_atualizar.values()) + [cliente_id, empresa_id]
         
         print(f"Executando UPDATE na tabela Clientes: {query}")
         print(f"Valores: {valores}")
@@ -934,7 +1026,7 @@ def atualizar_cliente(cliente_id, **kwargs):
         print(f"ERRO: Erro ao atualizar cliente {cliente_id}: {e}")
         return False
 
-def inserir_locatario(dados):
+def inserir_locatario(empresa_id, dados):
     """Inserir locatário usando repository v4 com múltiplos contatos"""
     try:
         # Se dados for um dict Pydantic, converter
@@ -945,7 +1037,8 @@ def inserir_locatario(dados):
         else:
             dados_dict = dados if isinstance(dados, dict) else dados.__dict__
         
-        print(f"ADAPTER: Inserindo locatário com dados: {dados_dict.keys()}")
+        dados_dict['empresa_id'] = empresa_id
+        print(f"ADAPTER: Inserindo locatário para empresa {empresa_id} com dados: {dados_dict.keys()}")
         
         # Usar repository v4 que suporta múltiplos contatos
         locatario_id = inserir_locatario_v4(dados_dict)
@@ -966,16 +1059,16 @@ def inserir_locatario(dados):
             print(f"ADAPTER: Fallback também falhou: {e2}")
             return None
 
-def buscar_locatario_por_id(locatario_id):
+def buscar_locatario_por_id(locatario_id, empresa_id):
     """Busca locatário por ID usando repository v4 (dados completos)"""
     try:
         # Usar repository v4 que retorna todos os contatos
-        locatario = buscar_locatario_completo(locatario_id)
+        locatario = buscar_locatario_completo(locatario_id, empresa_id)
         if locatario:
-            print(f"ADAPTER: Locatário ID {locatario_id} encontrado via v4")
+            print(f"ADAPTER: Locatário ID {locatario_id} encontrado via v4 para empresa {empresa_id}")
             return locatario
         else:
-            print(f"ADAPTER: Locatário ID {locatario_id} não encontrado via v4")
+            print(f"ADAPTER: Locatário ID {locatario_id} não encontrado via v4 para empresa {empresa_id}")
             return None
     except Exception as e:
         print(f"ADAPTER: Erro no v4, usando fallback: {e}")
@@ -983,7 +1076,7 @@ def buscar_locatario_por_id(locatario_id):
         try:
             conn = get_conexao()
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM Locatarios WHERE id = ?", (locatario_id,))
+            cursor.execute("SELECT * FROM Locatarios WHERE id = ? AND empresa_id = ?", (locatario_id, empresa_id))
             
             row = cursor.fetchone()
             if row:
@@ -1037,7 +1130,7 @@ def gerar_relatorio_pdf(dados):
         print(f"ERRO ao gerar PDF personalizado: {e}")
         raise Exception(f"Falha na geração do PDF: {e}")
 
-def buscar_contratos_ativos():
+def buscar_contratos_ativos(empresa_id):
     """Busca todos os contratos válidos (ativo, reajuste, vencendo) para seleção na prestação de contas - VERSÃO HÍBRIDA UNIFICADA"""
     try:
         # print("PRESTACAO: Iniciando busca HIBRIDA de contratos...")
@@ -1101,12 +1194,12 @@ def buscar_contratos_ativos():
                     i.tipo as imovel_tipo
                 FROM Contratos c
                 LEFT JOIN Imoveis i ON c.id_imovel = i.id
-                WHERE c.status IN ('ativo', 'reajuste', 'vencendo', 'vencido') OR c.status IS NULL
+                WHERE c.empresa_id = ? AND (c.status IN ('ativo', 'reajuste', 'vencendo', 'vencido') OR c.status IS NULL)
                 ORDER BY c.data_inicio DESC
-            """)
+            """, (empresa_id,))
             
             rows = cursor.fetchall()
-            print(f"PRESTACAO: Encontrados {len(rows)} contratos no banco")
+            print(f"PRESTACAO: Encontrados {len(rows)} contratos no banco para a empresa {empresa_id}")
             
             columns = [column[0] for column in cursor.description]
             contratos = []
@@ -1123,7 +1216,7 @@ def buscar_contratos_ativos():
                 contrato_id = contrato_dict['id']
                 
                 # Buscar locadores usando nova função unificada com dados completos
-                locadores_data = obter_locadores_contrato_unificado(contrato_id)
+                locadores_data = obter_locadores_contrato_unificado(contrato_id, empresa_id)
                 contrato_dict['locadores'] = []
                 for loc_data in locadores_data:
                     # Buscar dados completos do locador e sua conta bancária selecionada no termo
@@ -1134,8 +1227,8 @@ def buscar_contratos_ativos():
                         FROM Locadores l
                         LEFT JOIN ContratoLocadores cl ON l.id = cl.locador_id AND cl.contrato_id = ?
                         LEFT JOIN ContasBancariasLocador cb ON cl.conta_bancaria_id = cb.id
-                        WHERE l.id = ?
-                    """, (contrato_id, loc_data[0]))
+                        WHERE l.id = ? AND l.empresa_id = ?
+                    """, (contrato_id, loc_data[0], empresa_id))
 
                     locador_completo = cursor.fetchone()
                     if locador_completo:
@@ -1159,7 +1252,7 @@ def buscar_contratos_ativos():
                         })
                 
                 # Buscar locatários usando nova função unificada
-                locatarios_data = obter_locatarios_contrato_unificado(contrato_id)
+                locatarios_data = obter_locatarios_contrato_unificado(contrato_id, empresa_id)
                 contrato_dict['locatarios'] = []
                 for locat_data in locatarios_data:
                     contrato_dict['locatarios'].append({
@@ -2492,21 +2585,21 @@ def alterar_status_fatura(fatura_id, novo_status, motivo=None):
         print(f"Erro ao alterar status da fatura {fatura_id}: {e}")
         return False
 
-def atualizar_locatario(locatario_id, **kwargs):
+def atualizar_locatario(locatario_id, empresa_id, **kwargs):
     """Atualiza um locatario na tabela Locatarios"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Iniciando atualizacao do locatario ID: {locatario_id}")
+        print(f"Iniciando atualizacao do locatario ID: {locatario_id} para empresa {empresa_id}")
         print(f"Dados recebidos: {kwargs}")
         
-        # Primeiro verificar se o locatario existe
-        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
+        # Primeiro verificar se o locatario existe na empresa correta
+        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ? AND empresa_id = ?", (locatario_id, empresa_id))
         locatario_existente = cursor.fetchone()
         
         if not locatario_existente:
-            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios")
+            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios para a empresa {empresa_id}")
             conn.close()
             return False
         
@@ -2563,14 +2656,14 @@ def atualizar_locatario(locatario_id, **kwargs):
                 print("Nenhum campo da tabela principal, mas processando representante_legal")
                 # Criar query mínima para não dar erro
                 set_clause = "data_atualizacao = GETDATE()"
-                valores = [locatario_id]
+                valores = [locatario_id, empresa_id]
         else:
             # Construir query de UPDATE dinamicamente
             set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
             valores = list(campos_para_atualizar.values())
-            valores.append(locatario_id)  # Para o WHERE
+            valores.extend([locatario_id, empresa_id])  # Para o WHERE
         
-        query = f"UPDATE Locatarios SET {set_clause} WHERE id = ?"
+        query = f"UPDATE Locatarios SET {set_clause} WHERE id = ? AND empresa_id = ?"
         
         print(f"Query: {query}")
         print(f"Valores: {valores}")
@@ -2682,27 +2775,27 @@ def atualizar_locatario(locatario_id, **kwargs):
             conn.close()
         return False
 
-def alterar_status_locatario(locatario_id, ativo):
+def alterar_status_locatario(locatario_id, empresa_id, ativo):
     """Altera o status ativo/inativo de um locatario"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Alterando status do locatario {locatario_id} para {'ativo' if ativo else 'inativo'}")
+        print(f"Alterando status do locatario {locatario_id} para {'ativo' if ativo else 'inativo'} na empresa {empresa_id}")
         
-        # Primeiro verificar se o locatario existe
-        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ?", locatario_id)
+        # Primeiro verificar se o locatario existe na empresa correta
+        cursor.execute("SELECT id, nome FROM Locatarios WHERE id = ? AND empresa_id = ?", (locatario_id, empresa_id))
         locatario_existente = cursor.fetchone()
         
         if not locatario_existente:
-            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios")
+            print(f"Locatario ID {locatario_id} nao encontrado na tabela Locatarios para a empresa {empresa_id}")
             conn.close()
             return False
         
         print(f"Locatario encontrado: ID {locatario_existente[0]}, Nome: {locatario_existente[1]}")
         
         # Atualizar o status
-        cursor.execute("UPDATE Locatarios SET ativo = ? WHERE id = ?", (ativo, locatario_id))
+        cursor.execute("UPDATE Locatarios SET ativo = ? WHERE id = ? AND empresa_id = ?", (ativo, locatario_id, empresa_id))
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
@@ -2722,13 +2815,13 @@ def alterar_status_locatario(locatario_id, ativo):
             conn.close()
         return False
 
-def atualizar_imovel(imovel_id, **kwargs):
+def atualizar_imovel(imovel_id, empresa_id, **kwargs):
     """Atualiza um imóvel na tabela Imoveis"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Iniciando atualizacao do imóvel ID: {imovel_id}")
+        print(f"Iniciando atualizacao do imóvel ID: {imovel_id} para empresa {empresa_id}")
         print(f"Dados recebidos: {kwargs}")
         
         # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
@@ -2747,12 +2840,12 @@ def atualizar_imovel(imovel_id, **kwargs):
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
         
-        # Primeiro verificar se o imóvel existe
-        cursor.execute("SELECT id, endereco, tipo FROM Imoveis WHERE id = ?", imovel_id)
+        # Primeiro verificar se o imóvel existe na empresa correta
+        cursor.execute("SELECT id, endereco, tipo FROM Imoveis WHERE id = ? AND empresa_id = ?", (imovel_id, empresa_id))
         imovel_existente = cursor.fetchone()
         
         if not imovel_existente:
-            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis")
+            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis para a empresa {empresa_id}")
             conn.close()
             return False
         
@@ -2794,9 +2887,9 @@ def atualizar_imovel(imovel_id, **kwargs):
         # Construir query de UPDATE dinamicamente
         set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
         valores = list(campos_para_atualizar.values())
-        valores.append(imovel_id)  # Para o WHERE
+        valores.extend([imovel_id, empresa_id])  # Para o WHERE
         
-        query = f"UPDATE Imoveis SET {set_clause} WHERE id = ?"
+        query = f"UPDATE Imoveis SET {set_clause} WHERE id = ? AND empresa_id = ?"
         
         print(f"Query: {query}")
         print(f"Valores: {valores}")
@@ -2823,27 +2916,27 @@ def atualizar_imovel(imovel_id, **kwargs):
             conn.close()
         return False
 
-def alterar_status_imovel(imovel_id, ativo):
+def alterar_status_imovel(imovel_id, empresa_id, ativo):
     """Altera o status ativo/inativo de um imóvel"""
     try:
         conn = get_conexao()
         cursor = conn.cursor()
         
-        print(f"Alterando status do imóvel {imovel_id} para {'ativo' if ativo else 'inativo'}")
+        print(f"Alterando status do imóvel {imovel_id} para {'ativo' if ativo else 'inativo'} na empresa {empresa_id}")
         
-        # Primeiro verificar se o imóvel existe
-        cursor.execute("SELECT id, endereco FROM Imoveis WHERE id = ?", imovel_id)
+        # Primeiro verificar se o imóvel existe na empresa correta
+        cursor.execute("SELECT id, endereco FROM Imoveis WHERE id = ? AND empresa_id = ?", (imovel_id, empresa_id))
         imovel_existente = cursor.fetchone()
         
         if not imovel_existente:
-            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis")
+            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis para a empresa {empresa_id}")
             conn.close()
             return False
         
         print(f"Imóvel encontrado: ID {imovel_existente[0]}, Endereço: {imovel_existente[1]}")
         
         # Atualizar o status
-        cursor.execute("UPDATE Imoveis SET ativo = ? WHERE id = ?", (ativo, imovel_id))
+        cursor.execute("UPDATE Imoveis SET ativo = ? WHERE id = ? AND empresa_id = ?", (ativo, imovel_id, empresa_id))
         
         # Verificar se alguma linha foi afetada
         if cursor.rowcount == 0:
@@ -2863,21 +2956,21 @@ def alterar_status_imovel(imovel_id, ativo):
             conn.close()
         return False
 
-def atualizar_contrato(contrato_id, **kwargs):
+def atualizar_contrato(contrato_id, empresa_id, **kwargs):
     """Atualiza um contrato na tabela Contratos - VERSAO LIMPA"""
     try:
-        print(f"=== REPOSITORIES: Atualizando contrato {contrato_id} ===")
+        print(f"=== REPOSITORIES: Atualizando contrato {contrato_id} para empresa {empresa_id} ===")
         print(f"Campos recebidos: {list(kwargs.keys())}")
         
         conn = get_conexao()
         cursor = conn.cursor()
         
-        # Verificar se o contrato existe
-        cursor.execute("SELECT id FROM Contratos WHERE id = ?", (contrato_id,))
+        # Verificar se o contrato existe na empresa correta
+        cursor.execute("SELECT id FROM Contratos WHERE id = ? AND empresa_id = ?", (contrato_id, empresa_id))
         if not cursor.fetchone():
-            print(f"ERRO: Contrato ID {contrato_id} nao encontrado no banco")
+            print(f"ERRO: Contrato ID {contrato_id} nao encontrado no banco para a empresa {empresa_id}")
             return False
-        print(f"OK: Contrato {contrato_id} encontrado no banco")
+        print(f"OK: Contrato {contrato_id} encontrado no banco para a empresa {empresa_id}")
         
         # Campos atualizaveis na tabela Contratos
         campos_atualizaveis = [
@@ -2976,12 +3069,12 @@ def atualizar_contrato(contrato_id, **kwargs):
         
         # Construir query UPDATE
         set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
-        query = f"UPDATE Contratos SET {set_clause} WHERE id = ?"
-        valores = list(campos_para_atualizar.values()) + [contrato_id]
+        query = f"UPDATE Contratos SET {set_clause} WHERE id = ? AND empresa_id = ?"
+        valores = list(campos_para_atualizar.values()) + [contrato_id, empresa_id]
         
         # ===== NOVO: CAPTURAR DADOS ANTIGOS ANTES DA ATUALIZAÇÃO =====
         print("Capturando dados antigos para histórico...")
-        cursor.execute("SELECT * FROM Contratos WHERE id = ?", (contrato_id,))
+        cursor.execute("SELECT * FROM Contratos WHERE id = ? AND empresa_id = ?", (contrato_id, empresa_id))
         contrato_antigo = cursor.fetchone()
         
         # Obter nomes das colunas
@@ -3529,7 +3622,7 @@ def validar_porcentagens_contrato(locadores):
 # FUNÇÕES DE HISTÓRICO DE CONTRATOS
 # =====================================================================
 
-def registrar_mudanca_contrato(id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario=None):
+def registrar_mudanca_contrato(id_contrato, empresa_id, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario=None):
     """Registra uma mudança no histórico de contratos - VERSÃO SEGURA"""
     try:
         # REATIVANDO histórico para identificar campos problemáticos
@@ -3544,9 +3637,9 @@ def registrar_mudanca_contrato(id_contrato, campo_alterado, valor_anterior, valo
             
         cursor.execute("""
             INSERT INTO HistoricoContratos 
-            (id_contrato, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (id_contrato, campo_alterado, str(valor_anterior), str(valor_novo), tipo_operacao, descricao_mudanca, usuario))
+            (id_contrato, empresa_id, campo_alterado, valor_anterior, valor_novo, tipo_operacao, descricao_mudanca, usuario)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (id_contrato, empresa_id, campo_alterado, str(valor_anterior), str(valor_novo), tipo_operacao, descricao_mudanca, usuario))
         
         conn.commit()
         conn.close()
@@ -3572,7 +3665,7 @@ def registrar_mudanca_contrato(id_contrato, campo_alterado, valor_anterior, valo
         print(f"Erro ao registrar mudança no histórico: {e}")
         return {"success": False, "message": f"Erro ao registrar histórico: {e}"}
 
-def buscar_historico_contrato(id_contrato):
+def buscar_historico_contrato(id_contrato, empresa_id):
     """Busca todo o histórico de mudanças de um contrato"""
     try:
         conn = get_conexao()
@@ -3580,19 +3673,20 @@ def buscar_historico_contrato(id_contrato):
         
         cursor.execute("""
             SELECT 
-                id,
-                campo_alterado,
-                valor_anterior,
-                valor_novo,
-                tipo_operacao,
-                descricao_mudanca,
-                data_alteracao,
-                usuario,
-                observacoes
-            FROM HistoricoContratos
-            WHERE id_contrato = ?
-            ORDER BY data_alteracao DESC
-        """, (id_contrato,))
+                h.id,
+                h.campo_alterado,
+                h.valor_anterior,
+                h.valor_novo,
+                h.tipo_operacao,
+                h.descricao_mudanca,
+                h.data_alteracao,
+                h.usuario,
+                h.observacoes
+            FROM HistoricoContratos h
+            INNER JOIN Contratos c ON h.id_contrato = c.id
+            WHERE h.id_contrato = ? AND c.empresa_id = ?
+            ORDER BY h.data_alteracao DESC
+        """, (id_contrato, empresa_id))
         
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
@@ -3622,7 +3716,7 @@ def buscar_historico_contrato(id_contrato):
         print(f"Erro ao buscar histórico: {e}")
         return {"success": False, "message": f"Erro ao buscar histórico: {e}"}
 
-def comparar_contratos_para_historico(contrato_antigo, contrato_novo, id_contrato, usuario=None):
+def comparar_contratos_para_historico(contrato_antigo, contrato_novo, id_contrato, empresa_id, usuario=None):
     """Compara dois contratos e registra automaticamente as diferenças no histórico"""
     try:
         mudancas_registradas = []
@@ -3699,6 +3793,7 @@ def comparar_contratos_para_historico(contrato_antigo, contrato_novo, id_contrat
                 
                 resultado = registrar_mudanca_contrato(
                     id_contrato=id_contrato,
+                    empresa_id=empresa_id,
                     campo_alterado=campo_db,
                     valor_anterior=valor_antigo_str,
                     valor_novo=valor_novo_str,

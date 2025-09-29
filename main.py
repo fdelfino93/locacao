@@ -1,21 +1,84 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from typing import Optional, Union, List
-from datetime import date
+from datetime import date, timedelta, datetime
 from contextlib import asynccontextmanager
 import os
 import json
 import io
 from dotenv import load_dotenv
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+# --- Configuração de Segurança ---
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 horas
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# --- Pydantic Models for Auth ---
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+    empresa_id: Optional[int] = None
+
+class EmpresaCreate(BaseModel):
+    nome: str
+    cnpj: Optional[str] = None
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        empresa_id: int = payload.get("empresa_id")
+        if email is None or empresa_id is None:
+            raise credentials_exception
+        token_data = TokenData(email=email, empresa_id=empresa_id)
+    except JWTError:
+        raise credentials_exception
+
+    # Aqui você pode adicionar uma lógica para buscar o usuário no banco de dados
+    # e verificar se ele está ativo, etc.
+    # Por enquanto, vamos apenas retornar os dados do token.
+    return token_data
 
 # Importar scheduler de acréscimos
 from scheduler_acrescimos import iniciar_scheduler, parar_scheduler, status_scheduler
 
 # Importar repositórios existentes via adapter
 from repositories_adapter import (
+    inserir_empresa, buscar_empresas, buscar_empresa_por_id, atualizar_empresa,
+    buscar_usuario_por_email,
     inserir_locador, buscar_locadores, atualizar_locador,
     inserir_locatario, buscar_locatarios, atualizar_locatario, buscar_locatario_por_id,
     inserir_imovel, buscar_imoveis, atualizar_imovel,
@@ -190,6 +253,45 @@ app = FastAPI(
     description="Sistema de Locações",
     lifespan=lifespan
 )
+
+# --- Endpoints de Autenticação e Empresas ---
+
+@app.post("/api/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = buscar_usuario_por_email(form_data.username)
+    if not user or not verify_password(form_data.password, user["senha_hash"]):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user["email"], "empresa_id": user["empresa_id"]},
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/empresas")
+async def criar_empresa(empresa: EmpresaCreate, current_user: TokenData = Depends(get_current_user)):
+    # Aqui você pode adicionar uma verificação de permissão (ex: superadmin)
+    return inserir_empresa(empresa.dict())
+
+@app.get("/api/empresas")
+async def listar_empresas(current_user: TokenData = Depends(get_current_user)):
+    # Aqui você pode adicionar uma verificação de permissão
+    return buscar_empresas()
+
+@app.get("/api/empresas/{empresa_id}")
+async def buscar_empresa(empresa_id: int, current_user: TokenData = Depends(get_current_user)):
+    # Adicionar verificação de permissão se necessário
+    return buscar_empresa_por_id(empresa_id)
+
+@app.put("/api/empresas/{empresa_id}")
+async def atualizar_empresa_endpoint(empresa_id: int, empresa: EmpresaCreate, current_user: TokenData = Depends(get_current_user)):
+    # Adicionar verificação de permissão se necessário
+    return atualizar_empresa(empresa_id, empresa.dict())
 
 # Endpoint de health check
 @app.get("/api/health")
@@ -847,22 +949,22 @@ class ContratoUpdate(BaseModel):
 
 # Rotas para Locadores
 @app.post("/api/locadores")
-async def criar_locador(locador: LocadorCreate):
+async def criar_locador(locador: LocadorCreate, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"Criando novo locador: {locador.nome}")
+        print(f"Criando novo locador para empresa {current_user.empresa_id}: {locador.nome}")
 
         # Usar adapter - converter para dict e passar como kwargs
         dados_locador = locador.model_dump(exclude_none=True)
-        resultado = inserir_locador(**dados_locador)
+        resultado = inserir_locador(current_user.empresa_id, **dados_locador)
         return {"data": resultado, "success": True}
     except Exception as e:
         print(f"Erro ao criar locador: {e}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar locador: {str(e)}")
 
 @app.put("/api/locadores/{locador_id}")
-async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
+async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCADOR {locador_id} ===")
+        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCADOR {locador_id} para empresa {current_user.empresa_id} ===")
         dados_recebidos = locador.model_dump(exclude_none=True)
         print(f"Dados recebidos do frontend:")
         for campo, valor in dados_recebidos.items():
@@ -892,8 +994,8 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
         for campo, valor in dados_filtrados.items():
             print(f"  - {campo}: {valor}")
         
-        print(f"DEBUG: Chamando atualizar_locador({locador_id}, **{list(dados_filtrados.keys())})")
-        resultado = atualizar_locador_db(locador_id, **dados_filtrados)
+        print(f"DEBUG: Chamando atualizar_locador({locador_id}, empresa_id={current_user.empresa_id}, **{list(dados_filtrados.keys())})")
+        resultado = atualizar_locador_db(locador_id, current_user.empresa_id, **dados_filtrados)
         print(f"DEBUG: Resultado do adapter: {resultado} (tipo: {type(resultado)})")
         
         if resultado:
@@ -911,13 +1013,13 @@ async def atualizar_locador_endpoint(locador_id: int, locador: LocadorUpdate):
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar locador: {str(e)}")
 
 @app.get("/api/locadores/{locador_id}")
-async def buscar_locador_por_id_endpoint(locador_id: int):
+async def buscar_locador_por_id_endpoint(locador_id: int, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"Buscando locador completo ID: {locador_id}")
+        print(f"Buscando locador completo ID: {locador_id} para empresa {current_user.empresa_id}")
 
         # Usar a nova função buscar_locador_por_id com endereço estruturado
         from repositories_adapter import buscar_locador_por_id
-        locador = buscar_locador_por_id(locador_id)
+        locador = buscar_locador_por_id(locador_id, current_user.empresa_id)
 
         if not locador:
             raise HTTPException(status_code=404, detail="Locador não encontrado")
@@ -936,12 +1038,12 @@ async def buscar_locador_por_id_endpoint(locador_id: int):
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locador: {str(e)}")
 
 @app.get("/api/locadores")
-async def listar_locadores():
+async def listar_locadores(current_user: TokenData = Depends(get_current_user)):
     try:
-        print("Listando locadores")
+        print(f"Listando locadores para empresa {current_user.empresa_id}")
         
         # Usar adapter
-        locadores = buscar_locadores()
+        locadores = buscar_locadores(current_user.empresa_id)
         return {"data": locadores, "success": True}
     except Exception as e:
         print(f"Erro ao listar locadores: {e}")
@@ -951,10 +1053,10 @@ class StatusRequest(BaseModel):
     ativo: bool
 
 @app.put("/api/locadores/{locador_id}/status")
-async def alterar_status_locador(locador_id: int, request: StatusRequest):
+async def alterar_status_locador(locador_id: int, request: StatusRequest, current_user: TokenData = Depends(get_current_user)):
     try:
         from repositories_adapter import alterar_status_locador as alterar_status_db
-        resultado = alterar_status_db(locador_id, request.ativo)
+        resultado = alterar_status_db(locador_id, current_user.empresa_id, request.ativo)
         
         if resultado:
             status_texto = "ativo" if request.ativo else "inativo"
@@ -966,25 +1068,25 @@ async def alterar_status_locador(locador_id: int, request: StatusRequest):
 
 # Rotas para Locatarios
 @app.post("/api/locatarios")
-async def criar_locatario(locatario: LocatarioCreate):
+async def criar_locatario(locatario: LocatarioCreate, current_user: TokenData = Depends(get_current_user)):
     try:
-        novo_locatario = inserir_locatario(locatario)
+        novo_locatario = inserir_locatario(current_user.empresa_id, locatario)
         return {"data": novo_locatario, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao criar locatário: {str(e)}")
 
 @app.get("/api/locatarios")
-async def listar_locatarios():
+async def listar_locatarios(current_user: TokenData = Depends(get_current_user)):
     try:
-        locatarios = buscar_locatarios()
+        locatarios = buscar_locatarios(current_user.empresa_id)
         return {"data": locatarios, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locatários: {str(e)}")
 
 @app.put("/api/locatarios/{locatario_id}")
-async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUpdate):
+async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUpdate, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCATÁRIO {locatario_id} ===")
+        print(f"\n=== INICIANDO ATUALIZAÇÃO DO LOCATÁRIO {locatario_id} para empresa {current_user.empresa_id} ===")
         dados_recebidos = locatario.model_dump(exclude_none=True)
         print(f"Dados recebidos do frontend:")
         for campo, valor in dados_recebidos.items():
@@ -1008,7 +1110,7 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         else:
             print(f"DEBUG: formas_envio_cobranca NÃO ENCONTRADA em dados_filtrados")
         
-        resultado = atualizar_locatario_db(locatario_id, **dados_filtrados)
+        resultado = atualizar_locatario_db(locatario_id, current_user.empresa_id, **dados_filtrados)
         
         if resultado:
             print(f" Locatário {locatario_id} atualizado com sucesso!")
@@ -1025,12 +1127,12 @@ async def atualizar_locatario_endpoint(locatario_id: int, locatario: LocatarioUp
         raise HTTPException(status_code=500, detail=f"Erro interno do servidor: {str(e)}")
 
 @app.get("/api/locatarios/{locatario_id}")
-async def buscar_locatario_endpoint(locatario_id: int):
+async def buscar_locatario_endpoint(locatario_id: int, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"ENDPOINT: Buscando locatário ID: {locatario_id}")
+        print(f"ENDPOINT: Buscando locatário ID: {locatario_id} para empresa {current_user.empresa_id}")
         
         # Usar nova função que busca com múltiplos contatos
-        locatario = buscar_locatario_por_id(locatario_id)
+        locatario = buscar_locatario_por_id(locatario_id, current_user.empresa_id)
         
         if not locatario:
             print(f"ENDPOINT: Locatário ID {locatario_id} não encontrado")
@@ -1044,10 +1146,10 @@ async def buscar_locatario_endpoint(locatario_id: int):
         raise HTTPException(status_code=500, detail=f"Erro ao buscar locatário: {str(e)}")
 
 @app.put("/api/locatarios/{locatario_id}/status")
-async def alterar_status_locatario(locatario_id: int, request: StatusRequest):
+async def alterar_status_locatario(locatario_id: int, request: StatusRequest, current_user: TokenData = Depends(get_current_user)):
     try:
         from repositories_adapter import alterar_status_locatario as alterar_status_db
-        resultado = alterar_status_db(locatario_id, request.ativo)
+        resultado = alterar_status_db(locatario_id, current_user.empresa_id, request.ativo)
         
         if resultado:
             status_texto = "ativo" if request.ativo else "inativo"
@@ -1059,7 +1161,7 @@ async def alterar_status_locatario(locatario_id: int, request: StatusRequest):
 
 # Rotas para Imóveis
 @app.post("/api/imoveis")
-async def criar_imovel(imovel: ImovelCreate):
+async def criar_imovel(imovel: ImovelCreate, current_user: TokenData = Depends(get_current_user)):
     try:
         # Converter para dict
         imovel_data = imovel.dict()
@@ -1096,7 +1198,7 @@ async def criar_imovel(imovel: ImovelCreate):
             print(f"Enviando {len(locadores_data)} locadores para o repository: {locadores_data}")
         
         # Chamar repository
-        novo_imovel = inserir_imovel(**imovel_data)
+        novo_imovel = inserir_imovel(current_user.empresa_id, **imovel_data)
         
         return {"data": novo_imovel, "success": True}
     except Exception as e:
@@ -1106,17 +1208,17 @@ async def criar_imovel(imovel: ImovelCreate):
         raise HTTPException(status_code=500, detail=f"Erro ao criar imóvel: {str(e)}")
 
 @app.get("/api/imoveis")
-async def listar_imoveis():
+async def listar_imoveis(current_user: TokenData = Depends(get_current_user)):
     try:
-        imoveis = buscar_imoveis()
+        imoveis = buscar_imoveis(current_user.empresa_id)
         return {"data": imoveis, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar imóveis: {str(e)}")
 
 @app.put("/api/imoveis/{imovel_id}")
-async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
+async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"\nINICIANDO ATUALIZACAO DO IMOVEL {imovel_id}")
+        print(f"\nINICIANDO ATUALIZACAO DO IMOVEL {imovel_id} para empresa {current_user.empresa_id}")
         dados_recebidos = imovel.model_dump(exclude_none=True)
         print(f"DADOS RECEBIDOS DO FRONTEND ({len(dados_recebidos)} campos):")
         for campo, valor in dados_recebidos.items():
@@ -1217,8 +1319,8 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
         for campo, valor in dados_filtrados.items():
             print(f"   {campo}: {valor} (tipo: {type(valor)})")
         
-        print(f"CHAMANDO atualizar_imovel(id={imovel_id}, campos={list(dados_filtrados.keys())})")
-        resultado = atualizar_imovel_db(imovel_id, **dados_filtrados)
+        print(f"CHAMANDO atualizar_imovel(id={imovel_id}, empresa_id={current_user.empresa_id}, campos={list(dados_filtrados.keys())})")
+        resultado = atualizar_imovel_db(imovel_id, current_user.empresa_id, **dados_filtrados)
         print(f"RESULTADO DO REPOSITORY: {resultado} (tipo: {type(resultado)})")
         
         if hasattr(resultado, 'get'):
@@ -1238,13 +1340,30 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
         print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {erro_safe}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar imovel: {erro_safe}")
 
+        if hasattr(resultado, 'get'):
+            print(f"Resultado detalhado: success={resultado.get('success')}, message={resultado.get('message')}")
+
+        if resultado:
+            print(f"Imovel {imovel_id} atualizado com sucesso!")
+            return {"message": f"Imóvel {imovel_id} atualizado com sucesso", "success": True}
+        else:
+            print(f"Falha ao atualizar imovel {imovel_id}")
+            raise HTTPException(status_code=404, detail="Imóvel não encontrado ou nenhuma alteração foi feita")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Converter erro para formato seguro (encoding-safe)
+        erro_safe = str(e).encode('ascii', 'ignore').decode('ascii')
+        print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {erro_safe}")
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar imovel: {erro_safe}")
+
 @app.get("/api/imoveis/{imovel_id}")
-async def buscar_imovel_por_id(imovel_id: int):
+async def buscar_imovel_por_id(imovel_id: int, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"Buscando imóvel ID: {imovel_id}")
+        print(f"Buscando imóvel ID: {imovel_id} para empresa {current_user.empresa_id}")
         
         # Usar busca geral e filtrar
-        imoveis = buscar_imoveis()
+        imoveis = buscar_imoveis(current_user.empresa_id)
         imovel = next((imo for imo in imoveis if imo.get('id') == imovel_id), None)
         
         if not imovel:
@@ -1300,10 +1419,10 @@ async def buscar_imovel_por_id(imovel_id: int):
         raise HTTPException(status_code=500, detail=f"Erro ao buscar imóvel: {str(e)}")
 
 @app.put("/api/imoveis/{imovel_id}/status")
-async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
+async def alterar_status_imovel(imovel_id: int, request: StatusRequest, current_user: TokenData = Depends(get_current_user)):
     try:
         from repositories_adapter import alterar_status_imovel as alterar_status_db
-        resultado = alterar_status_db(imovel_id, request.ativo)
+        resultado = alterar_status_db(imovel_id, current_user.empresa_id, request.ativo)
         
         if resultado:
             status_texto = "ativo" if request.ativo else "inativo"
@@ -1315,10 +1434,11 @@ async def alterar_status_imovel(imovel_id: int, request: StatusRequest):
 
 # Rotas para Contratos
 @app.post("/api/contratos")
-async def criar_contrato(contrato: ContratoCreate):
+async def criar_contrato(contrato: ContratoCreate, current_user: TokenData = Depends(get_current_user)):
     try:
-        print(f"\n=== INICIANDO CRIAÇÃO DE NOVO CONTRATO ===")
+        print(f"\n=== INICIANDO CRIAÇÃO DE NOVO CONTRATO para empresa {current_user.empresa_id} ===")
         dados_recebidos = contrato.dict(exclude_none=True)
+        dados_recebidos['empresa_id'] = current_user.empresa_id
         print(f"Dados recebidos do frontend:")
         for campo, valor in dados_recebidos.items():
             print(f"  - {campo}: {valor}")
@@ -1338,25 +1458,25 @@ async def criar_contrato(contrato: ContratoCreate):
         raise HTTPException(status_code=500, detail=f"Erro ao criar contrato: {str(e)}")
 
 @app.get("/api/contratos")
-async def listar_contratos():
+async def listar_contratos(current_user: TokenData = Depends(get_current_user)):
     try:
-        contratos = buscar_contratos()
+        contratos = buscar_contratos(current_user.empresa_id)
         return {"data": contratos, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos: {str(e)}")
 
 @app.get("/api/contratos/locador/{locador_id}")
-async def listar_contratos_por_locador(locador_id: int):
+async def listar_contratos_por_locador(locador_id: int, current_user: TokenData = Depends(get_current_user)):
     try:
-        contratos = buscar_contratos_por_locador(locador_id)
+        contratos = buscar_contratos_por_locador(locador_id, current_user.empresa_id)
         return {"data": contratos, "success": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao buscar contratos do locador: {str(e)}")
 
 @app.get("/api/contratos/{contrato_id}")
-async def obter_contrato_por_id(contrato_id: int):
+async def obter_contrato_por_id(contrato_id: int, current_user: TokenData = Depends(get_current_user)):
     try:
-        contrato = buscar_contrato_por_id(contrato_id)
+        contrato = buscar_contrato_por_id(contrato_id, current_user.empresa_id)
         if contrato:
             return {"data": contrato, "success": True}
         else:
