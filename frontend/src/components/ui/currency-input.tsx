@@ -22,18 +22,38 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   const formatCurrency = (num: number): string => {
     return num.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
+      useGrouping: true
     });
   };
 
   const parseCurrency = (str: string): number => {
     // Remove tudo exceto números, vírgulas e pontos
-    const cleaned = str.replace(/[^\d,.-]/g, '');
-    
-    // Substitui vírgula por ponto para parsing
-    const normalized = cleaned.replace(',', '.');
-    
-    const parsed = parseFloat(normalized);
+    let cleaned = str.replace(/[^\d,.-]/g, '');
+
+    // Handle Brazilian number format (1.234.567,89)
+    // If there are multiple dots and one comma, dots are thousands separators
+    const dotCount = (cleaned.match(/\./g) || []).length;
+    const commaCount = (cleaned.match(/,/g) || []).length;
+
+    if (dotCount > 0 && commaCount > 0) {
+      // Remove dots (thousands separators) and replace comma with dot
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (commaCount === 1 && dotCount === 0) {
+      // Only comma present, treat as decimal separator
+      cleaned = cleaned.replace(',', '.');
+    } else if (dotCount === 1 && commaCount === 0) {
+      // Only dot present, could be thousands or decimal
+      // If 3 digits after dot, it's thousands separator
+      const parts = cleaned.split('.');
+      if (parts[1] && parts[1].length === 3 && parts[1].match(/^\d{3}$/)) {
+        // Likely thousands separator, remove it
+        cleaned = parts.join('');
+      }
+      // Otherwise treat as decimal separator
+    }
+
+    const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   };
 

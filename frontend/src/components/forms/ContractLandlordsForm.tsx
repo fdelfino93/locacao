@@ -4,21 +4,23 @@ import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { InputWithIcon } from '../ui/input-with-icon';
-import { 
-  Plus, 
-  Trash2, 
-  Users, 
+import {
+  Plus,
+  Trash2,
+  Users,
   CreditCard,
   Percent,
   AlertCircle,
   CheckCircle,
   Star,
   TrendingUp,
-  Heart
+  Heart,
+  MapPin
 } from 'lucide-react';
-import type { ContratoLocador, ContaBancariaLocador, LocadorOption } from '../../types';
+import type { ContratoLocador, ContaBancariaLocador, LocadorOption, Endereco } from '../../types';
 import { apiService } from '../../services/api';
 import { getApiUrl } from '@/config/api';
+import { EnderecoForm } from './EnderecoForm';
 
 interface ContractLandlordsFormProps {
   locadores: ContratoLocador[];
@@ -511,6 +513,30 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         </Label>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Seção de Endereço do Locador */}
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <EnderecoForm
+                      endereco={locador.endereco || {
+                        cep: '',
+                        rua: '',
+                        numero: '',
+                        complemento: '',
+                        bairro: '',
+                        cidade: '',
+                        estado: ''
+                      }}
+                      onChange={(endereco) => {
+                        const novosLocadores = [...locadores];
+                        novosLocadores[index] = {
+                          ...novosLocadores[index],
+                          endereco
+                        };
+                        onChange(novosLocadores);
+                      }}
+                      prefixo={`Locador ${index + 1}`}
+                    />
                   </div>
                 </motion.div>
               );

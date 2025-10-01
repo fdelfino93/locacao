@@ -6,6 +6,7 @@ import { Button } from '../ui/button';
 import { InputWithIcon } from '../ui/input-with-icon';
 import { Input } from '../ui/input';
 import { InputMask } from '../ui/input-mask';
+import { CurrencyInput } from '../ui/currency-input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -313,9 +314,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       andar: imovel.andar || '',
       mobiliado: imovel.mobiliado ? 'sim' : 'nao', // ✅ Converter booleano do banco para string
       permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
-      caracteristicas: imovel.caracteristicas || imovel.dados_imovel || '',
-      suites: imovel.suites || 0,
-      cozinha: imovel.cozinha || 0
+      caracteristicas: imovel.caracteristicas || imovel.dados_imovel || ''
     });
 
     // Preencher informações do IPTU - CORREÇÃO: usar campos diretos do banco
@@ -568,8 +567,8 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
             area_total: safeString(dadosGerais.area_total),
             area_privativa: safeString(dadosGerais.area_privativa),
             caracteristicas: safeString(dadosGerais.caracteristicas),
-            // ✅ MOBILIADO: manter como string
-            mobiliado: dadosGerais.mobiliado,
+            // ✅ MOBILIADO: converter para boolean
+            mobiliado: dadosGerais.mobiliado === 'sim',
             metragem_construida: safeString(dadosGerais.area_construida),
             
             // Campos booleanos
@@ -1415,6 +1414,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                                   <SelectContent>
                                     <SelectItem value="nao">Não</SelectItem>
                                     <SelectItem value="sim">Sim</SelectItem>
+                                    <SelectItem value="parcialmente">Parcialmente</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>

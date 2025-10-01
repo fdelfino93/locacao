@@ -43,7 +43,8 @@ import {
   Wrench,
   Eye,
   ArrowLeft,
-  History
+  History,
+  Smartphone
 } from 'lucide-react';
 import type { Contrato, ContratoLocador, ContratoLocatario } from '../../types';
 import { apiService } from '../../services/api';
@@ -233,7 +234,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
   // useEffect para carregar dados quando estiver em modo de visualização/edição  
   useEffect(() => {
-    console.log('🚀 useEffect de carregamento INICIADO');
+    console.log('�Ys? useEffect de carregamento INICIADO');
     console.log('isViewing:', isViewing, 'isEditing:', isEditing);
     console.log('URL atual:', window.location.pathname);
     
@@ -601,7 +602,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       
       const actualField = fieldMappings[field] || field;
       
-      console.log(`🔄 MUDANÇA DE CAMPO: ${field} -> ${actualField} = ${value}`);
+      console.log(`�Y"" MUDAN�?A DE CAMPO: ${field} -> ${actualField} = ${value}`);
       
       setContratoData(prev => {
         const newData = {
@@ -611,7 +612,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         
         // Se mudou imóvel, logar detalhes
         if (actualField === 'id_imovel') {
-          console.log('🏠 MUDANÇA DE IMÓVEL DETECTADA:');
+          console.log('�Y�� MUDAN�?A DE IM�"VEL DETECTADA:');
           console.log('Valor anterior:', prev?.id_imovel);
           console.log('Novo valor:', value);
           console.log('Dados atualizados:', newData);
@@ -758,7 +759,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
       // Verificar se há locatários inválidos (igual ao handleSaveContract)
       const locatariosInvalidos = locatarios.filter(loc => !loc.locatario_id || loc.locatario_id <= 0);
       if (locatariosInvalidos.length > 0) {
-        alert(`❌ Erro: ${locatariosInvalidos.length} locatário(s) não foram selecionados. Selecione todos os locatários antes de cadastrar.`);
+        alert(`�O Erro: ${locatariosInvalidos.length} locatário(s) não foram selecionados. Selecione todos os locatários antes de cadastrar.`);
         return;
       }
       
@@ -915,7 +916,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         }
         
         alert(`✅ Termo cadastrado com sucesso! ID: ${contratoId}`);
-        console.log('✅ SUCESSO: Contrato criado no banco com ID:', contratoId);
+        console.log('�o. SUCESSO: Contrato criado no banco com ID:', contratoId);
         
         // Limpar formulário após sucesso
         setContratoData({});
@@ -973,7 +974,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
         }
         
         const resultContrato = await responseContrato.json();
-        console.log('✅ Resposta do servidor para contrato:', resultContrato);
+        console.log('✅ Resposta do servidor para contrato:', resultContrato); // Igual ao handleSaveContract
         
         // 2. Salvar locadores usando novo endpoint
         if (locadores && locadores.length > 0) {
@@ -1214,7 +1215,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                       <TabsTrigger value="datas">Datas e Reajustes</TabsTrigger>
                       <TabsTrigger value="valores">Valores e Encargos</TabsTrigger>
                       <TabsTrigger value="garantias">Garantias</TabsTrigger>
-                      <TabsTrigger value="plano">Plano</TabsTrigger>
+                      <TabsTrigger value="plano">Planos</TabsTrigger>
                       <TabsTrigger value="clausulas">Cláusulas</TabsTrigger>
                       {(isViewing || isEditing) && (
                         <TabsTrigger value="historico">Histórico</TabsTrigger>
@@ -1592,7 +1593,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="ultimo_reajuste">Data do Último Reajuste</Label>
+                            <Label htmlFor="ultimo_reajuste">Data do �sltimo Reajuste</Label>
                             <InputWithIcon
                               id="ultimo_reajuste"
                               type="date"
@@ -1601,7 +1602,7 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               onChange={(e) => handleContratoInputChange('ultimo_reajuste', e.target.value)}
                               disabled={isReadonly}
                             />
-                            <p className="text-xs text-muted-foreground">Último reajuste aplicado ao contrato</p>
+                            <p className="text-xs text-muted-foreground">�sltimo reajuste aplicado ao contrato</p>
                           </div>
 
                           <div className="space-y-2">
@@ -1693,31 +1694,46 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="space-y-2">
                               <Label htmlFor="valor_aluguel">Aluguel *</Label>
-                              <CurrencyInput
+                              <InputWithIcon
                                 id="valor_aluguel"
-                                value={contratoData?.valor_aluguel || 0}
-                                onChange={(value) => handleContratoInputChange('valor_aluguel', value)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={contratoData?.valor_aluguel || ''}
+                                onChange={(e) => handleContratoInputChange('valor_aluguel', parseFloat(e.target.value) || 0)}
                                 disabled={isReadonly}
+                                placeholder="1500.00"
+                                icon={DollarSign}
                               />
                             </div>
 
                             <div className="space-y-2">
                               <Label htmlFor="valor_condominio">Condomínio</Label>
-                              <CurrencyInput
+                              <InputWithIcon
                                 id="valor_condominio"
-                                value={contratoData?.valor_condominio || 0}
-                                onChange={(value) => handleContratoInputChange('valor_condominio', value)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={contratoData?.valor_condominio || ''}
+                                onChange={(e) => handleContratoInputChange('valor_condominio', parseFloat(e.target.value) || 0)}
                                 disabled={isReadonly}
+                                placeholder="350.00"
+                                icon={DollarSign}
                               />
                             </div>
 
                             <div className="space-y-2">
                               <Label htmlFor="valor_fci">FCI</Label>
-                              <CurrencyInput
+                              <InputWithIcon
                                 id="valor_fci"
-                                value={contratoData?.valor_fci || 0}
-                                onChange={(value) => handleContratoInputChange('valor_fci', value)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={contratoData?.valor_fci || ''}
+                                onChange={(e) => handleContratoInputChange('valor_fci', parseFloat(e.target.value) || 0)}
                                 disabled={isReadonly}
+                                placeholder="R$ 0,00"
+                                icon={DollarSign}
                               />
                               <p className="text-xs text-muted-foreground">Fundo de Conservação de Imóveis</p>
                             </div>
@@ -1739,11 +1755,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                             <div className="space-y-2">
                               <Label htmlFor="bonificacao">Bonificação</Label>
-                              <CurrencyInput
+                              <InputWithIcon
                                 id="bonificacao"
-                                value={contratoData?.bonificacao || 0}
-                                onChange={(value) => handleContratoInputChange('bonificacao', value)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={contratoData?.bonificacao || ''}
+                                onChange={(e) => handleContratoInputChange('bonificacao', parseFloat(e.target.value) || 0)}
                                 disabled={isReadonly}
+                                placeholder="R$ 0,00"
+                                icon={DollarSign}
                               />
                             </div>
 
@@ -1806,11 +1827,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <div className="grid grid-cols-1 gap-3">
                                 <div className="space-y-2">
                                   <Label htmlFor="valor_seguro_fianca">Valor Total</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="valor_seguro_fianca"
-                                    value={contratoData?.valor_seguro_fianca || 0}
-                                    onChange={(value) => handleContratoInputChange('valor_seguro_fianca', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.valor_seguro_fianca || ''}
+                                    onChange={(e) => handleContratoInputChange('valor_seguro_fianca', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
                                 
@@ -1889,11 +1915,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <div className="grid grid-cols-1 gap-3">
                                 <div className="space-y-2">
                                   <Label htmlFor="valor_seguro_incendio">Valor Total</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="valor_seguro_incendio"
-                                    value={contratoData?.valor_seguro_incendio || 0}
-                                    onChange={(value) => handleContratoInputChange('valor_seguro_incendio', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.valor_seguro_incendio || ''}
+                                    onChange={(e) => handleContratoInputChange('valor_seguro_incendio', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
                                 
@@ -1972,11 +2003,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                               <div className="grid grid-cols-1 gap-3">
                                 <div className="space-y-2">
                                   <Label htmlFor="valor_iptu">Valor Total</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="valor_iptu"
-                                    value={contratoData?.valor_iptu || 0}
-                                    onChange={(value) => handleContratoInputChange('valor_iptu', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.valor_iptu || ''}
+                                    onChange={(e) => handleContratoInputChange('valor_iptu', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
                                 
@@ -2459,11 +2495,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                                 <div className="space-y-2">
                                   <Label htmlFor="caucao_valor">Valor da Caução</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="caucao_valor"
-                                    value={contratoData?.caucao_valor || 0}
-                                    onChange={(value) => handleContratoInputChange('caucao_valor', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.caucao_valor || ''}
+                                    onChange={(e) => handleContratoInputChange('caucao_valor', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
                               </div>
@@ -2538,11 +2579,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                                 <div className="space-y-2">
                                   <Label htmlFor="seguro_valor_cobertura">Valor da Cobertura</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="seguro_valor_cobertura"
-                                    value={contratoData?.seguro_valor_cobertura || 0}
-                                    onChange={(value) => handleContratoInputChange('seguro_valor_cobertura', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.seguro_valor_cobertura || ''}
+                                    onChange={(e) => handleContratoInputChange('seguro_valor_cobertura', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
 
@@ -2617,11 +2663,16 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
 
                                 <div className="space-y-2">
                                   <Label htmlFor="titulo_valor">Valor do Título</Label>
-                                  <CurrencyInput
+                                  <InputWithIcon
                                     id="titulo_valor"
-                                    value={contratoData?.titulo_valor || 0}
-                                    onChange={(value) => handleContratoInputChange('titulo_valor', value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={contratoData?.titulo_valor || ''}
+                                    onChange={(e) => handleContratoInputChange('titulo_valor', parseFloat(e.target.value) || 0)}
                                     disabled={isReadonly}
+                                    placeholder="0.00"
+                                    icon={DollarSign}
                                   />
                                 </div>
 
@@ -2661,247 +2712,263 @@ export const ModernContratoForm: React.FC<ModernContratoFormProps> = ({
                           </motion.div>
                           <div>
                             <h3 className="text-lg font-semibold text-foreground">
-                              Plano de Locação
+                              Taxas e Comissões
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              Escolha o plano de administração e taxas aplicáveis ao contrato
+                              Insira diretamente os valores das taxas aplicáveis ao contrato
                             </p>
                           </div>
                         </div>
 
                         <div className="space-y-6">
-                          <div className="space-y-2">
-                            <Label>Plano de Locação *</Label>
-                            <Select 
-                              value={contratoData?.id_plano_locacao?.toString() || ''}
-                              disabled={isReadonly}
-                              onValueChange={!isReadonly ? (value) => {
-                                const planoId = parseInt(value);
-                                const planoSelecionado = planosDisponiveis.find(p => p.id === planoId);
-                                if (planoSelecionado) {
-                                  handleContratoInputChange('id_plano_locacao', planoId);
-                                  handleContratoInputChange('plano_categoria', planoSelecionado.categoria);
-                                }
-                              } : undefined}
-                            >
-                              <SelectTrigger className="bg-muted/50 border-border text-foreground">
-                                <SelectValue placeholder="Selecione o plano..." />
-                              </SelectTrigger>
-                              <SelectContent className="bg-card border-border">
-                                {planosDisponiveis.map((plano) => (
-                                  <SelectItem key={plano.id} value={plano.id.toString()} className="text-foreground hover:bg-accent">
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{plano.nome}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        Taxa 1º: {plano.taxa_primeiro_aluguel}% | Taxa Demais: {plano.taxa_demais_alugueis}%
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                              <Label htmlFor="plano_taxa_administracao">Taxa de Administração (%)</Label>
+                              <InputWithIcon
+                                id="plano_taxa_administracao"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                icon={Percent}
+                                value={contratoData?.taxa_administracao || ''}
+                                onChange={(e) => handleContratoInputChange('taxa_administracao', parseFloat(e.target.value) || 0)}
+                                disabled={isReadonly}
+                                placeholder="Ex: 10.00"
+                              />
+                              <p className="text-xs text-muted-foreground">Taxa percentual aplicada sobre o valor do aluguel</p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor="taxa_locacao_calculada">Taxa de Locação (%)</Label>
+                              <InputWithIcon
+                                id="taxa_locacao_calculada"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                icon={Percent}
+                                value={contratoData?.taxa_locacao_calculada || ''}
+                                onChange={(e) => handleContratoInputChange('taxa_locacao_calculada', parseFloat(e.target.value) || 0)}
+                                disabled={isReadonly}
+                                placeholder="Ex: 5.00"
+                              />
+                              <p className="text-xs text-muted-foreground">Taxa percentual de locação</p>
+                            </div>
                           </div>
-                        </div>
 
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              id="tem_corretor"
+                              checked={contratoData?.tem_corretor || false}
+                              disabled={isReadonly}
+                              onCheckedChange={!isReadonly ? (checked) => handleContratoInputChange('tem_corretor', !!checked) : undefined}
+                            />
+                            <Label htmlFor="tem_corretor" className="cursor-pointer text-foreground">
+                              Há corretor nesta locação
+                            </Label>
+                          </div>
 
-                          {/* Dados do Corretor - Aparece quando tem_corretor é true ou plano é "Completo" ou há dados de corretor */}
-                          {(() => {
-                            const temCorretor = contratoData?.tem_corretor || contratoData?.plano_categoria === 'COMPLETO';
-                            const temDadosCorretor = contratoData?.corretor_nome || contratoData?.corretor_creci || contratoData?.corretor_cpf;
-                            const temDadosBancarios = contratoData?.dados_bancarios_corretor?.banco || contratoData?.dados_bancarios_corretor?.agencia;
-                            return temCorretor || temDadosCorretor || temDadosBancarios;
-                          })() && (
+                          {/* Dados Bancários do Corretor - Aparece quando tem_corretor é true */}
+                          {contratoData?.tem_corretor && (
                             <motion.div
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3, delay: 0.1 }}
-                              className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="space-y-4 pt-4 border-t border-border"
                             >
-                              <div className="flex items-center gap-3 mb-6">
-                                <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-500 shadow-lg">
-                                  <User className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                  <h4 className="text-lg font-semibold text-foreground">
-                                    Dados do Corretor
-                                  </h4>
-                                  <p className="text-sm text-muted-foreground">
-                                    Informações do corretor responsável pela locação
-                                  </p>
-                                </div>
-                              </div>
+                              <h4 className="text-sm font-semibold text-foreground">
+                                Dados do Corretor
+                              </h4>
 
-                              <div className="space-y-4">
-                                <div className="flex items-center space-x-3 p-4 rounded-xl bg-blue-100 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-700">
-                                  <Checkbox
-                                    id="tem_corretor"
-                                    checked={contratoData?.tem_corretor || false}
+                              {/* Dados Pessoais do Corretor */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_nome">Nome do Corretor</Label>
+                                  <InputWithIcon
+                                    id="corretor_nome"
+                                    type="text"
+                                    value={contratoData?.corretor_nome || ''}
                                     disabled={isReadonly}
-                                    onCheckedChange={!isReadonly ? (checked) => handleContratoInputChange('tem_corretor', !!checked) : undefined}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_nome', e.target.value) : undefined}
+                                    placeholder="Nome completo do corretor"
+                                    icon={User}
                                   />
-                                  <Label htmlFor="tem_corretor" className="cursor-pointer text-foreground font-medium">
-                                    Há corretor nesta locação
-                                  </Label>
                                 </div>
 
-                                {contratoData?.tem_corretor && (
-                                  <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="space-y-6"
-                                  >
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="space-y-2">
-                                        <Label htmlFor="corretor_nome">Nome do Corretor</Label>
-                                        <InputWithIcon
-                                          id="corretor_nome"
-                                          type="text"
-                                          value={contratoData?.corretor_nome || ''}
-                                          disabled={isReadonly}
-                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_nome', e.target.value) : undefined}
-                                          placeholder="Nome completo do corretor"
-                                          icon={User}
-                                        />
-                                      </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_cpf">CPF do Corretor</Label>
+                                  <InputWithIcon
+                                    id="corretor_cpf"
+                                    type="text"
+                                    value={contratoData?.corretor_cpf || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_cpf', e.target.value) : undefined}
+                                    placeholder="000.000.000-00"
+                                    icon={IdCard}
+                                  />
+                                </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor="corretor_creci">CRECI</Label>
-                                        <InputWithIcon
-                                          id="corretor_creci"
-                                          type="text"
-                                          value={contratoData?.corretor_creci || ''}
-                                          disabled={isReadonly}
-                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_creci', e.target.value) : undefined}
-                                          placeholder="Número do CRECI"
-                                          icon={IdCard}
-                                        />
-                                      </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_creci">CRECI</Label>
+                                  <InputWithIcon
+                                    id="corretor_creci"
+                                    type="text"
+                                    value={contratoData?.corretor_creci || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_creci', e.target.value) : undefined}
+                                    placeholder="Número do CRECI"
+                                    icon={Shield}
+                                  />
+                                </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor="corretor_cpf">CPF</Label>
-                                        <InputWithIcon
-                                          id="corretor_cpf"
-                                          type="text"
-                                          value={contratoData?.corretor_cpf || ''}
-                                          disabled={isReadonly}
-                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_cpf', e.target.value) : undefined}
-                                          placeholder="000.000.000-00"
-                                          icon={IdCard}
-                                        />
-                                      </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_telefone">Telefone do Corretor</Label>
+                                  <InputWithIcon
+                                    id="corretor_telefone"
+                                    type="text"
+                                    value={contratoData?.corretor_telefone || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_telefone', e.target.value) : undefined}
+                                    placeholder="(00) 00000-0000"
+                                    icon={Phone}
+                                  />
+                                </div>
 
-                                      <div className="space-y-2">
-                                        <Label htmlFor="corretor_telefone">Telefone</Label>
-                                        <InputWithIcon
-                                          id="corretor_telefone"
-                                          type="text"
-                                          value={contratoData?.corretor_telefone || ''}
-                                          disabled={isReadonly}
-                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_telefone', e.target.value) : undefined}
-                                          placeholder="(00) 00000-0000"
-                                          icon={Phone}
-                                        />
-                                      </div>
-
-                                      <div className="space-y-2 md:col-span-2">
-                                        <Label htmlFor="corretor_email">Email</Label>
-                                        <InputWithIcon
-                                          id="corretor_email"
-                                          type="email"
-                                          value={contratoData?.corretor_email || ''}
-                                          disabled={isReadonly}
-                                          onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_email', e.target.value) : undefined}
-                                          placeholder="corretor@exemplo.com"
-                                          icon={Mail}
-                                        />
-                                      </div>
-                                    </div>
-
-                                    {/* Dados Bancários do Corretor */}
-                                    <div className="bg-white/60 dark:bg-blue-950/40 rounded-xl p-4 border border-blue-200/50 dark:border-blue-700/50">
-                                      <h5 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
-                                        <CreditCard className="w-4 h-4 text-blue-600" />
-                                        Dados Bancários para Recebimento
-                                      </h5>
-                                      
-                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        <div className="space-y-2">
-                                          <Label htmlFor="corretor_banco">Banco</Label>
-                                          <InputWithIcon
-                                            id="corretor_banco"
-                                            type="text"
-                                            value={contratoData?.dados_bancarios_corretor?.banco || ''}
-                                            disabled={isReadonly}
-                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('banco', e.target.value) : undefined}
-                                            placeholder="Nome do banco"
-                                            icon={CreditCard}
-                                          />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                          <Label htmlFor="corretor_agencia">Agência</Label>
-                                          <InputWithIcon
-                                            id="corretor_agencia"
-                                            type="text"
-                                            value={contratoData?.dados_bancarios_corretor?.agencia || ''}
-                                            disabled={isReadonly}
-                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('agencia', e.target.value) : undefined}
-                                            placeholder="Agência"
-                                            icon={CreditCard}
-                                          />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                          <Label htmlFor="corretor_conta">Conta</Label>
-                                          <InputWithIcon
-                                            id="corretor_conta"
-                                            type="text"
-                                            value={contratoData?.dados_bancarios_corretor?.conta || ''}
-                                            disabled={isReadonly}
-                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('conta', e.target.value) : undefined}
-                                            placeholder="Número da conta"
-                                            icon={CreditCard}
-                                          />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                          <Label htmlFor="corretor_tipo_conta">Tipo de Conta</Label>
-                                          <Select 
-                                            value={contratoData?.dados_bancarios_corretor?.tipo_conta || ''}
-                                            disabled={isReadonly}
-                                            onValueChange={!isReadonly ? (value) => handleBancarioCorretor('tipo_conta', value) : undefined}
-                                          >
-                                            <SelectTrigger>
-                                              <SelectValue placeholder="Tipo da conta" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="corrente">Conta Corrente</SelectItem>
-                                              <SelectItem value="poupanca">Poupança</SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-
-                                        <div className="space-y-2 md:col-span-2">
-                                          <Label htmlFor="corretor_chave_pix">Chave PIX (Opcional)</Label>
-                                          <InputWithIcon
-                                            id="corretor_chave_pix"
-                                            type="text"
-                                            value={contratoData?.dados_bancarios_corretor?.chave_pix || ''}
-                                            disabled={isReadonly}
-                                            onChange={!isReadonly ? (e) => handleBancarioCorretor('chave_pix', e.target.value) : undefined}
-                                            placeholder="CPF, email, telefone ou chave aleatória"
-                                            icon={CreditCard}
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </motion.div>
-                                )}
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label htmlFor="corretor_email">Email do Corretor</Label>
+                                  <InputWithIcon
+                                    id="corretor_email"
+                                    type="email"
+                                    value={contratoData?.corretor_email || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => handleContratoInputChange('corretor_email', e.target.value) : undefined}
+                                    placeholder="email@exemplo.com"
+                                    icon={Mail}
+                                  />
+                                </div>
                               </div>
+
+                              {/* Dados Bancários do Corretor */}
+                              <div className="space-y-4 pt-4 border-t border-border">
+                                <h5 className="text-sm font-semibold text-foreground">
+                                  Dados Bancários do Corretor
+                                </h5>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_banco">Banco</Label>
+                                  <InputWithIcon
+                                    id="corretor_banco"
+                                    type="text"
+                                    value={contratoData?.dados_bancarios_corretor?.banco || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.banco = e.target.value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                    placeholder="Nome do banco"
+                                    icon={Building}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_agencia">Agência</Label>
+                                  <InputWithIcon
+                                    id="corretor_agencia"
+                                    type="text"
+                                    value={contratoData?.dados_bancarios_corretor?.agencia || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.agencia = e.target.value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                    placeholder="0000"
+                                    icon={MapPin}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_conta">Conta</Label>
+                                  <InputWithIcon
+                                    id="corretor_conta"
+                                    type="text"
+                                    value={contratoData?.dados_bancarios_corretor?.conta || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.conta = e.target.value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                    placeholder="00000-0"
+                                    icon={CreditCard}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_tipo_conta">Tipo de Conta</Label>
+                                  <Select
+                                    value={contratoData?.dados_bancarios_corretor?.tipo_conta || ''}
+                                    disabled={isReadonly}
+                                    onValueChange={!isReadonly ? (value) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.tipo_conta = value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione o tipo de conta" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="corrente">Conta Corrente</SelectItem>
+                                      <SelectItem value="poupanca">Conta Poupança</SelectItem>
+                                      <SelectItem value="salario">Conta Salário</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_chave_pix">Chave PIX</Label>
+                                  <InputWithIcon
+                                    id="corretor_chave_pix"
+                                    type="text"
+                                    value={contratoData?.dados_bancarios_corretor?.chave_pix || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.chave_pix = e.target.value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                    placeholder="CPF, e-mail, telefone ou chave aleatória"
+                                    icon={Smartphone}
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <Label htmlFor="corretor_titular">Titular da Conta</Label>
+                                  <InputWithIcon
+                                    id="corretor_titular"
+                                    type="text"
+                                    value={contratoData?.dados_bancarios_corretor?.titular || ''}
+                                    disabled={isReadonly}
+                                    onChange={!isReadonly ? (e) => {
+                                      const dados = { ...(contratoData?.dados_bancarios_corretor || {}) };
+                                      dados.titular = e.target.value;
+                                      handleContratoInputChange('dados_bancarios_corretor', dados);
+                                    } : undefined}
+                                    placeholder="Nome completo do titular"
+                                    icon={User}
+                                  />
+                                </div>
+                              </div>
+                            </div>
                             </motion.div>
                           )}
+                        </div>
+
                       </motion.div>
                     </TabsContent>
 

@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+import os
+import sys
+# Forçar encoding UTF-8 no Windows
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
@@ -6,7 +13,6 @@ from pydantic import BaseModel
 from typing import Optional, Union, List
 from datetime import date
 from contextlib import asynccontextmanager
-import os
 import json
 import io
 from dotenv import load_dotenv
@@ -190,6 +196,17 @@ app = FastAPI(
     description="Sistema de Locações",
     lifespan=lifespan
 )
+
+# Configurar encoding UTF-8 para responses
+from fastapi.responses import JSONResponse
+
+# Middleware para garantir UTF-8 em todas as responses
+@app.middleware("http")
+async def add_utf8_header(request: Request, call_next):
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("application/json"):
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
 
 # Endpoint de health check
 @app.get("/api/health")
@@ -694,6 +711,7 @@ class ContratoCreate(BaseModel):
     
     # Campos opcionais com valores padrão
     taxa_administracao: float = 0.0
+    taxa_locacao_calculada: float = 0.0
     antecipacao_encargos: bool = False
     aluguel_garantido: bool = False
     mes_de_referencia: str = "mes_atual"
@@ -791,6 +809,7 @@ class ContratoUpdate(BaseModel):
     renovacao_automatica: Optional[str] = None
     vencimento_dia: Optional[int] = None
     taxa_administracao: Optional[float] = None
+    taxa_locacao_calculada: Optional[float] = None
     fundo_conservacao: Optional[float] = None
     bonificacao: Optional[float] = None
     valor_seguro_fianca: Optional[float] = None
@@ -1246,19 +1265,33 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
     except HTTPException:
         raise
     except Exception as e:
-        # Converter erro para formato seguro (encoding-safe)
-        erro_safe = str(e).encode('ascii', 'ignore').decode('ascii')
+        # Manter erro original com encoding UTF-8
+        erro_safe = str(e)
         print(f"ERRO no endpoint PUT /api/imoveis/{imovel_id}: {erro_safe}")
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar imovel: {erro_safe}")
 
 @app.get("/api/imoveis/{imovel_id}")
 async def buscar_imovel_por_id(imovel_id: int):
     try:
-        print(f"Buscando imóvel ID: {imovel_id}")
-        
+        print(f"Buscando imóvel ID: {imovel_id} (tipo: {type(imovel_id)})")
+
         # Usar busca geral e filtrar
         imoveis = buscar_imoveis()
-        imovel = next((imo for imo in imoveis if imo.get('id') == imovel_id), None)
+        print(f"Encontrados {len(imoveis)} imóveis total")
+        print(f"IDs disponíveis: {[imo.get('id') for imo in imoveis[:3]]}")
+
+        imovel = None
+        for imo in imoveis:
+            imo_id = imo.get('id')
+            print(f"Comparando {imo_id} (tipo: {type(imo_id)}) com {imovel_id} (tipo: {type(imovel_id)})")
+            try:
+                if int(imo_id) == imovel_id:
+                    imovel = imo
+                    print(f"✅ ENCONTRADO! Imóvel ID {imovel_id}")
+                    break
+            except (ValueError, TypeError) as e:
+                print(f"❌ Erro ao converter ID {imo_id}: {e}")
+                continue
         
         if not imovel:
             raise HTTPException(status_code=404, detail="Imóvel não encontrado")

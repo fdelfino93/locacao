@@ -1,10 +1,84 @@
+# -*- coding: utf-8 -*-
 # Adaptador para compatibilizar os nomes dos repositórios com o main.py
 
-import pyodbc
 import os
+import sys
+# Forçar encoding UTF-8 no Windows
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+
+import pyodbc
 from dotenv import load_dotenv
 
 # ==================== FUNÇÕES UNIFICADAS PARA ESTRUTURA HÍBRIDA ====================
+
+def extrair_endereco_estruturado(endereco_string):
+    """
+    Tenta extrair componentes estruturados de uma string de endereço
+    Exemplo: "Rua João de Alencar, 2580, Apartamento 207 - Campo Comprido - Curitiba/PR"
+    """
+    if not endereco_string or not isinstance(endereco_string, str):
+        return None
+
+    try:
+        endereco = endereco_string.strip()
+
+        # Padrões comuns de endereço brasileiro
+        import re
+
+        # Tentar extrair cidade/estado (padrão "Cidade/UF")
+        cidade_estado_match = re.search(r'([^/\-]+)/([A-Z]{2})$', endereco)
+        cidade = ""
+        estado = "PR"  # padrão
+
+        if cidade_estado_match:
+            cidade = cidade_estado_match.group(1).strip()
+            estado = cidade_estado_match.group(2).strip()
+            endereco = endereco[:cidade_estado_match.start()].strip()
+
+        # Dividir por " - " para extrair bairro
+        partes = endereco.split(' - ')
+        bairro = ""
+
+        if len(partes) >= 2:
+            bairro = partes[-1].strip()
+            endereco = ' - '.join(partes[:-1]).strip()
+
+        # Dividir a primeira parte por vírgula para extrair rua, número, complemento
+        partes_rua = endereco.split(',')
+        rua = partes_rua[0].strip() if partes_rua else ""
+        numero = ""
+        complemento = ""
+
+        if len(partes_rua) >= 2:
+            # Tentar extrair número (sequência de dígitos)
+            numero_match = re.search(r'\b(\d+)\b', partes_rua[1])
+            if numero_match:
+                numero = numero_match.group(1)
+
+            # O resto pode ser complemento
+            if len(partes_rua) >= 3:
+                complemento = ', '.join(partes_rua[2:]).strip()
+            elif len(partes_rua) == 2:
+                # Se não tem vírgula adicional, o que sobrou após o número é complemento
+                resto = partes_rua[1].replace(numero, '').strip()
+                if resto.startswith(','):
+                    resto = resto[1:].strip()
+                complemento = resto
+
+        return {
+            'rua': rua,
+            'numero': numero,
+            'complemento': complemento,
+            'bairro': bairro,
+            'cidade': cidade,
+            'estado': estado,
+            'cep': ''  # CEP não pode ser extraído de string não estruturada
+        }
+
+    except Exception as e:
+        print(f"Erro ao extrair endereço estruturado de '{endereco_string}': {e}")
+        return None
 
 def obter_locadores_contrato_unificado(contrato_id):
     """
@@ -115,7 +189,40 @@ def obter_locatarios_contrato_unificado(contrato_id):
 
 load_dotenv()
 
+def safe_decode_string(value):
+    """Decodifica strings com segurança, lidando com problemas de encoding"""
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, bytes):
+        # Tentar diferentes encodings
+        for encoding in ['utf-8', 'latin1', 'cp1252', 'iso-8859-1']:
+            try:
+                return value.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        # Se nenhum encoding funcionar, usar 'replace' para evitar erro
+        return value.decode('utf-8', errors='replace')
+
+    return str(value)
+
+def safe_process_value(value):
+    """Processa valores do banco com segurança (encoding + datetime)"""
+    if value is None:
+        return None
+
+    # Converter datetime para string se necessário
+    if hasattr(value, 'strftime'):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+
+    # Aplicar decodificação segura para strings
+    return safe_decode_string(value)
+
 def get_conexao():
+    # Configuração especial para Windows local - sem forçar UTF-8
     connection_string = (
         f"DRIVER={{{os.getenv('DB_DRIVER')}}};"
         f"SERVER={os.getenv('DB_SERVER')};"
@@ -125,7 +232,13 @@ def get_conexao():
         f"Encrypt={os.getenv('DB_ENCRYPT')};"
         f"TrustServerCertificate={os.getenv('DB_TRUST_CERT')}"
     )
-    return pyodbc.connect(connection_string)
+
+    print(f"DEBUG: Conectando com: {connection_string}")
+    conn = pyodbc.connect(connection_string)
+
+    # Não forçar encoding específico - deixar o ODBC decidir
+    print("DEBUG: Conexão estabelecida - usando encoding padrão do ODBC")
+    return conn
 
 def inserir_endereco_imovel(endereco_data):
     """Insere um endereço na tabela EnderecoImovel e retorna o ID"""
@@ -225,8 +338,10 @@ def processar_endereco_imovel(endereco_input):
 def buscar_locadores():
     """Busca todos os locadores da tabela Locadores com endereços estruturados"""
     try:
+        print("DEBUG: Iniciando buscar_locadores")
         conn = get_conexao()
         cursor = conn.cursor()
+        print("DEBUG: Cursor criado")
 
         # Query com JOIN para buscar endereços estruturados
         query = """
@@ -245,18 +360,24 @@ def buscar_locadores():
         ORDER BY l.ativo DESC, l.nome ASC
         """
 
+        print("DEBUG: Executando query")
         cursor.execute(query)
+        print("DEBUG: Query executada com sucesso")
 
         # Obter nomes das colunas
         columns = [column[0] for column in cursor.description]
+        print(f"DEBUG: Colunas: {columns}")
 
         # Converter resultados para lista de dicionarios
+        print("DEBUG: Fazendo fetchall")
         rows = cursor.fetchall()
+        print(f"DEBUG: Fetchall retornou {len(rows)} registros")
         result = []
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar decodificação segura para strings
+                row_dict[columns[i]] = safe_decode_string(value)
 
             # Montar objeto endereco_estruturado se existir dados
             if row_dict.get('endereco_estruturado_id'):
@@ -323,7 +444,7 @@ def buscar_locador_por_id(locador_id):
 
         row_dict = {}
         for i, value in enumerate(row):
-            row_dict[columns[i]] = value
+            row_dict[columns[i]] = safe_process_value(value)
 
         # Montar objeto endereco_estruturado se existir dados
         if row_dict.get('endereco_estruturado_id'):
@@ -392,7 +513,8 @@ def buscar_locatarios():
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar decodificação segura para strings
+                row_dict[columns[i]] = safe_decode_string(value)
             result.append(row_dict)
 
         conn.close()
@@ -404,6 +526,7 @@ def buscar_locatarios():
 def buscar_imoveis():
     """Busca todos os imóveis da tabela Imoveis com seus locadores da tabela N:N"""
     try:
+        print("DEBUG: Iniciando buscar_imoveis")
         conn = get_conexao()
         cursor = conn.cursor()
         
@@ -411,17 +534,24 @@ def buscar_imoveis():
         cursor.execute("SELECT * FROM Imoveis")
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
+        print(f"DEBUG: Encontrados {len(rows)} imóveis")
         result = []
         
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessario
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
-                else:
-                    row_dict[columns[i]] = value
-            
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
+
+            # Criar endereço estruturado se possível
+            endereco_string = row_dict.get('endereco', '')
+            if endereco_string and not row_dict.get('endereco_id'):
+                # Tentar extrair partes do endereço da string
+                endereco_estruturado = extrair_endereco_estruturado(endereco_string)
+                if endereco_estruturado:
+                    row_dict['endereco_estruturado'] = endereco_estruturado
+                    print(f"DEBUG: Endereço estruturado criado para imóvel {row_dict['id']}: {endereco_estruturado}")
+
             # Buscar todos os locadores deste imóvel na tabela N:N com dados completos
             cursor.execute("""
                 SELECT il.locador_id, il.porcentagem, il.responsabilidade_principal,
@@ -433,6 +563,7 @@ def buscar_imoveis():
             """, (row_dict['id'],))
 
             locadores_imovel = cursor.fetchall()
+            print(f"DEBUG: Imóvel ID {row_dict['id']} tem {len(locadores_imovel)} locadores")
 
             # Montar array de locadores com dados completos
             locadores_completos = []
@@ -578,10 +709,13 @@ def inserir_cliente(**kwargs):
                 ativo = int(ativo_raw) if ativo_raw else 0
             
             # Processar endereço estruturado se fornecido
-            endereco_id = None
+            endereco_id = kwargs.get('endereco_id')  # Pode já vir processado da função wrapper
             endereco_completo = endereco
+
             if isinstance(endereco, dict):
-                endereco_id = inserir_endereco_locador(endereco)
+                # Se ainda não foi processado (chamada direta)
+                if not endereco_id:
+                    endereco_id = inserir_endereco_locador(endereco)
                 if endereco_id:
                     endereco_completo = f"{endereco.get('rua', '')}, {endereco.get('numero', '')} - {endereco.get('bairro', '')} - {endereco.get('cidade', '')}/{endereco.get('estado', 'PR')}"
                 else:
@@ -645,7 +779,48 @@ def inserir_cliente(**kwargs):
         return None
 
 def inserir_locador(**kwargs):
-    return inserir_cliente(**kwargs)
+    """Funcao híbrida segura para inserir locadores - compatível com endereco_estruturado"""
+    try:
+        print(f"inserir_locador: Dados recebidos: {kwargs}")
+
+        # Processar endereco_estruturado se fornecido (igual a inserir_imovel)
+        if 'endereco_estruturado' in kwargs:
+            try:
+                endereco_input = kwargs['endereco_estruturado']
+                if isinstance(endereco_input, dict):
+                    print(f"Processando endereço estruturado para locador: {endereco_input}")
+                    endereco_id = inserir_endereco_locador(endereco_input)
+                    if endereco_id:
+                        # Criar string de endereço para compatibilidade
+                        endereco_string = f"{endereco_input.get('rua', '')}, {endereco_input.get('numero', '')}"
+                        if endereco_input.get('complemento'):
+                            endereco_string += f", {endereco_input.get('complemento')}"
+                        endereco_string += f" - {endereco_input.get('bairro', '')} - {endereco_input.get('cidade', '')}/{endereco_input.get('estado', 'PR')}"
+
+                        # Substituir nos kwargs
+                        kwargs['endereco'] = endereco_string
+                        kwargs['endereco_id'] = endereco_id
+                        print(f"SUCESSO: Endereço locador salvo com ID: {endereco_id}")
+                    else:
+                        print("AVISO: Falha ao salvar endereço estruturado, usando fallback")
+                        kwargs['endereco'] = str(endereco_input)
+                # Remover endereco_estruturado dos kwargs pois não é campo da tabela
+                del kwargs['endereco_estruturado']
+            except Exception as endereco_error:
+                print(f"AVISO: Erro ao processar endereco_estruturado: {endereco_error}")
+                # Fallback seguro: converter para string
+                if 'endereco_estruturado' in kwargs:
+                    kwargs['endereco'] = str(kwargs['endereco_estruturado'])
+                    del kwargs['endereco_estruturado']
+
+        # Chamar a função original com os dados processados
+        return inserir_cliente(**kwargs)
+
+    except Exception as e:
+        print(f"ERRO inserir_locador: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 def inserir_imovel(**kwargs):
     """Funcao híbrida segura para inserir imóveis - compatível com string e objeto"""
@@ -1144,10 +1319,8 @@ def buscar_contratos_ativos():
             for row in rows:
                 contrato_dict = {}
                 for i, value in enumerate(row):
-                    if hasattr(value, 'strftime'):
-                        contrato_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                    else:
-                        contrato_dict[columns[i]] = value
+                    # Aplicar processamento seguro (encoding + datetime)
+                    contrato_dict[columns[i]] = safe_process_value(value)
                 
                 # USAR LOGICA HIBRIDA UNIFICADA para buscar locadores e locatarios
                 contrato_id = contrato_dict['id']
@@ -1252,10 +1425,8 @@ def buscar_contas_bancarias_locador(locador_id):
             for row in rows:
                 row_dict = {}
                 for i, value in enumerate(row):
-                    if hasattr(value, 'strftime'):
-                        row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
-                    else:
-                        row_dict[columns[i]] = value
+                    # Aplicar processamento seguro (encoding + datetime)
+                    row_dict[columns[i]] = safe_process_value(value)
                 result.append(row_dict)
             
             return result
@@ -1284,10 +1455,8 @@ def buscar_representante_legal_locador(locador_id):
             columns = [column[0] for column in cursor.description]
             result = {}
             for i, value in enumerate(row):
-                if hasattr(value, 'strftime'):
-                    result[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
-                else:
-                    result[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                result[columns[i]] = safe_process_value(value)
 
             return result
 
@@ -1605,11 +1774,8 @@ def buscar_contratos():
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessario
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                else:
-                    row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -1664,11 +1830,8 @@ def buscar_contratos_por_locador(locador_id):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessario
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                else:
-                    row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -1719,11 +1882,8 @@ def buscar_contrato_por_id(contrato_id):
         if row:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessario
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                else:
-                    row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             
             # Buscar dados completos do locador usando qualquer ID disponível
             locador_id = row_dict.get('locador_id_real') or row_dict.get('id_locador')
@@ -1827,13 +1987,8 @@ def buscar_fatura_por_id(fatura_id):
             columns = [column[0] for column in cursor.description]
             fatura_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
-                if hasattr(value, 'strftime'):
-                    fatura_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                elif value is None:
-                    fatura_dict[columns[i]] = None
-                else:
-                    fatura_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                fatura_dict[columns[i]] = safe_process_value(value)
                     
             # Debug
             print(f"DEBUG buscar_fatura_por_id: ID={fatura_dict.get('id')}, contrato_id={fatura_dict.get('contrato_id')}")
@@ -2853,8 +3008,8 @@ def atualizar_imovel(imovel_id, **kwargs):
         return True
         
     except Exception as e:
-        # Print seguro para evitar problemas de encoding
-        erro_msg = str(e).encode('ascii', 'ignore').decode('ascii')
+        # Manter erro original com encoding UTF-8
+        erro_msg = str(e)
         print(f"Erro ao atualizar imovel {imovel_id}: {erro_msg}")
         if 'conn' in locals():
             conn.close()
@@ -3264,7 +3419,8 @@ def buscar_locadores_contrato(contrato_id):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -3342,7 +3498,8 @@ def buscar_locatarios_contrato(contrato_id):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -3531,7 +3688,8 @@ def buscar_todos_locadores_ativos():
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -3640,11 +3798,8 @@ def buscar_historico_contrato(id_contrato):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d %H:%M:%S')
-                else:
-                    row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -3792,7 +3947,8 @@ def buscar_pets_por_contrato(contrato_id):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()
@@ -3848,11 +4004,8 @@ def buscar_garantias_por_contrato(contrato_id):
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
-                # Converter datetime para string se necessário
-                if hasattr(value, 'strftime'):
-                    row_dict[columns[i]] = value.strftime('%Y-%m-%d')
-                else:
-                    row_dict[columns[i]] = value
+                # Aplicar processamento seguro (encoding + datetime)
+                row_dict[columns[i]] = safe_process_value(value)
             result.append(row_dict)
         
         conn.close()

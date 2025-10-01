@@ -29,6 +29,17 @@ import {
 import { apiService } from '../../services/api';
 import { getApiUrl } from '../../config/api';
 
+interface ImovelLocador {
+  id: number;
+  nome: string;
+  porcentagem: number;
+  responsabilidade_principal: boolean;
+  cpf_cnpj?: string;
+  tipo_pessoa?: string;
+  email?: string;
+  telefone?: string;
+}
+
 interface Imovel {
   id: number;
   endereco: string;
@@ -46,6 +57,8 @@ interface Imovel {
   aceita_pets?: boolean;
   id_locador?: number;
   id_locatario?: number;
+  locadores?: ImovelLocador[];
+  locadores_ids?: number[];
 }
 
 interface Locador {
@@ -156,15 +169,73 @@ export const ImoveisIndex: React.FC<ImoveisIndexProps> = ({
     }).format(value);
   };
 
-  const getProprietarioNome = (id_locador?: number) => {
-    if (!id_locador) return 'Não informado';
-    const locador = locadores.find(l => l.id === id_locador);
-    return locador ? locador.nome : 'Não encontrado';
+  const getProprietarioNome = (imovel: Imovel) => {
+    // Primeiro, tentar usar os locadores do imóvel (nova estrutura)
+    if (imovel.locadores && imovel.locadores.length > 0) {
+      const principal = imovel.locadores.find(l => l.responsabilidade_principal);
+      if (principal) {
+        return principal.nome;
+      }
+      // Se não tem principal definido, usar o primeiro
+      return imovel.locadores[0].nome;
+    }
+
+    // Fallback para estrutura antiga
+    if (imovel.id_locador) {
+      const locador = locadores.find(l => l.id === imovel.id_locador);
+      return locador ? locador.nome : 'Não encontrado';
+    }
+
+    return 'Não informado';
+  };
+
+  const getProprietariosDisplay = (imovel: Imovel) => {
+    if (imovel.locadores && imovel.locadores.length > 0) {
+      const principal = imovel.locadores.find(l => l.responsabilidade_principal);
+
+      if (imovel.locadores.length === 1) {
+        return {
+          nome: imovel.locadores[0].nome,
+          detalhes: `ID: ${imovel.locadores[0].id}`,
+          multipllos: false
+        };
+      }
+
+      if (principal) {
+        return {
+          nome: principal.nome,
+          detalhes: `Principal + ${imovel.locadores.length - 1} outro(s)`,
+          multipllos: true
+        };
+      }
+
+      return {
+        nome: imovel.locadores[0].nome,
+        detalhes: `+ ${imovel.locadores.length - 1} outro(s)`,
+        multipllos: true
+      };
+    }
+
+    // Fallback para estrutura antiga
+    if (imovel.id_locador) {
+      const locador = locadores.find(l => l.id === imovel.id_locador);
+      return {
+        nome: locador ? locador.nome : 'Não encontrado',
+        detalhes: `ID: ${imovel.id_locador}`,
+        multipllos: false
+      };
+    }
+
+    return {
+      nome: 'Não informado',
+      detalhes: '',
+      multipllos: false
+    };
   };
 
   const filteredImoveis = imoveis.filter(imovel => {
     // Filtro por busca
-    const proprietarioNome = getProprietarioNome(imovel.id_locador);
+    const proprietarioNome = getProprietarioNome(imovel);
     const matchesSearch = imovel.endereco?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       imovel.tipo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (imovel.area_imovel && imovel.area_imovel.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -556,21 +627,31 @@ export const ImoveisIndex: React.FC<ImoveisIndexProps> = ({
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center space-x-2">
-                                <div className="p-1 bg-orange-100 dark:bg-orange-900/20 rounded">
-                                  <UserCheck className="w-4 h-4 text-orange-600" />
-                                </div>
-                                <div>
-                                  <div className="font-medium text-foreground">
-                                    {getProprietarioNome(imovel.id_locador)}
-                                  </div>
-                                  {imovel.id_locador && (
-                                    <div className="text-xs text-muted-foreground">
-                                      ID: {imovel.id_locador}
+                              {(() => {
+                                const proprietarioInfo = getProprietariosDisplay(imovel);
+                                return (
+                                  <div className="flex items-center space-x-2">
+                                    <div className="p-1 bg-orange-100 dark:bg-orange-900/20 rounded">
+                                      <UserCheck className="w-4 h-4 text-orange-600" />
                                     </div>
-                                  )}
-                                </div>
-                              </div>
+                                    <div>
+                                      <div className="font-medium text-foreground">
+                                        {proprietarioInfo.nome}
+                                      </div>
+                                      {proprietarioInfo.detalhes && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {proprietarioInfo.detalhes}
+                                        </div>
+                                      )}
+                                      {proprietarioInfo.multipllos && (
+                                        <div className="text-xs text-blue-600 font-medium">
+                                          Múltiplos proprietários
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="px-4 py-3">
                               <div className="space-y-1">
