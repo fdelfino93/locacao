@@ -166,27 +166,55 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
           email: locatario.email || locatario.email_principal || '',
           rg: locatario.rg || '',
           data_nascimento: locatario.data_nascimento || '',
-          nacionalidade: locatario.nacionalidade || 'Brasileiro(a)',
-          estado_civil: locatario.estado_civil || 'Solteiro(a)',
+          nacionalidade: locatario.nacionalidade || 'Brasileira',
+          estado_civil: locatario.estado_civil || 'Solteiro',
           profissao: locatario.profissao || '',
           tipo_pessoa: locatario.tipo_pessoa || 'PF',
-          renda_mensal: locatario.renda_mensal || 0,
-          empresa: locatario.empresa || locatario.dados_empresa || '',
-          telefone_comercial: locatario.telefone_comercial || '',
+          dados_empresa: locatario.dados_empresa || '',
+          representante: locatario.representante || '',
           observacoes: locatario.observacoes || '',
+          ativo: locatario.ativo !== undefined ? locatario.ativo : true,
           // Campos específicos de PJ
           razao_social: locatario.razao_social || '',
           nome_fantasia: locatario.nome_fantasia || '',
           inscricao_estadual: locatario.inscricao_estadual || '',
           inscricao_municipal: locatario.inscricao_municipal || '',
           atividade_principal: locatario.atividade_principal || '',
+          data_constituicao: locatario.data_constituicao || '',
+          capital_social: locatario.capital_social || '',
+          porte_empresa: locatario.porte_empresa || '',
+          regime_tributario: locatario.regime_tributario || '',
           // Campos de cônjuge
+          possui_conjuge: locatario.possui_conjuge || false,
           nome_conjuge: locatario.nome_conjuge || locatario.conjuge_nome || '',
           cpf_conjuge: locatario.cpf_conjuge || '',
           rg_conjuge: locatario.rg_conjuge || '',
+          endereco_conjuge: locatario.endereco_conjuge || '',
           telefone_conjuge: locatario.telefone_conjuge || '',
-          regime_bens: locatario.regime_bens || (locatario.possui_conjuge ? 'Comunhão Parcial de Bens' : ''),
-          existe_conjuge: locatario.possui_conjuge || 0
+          regime_bens: locatario.regime_bens || '',
+          existe_conjuge: locatario.possui_conjuge || locatario.existe_conjuge || 0,
+          // Campos de responsabilidades e negócio
+          responsavel_pgto_agua: locatario.responsavel_pgto_agua || 'Locatario',
+          responsavel_pgto_luz: locatario.responsavel_pgto_luz || 'Locatario',
+          responsavel_pgto_gas: locatario.responsavel_pgto_gas || 'Locatario',
+          tipo_garantia: locatario.tipo_garantia || '',
+          possui_inquilino_solidario: locatario.possui_inquilino_solidario || false,
+          // Campos de dependentes
+          responsavel_inq: locatario.responsavel_inq,
+          dependentes_inq: locatario.dependentes_inq,
+          qtd_dependentes_inq: locatario.qtd_dependentes_inq || 0,
+          // Campos de moradores
+          tem_moradores: locatario.tem_moradores || false,
+          dados_moradores: locatario.dados_moradores || '',
+          // Endereço legacy
+          Endereco_inq: locatario.Endereco_inq || '',
+          // Campos do representante legal
+          nome_representante: locatario.nome_representante || (locatario.representante_legal?.nome) || '',
+          cpf_representante: locatario.cpf_representante || (locatario.representante_legal?.cpf) || '',
+          rg_representante: locatario.rg_representante || (locatario.representante_legal?.rg) || '',
+          cargo_representante: locatario.cargo_representante || (locatario.representante_legal?.cargo) || '',
+          telefone_representante: locatario.telefone_representante || (locatario.representante_legal?.telefone) || '',
+          email_representante: locatario.email_representante || (locatario.representante_legal?.email) || ''
         };
         
         console.log('📝 Preenchendo formData com:', novoFormData);
@@ -439,12 +467,11 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     endereco: endereco,
     dados_bancarios: dadosBancarios,
     tipo_pessoa: 'PF',
-    tem_fiador: false,
-    fiador: fiador,
     responsavel_pgto_agua: 'Locatario',
     responsavel_pgto_luz: 'Locatario',
     responsavel_pgto_gas: 'Locatario',
     rg: '',
+    data_nascimento: '',
     dados_empresa: '',
     representante: '',
     nacionalidade: 'Brasileira',
@@ -457,9 +484,8 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     responsavel_inq: null,
     dependentes_inq: null,
     qtd_dependentes_inq: 0,
-    pet_inquilino: null,
-    qtd_pet_inquilino: 0,
-    porte_pet: '',
+    // Campos do cônjuge - alinhados com a tabela
+    possui_conjuge: false,
     nome_conjuge: '',
     cpf_conjuge: '',
     rg_conjuge: '',
@@ -467,12 +493,35 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     telefone_conjuge: '',
     regime_bens: '',
     existe_conjuge: null,
+    // Campos de PJ - alinhados com a tabela
+    razao_social: '',
+    nome_fantasia: '',
+    inscricao_estadual: '',
+    inscricao_municipal: '',
+    atividade_principal: '',
+    data_constituicao: '',
+    capital_social: '',
+    porte_empresa: '',
+    regime_tributario: '',
+    // Campos adicionais importantes da tabela
+    possui_inquilino_solidario: false,
+    tipo_garantia: '',
+    tem_moradores: false,
+    // Campos para representante legal (PJ)
+    nome_representante: '',
+    cpf_representante: '',
+    rg_representante: '',
+    cargo_representante: '',
+    telefone_representante: '',
+    email_representante: '',
+    // Arquivos
     documento_pessoal: null,
     comprovante_endereco: null,
     forma_envio_boleto: [],
     email_boleto: '',
     whatsapp_boleto: '',
-    observacoes: ''
+    observacoes: '',
+    ativo: true
   });
 
   const estadosCivis = ['Solteiro(a)', 'Casado(a)', 'Divorciado(a)', 'Viúvo(a)', 'União Estável'];
@@ -530,6 +579,7 @@ export const ModernLocatarioFormV2: React.FC<ModernLocatarioFormV2Props> = ({ on
     setConjugeSelectValue(value);
     setFormData(prev => ({
       ...prev,
+      possui_conjuge: hasConjuge,
       existe_conjuge: hasConjuge ? 1 : 0
     }));
   };

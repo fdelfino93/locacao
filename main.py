@@ -578,7 +578,7 @@ class DadosGeraisImovelInput(BaseModel):
     qtd_sacada: Optional[int] = None
     tem_churrasqueira: Optional[bool] = False
     qtd_churrasqueira: Optional[int] = None
-    mobiliado: Optional[str] = "nao"  # 'sim', 'nao', 'parcialmente'
+    mobiliado: Optional[bool] = False
     permite_pets: Optional[bool] = False
 
 class LocadorImovelInput(BaseModel):
@@ -658,7 +658,7 @@ class ImovelUpdate(BaseModel):
     salas: Optional[int] = None
     vagas_garagem: Optional[int] = None
     andar: Optional[int] = None
-    mobiliado: Optional[str] = None  # 'nao', 'sim', 'parcial'
+    mobiliado: Optional[bool] = None
     aceita_pets: Optional[bool] = None
     # Campos opcionais extras
     numero_quartos: Optional[int] = None
@@ -1095,7 +1095,7 @@ async def criar_imovel(imovel: ImovelCreate):
     try:
         # Converter para dict
         imovel_data = imovel.model_dump(exclude_none=True)
-        
+
         # ✅ CORREÇÃO: Os campos Encargos agora vem diretamente do frontend (não mais aninhados)
         # Removido processamento de informacoes_iptu e informacoes_condominio - campos vem diretos
         
@@ -1112,7 +1112,7 @@ async def criar_imovel(imovel: ImovelCreate):
             imovel_data['qtd_sacada'] = dados_gerais.get('qtd_sacada', 0)
             imovel_data['tem_churrasqueira'] = dados_gerais.get('tem_churrasqueira', False)
             imovel_data['qtd_churrasqueira'] = dados_gerais.get('qtd_churrasqueira', 0)
-            # Converter mobiliado string para boolean (compatibilidade com DB atual)
+            # ✅ CORREÇÃO: Converter mobiliado string para boolean (tipo correto do banco)
             mobiliado_str = dados_gerais.get('mobiliado', 'nao')
             imovel_data['mobiliado'] = mobiliado_str.lower() == 'sim'
             # permite_pets já existe no nível principal

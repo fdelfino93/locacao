@@ -310,10 +310,24 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       area_construida: imovel.metragem_construida || imovel.area_construida || '',
       area_privativa: imovel.area_privativa || '',
       ano_construcao: imovel.ano_construcao || '',
-      elevador: imovel.elevador || false,
+      elevador: imovel.elevador === true || imovel.elevador === 'true' || imovel.elevador === 'True',
       andar: imovel.andar || '',
-      mobiliado: imovel.mobiliado ? 'sim' : 'nao', // ✅ Converter booleano do banco para string
-      permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
+      mobiliado: (() => {
+        // ✅ CORREÇÃO: Tratar diferentes tipos que podem vir do backend
+        const mobiliado = imovel.mobiliado;
+        if (mobiliado === true || mobiliado === 'true' || mobiliado === 'True' || mobiliado === 1 || mobiliado === '1') {
+          return 'sim';
+        } else if (mobiliado === false || mobiliado === 'false' || mobiliado === 'False' || mobiliado === 0 || mobiliado === '0') {
+          return 'nao';
+        }
+        // Default para 'nao' se valor for indefinido
+        return 'nao';
+      })(),
+      permite_pets: imovel.aceita_pets === true || imovel.aceita_pets === 'true' || imovel.permite_pets === true || imovel.permite_pets === 'true',
+      tem_sacada: imovel.tem_sacada === true || imovel.tem_sacada === 'true' || imovel.tem_sacada === 'True',
+      qtd_sacada: imovel.qtd_sacada || undefined,
+      tem_churrasqueira: imovel.tem_churrasqueira === true || imovel.tem_churrasqueira === 'true' || imovel.tem_churrasqueira === 'True',
+      qtd_churrasqueira: imovel.qtd_churrasqueira || undefined,
       caracteristicas: imovel.caracteristicas || imovel.dados_imovel || ''
     });
 
@@ -350,7 +364,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
       permite_pets: imovel.aceita_pets || imovel.permite_pets || false,
       copel_unidade_consumidora: imovel.copel_unidade_consumidora || '',
       sanepar_matricula: imovel.sanepar_matricula || '',
-      tem_gas: imovel.tem_gas || false,
+      tem_gas: imovel.tem_gas === true || imovel.tem_gas === 'true' || imovel.tem_gas === 'True',
       info_gas: imovel.info_gas || '',
       info_iptu: imovel.info_iptu || '',
       observacoes: imovel.observacoes || ''
@@ -567,7 +581,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
             area_total: safeString(dadosGerais.area_total),
             area_privativa: safeString(dadosGerais.area_privativa),
             caracteristicas: safeString(dadosGerais.caracteristicas),
-            // ✅ MOBILIADO: converter para boolean
+            // ✅ MOBILIADO: converter para boolean (tipo correto do banco)
             mobiliado: dadosGerais.mobiliado === 'sim',
             metragem_construida: safeString(dadosGerais.area_construida),
             

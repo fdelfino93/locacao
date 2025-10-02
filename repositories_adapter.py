@@ -41,7 +41,7 @@ def extrair_endereco_estruturado(endereco_string):
         bairro = ""
 
         if len(partes) >= 2:
-            bairro = partes[-1].strip()
+            bairro = partes[-1].strip().rstrip('-').strip()  # Remove trailing dash
             endereco = ' - '.join(partes[:-1]).strip()
 
         # Dividir a primeira parte por vírgula para extrair rua, número, complemento
@@ -66,6 +66,17 @@ def extrair_endereco_estruturado(endereco_string):
                     resto = resto[1:].strip()
                 complemento = resto
 
+        # Tentar extrair CEP se existir na string (padrão: 99999-999 ou 99999999)
+        cep = ""
+        cep_match = re.search(r'\b(\d{5}-?\d{3})\b', endereco_string)
+        if cep_match:
+            cep_found = cep_match.group(1)
+            # Garantir formato 99999-999
+            if '-' not in cep_found:
+                cep = f"{cep_found[:5]}-{cep_found[5:]}"
+            else:
+                cep = cep_found
+
         return {
             'rua': rua,
             'numero': numero,
@@ -73,7 +84,7 @@ def extrair_endereco_estruturado(endereco_string):
             'bairro': bairro,
             'cidade': cidade,
             'estado': estado,
-            'cep': ''  # CEP não pode ser extraído de string não estruturada
+            'cep': cep  # Extrair CEP se existir na string
         }
 
     except Exception as e:
@@ -195,6 +206,14 @@ def safe_decode_string(value):
         return None
 
     if isinstance(value, str):
+        return value
+
+    # ✅ CORREÇÃO: Preservar booleanos em vez de converter para string
+    if isinstance(value, bool):
+        return value
+
+    # ✅ CORREÇÃO: Preservar números em vez de converter para string
+    if isinstance(value, (int, float)):
         return value
 
     if isinstance(value, bytes):
@@ -530,27 +549,103 @@ def buscar_imoveis():
         conn = get_conexao()
         cursor = conn.cursor()
         
-        # Primeiro buscar todos os imóveis
-        cursor.execute("SELECT * FROM Imoveis")
+        # Buscar todos os imóveis com dados de endereço estruturado
+        cursor.execute("""
+            SELECT i.*,
+                   ei.rua as endereco_rua,
+                   ei.numero as endereco_numero,
+                   ei.complemento as endereco_complemento,
+                   ei.bairro as endereco_bairro,
+                   ei.cidade as endereco_cidade,
+                   ei.uf as endereco_estado,
+                   ei.cep as endereco_cep
+            FROM Imoveis i
+            LEFT JOIN EnderecoImovel ei ON i.endereco_id = ei.id
+        """)
         columns = [column[0] for column in cursor.description]
         rows = cursor.fetchall()
         print(f"DEBUG: Encontrados {len(rows)} imóveis")
         result = []
-        
+
         for row in rows:
             row_dict = {}
             for i, value in enumerate(row):
                 # Aplicar processamento seguro (encoding + datetime)
                 row_dict[columns[i]] = safe_process_value(value)
 
-            # Criar endereço estruturado se possível
-            endereco_string = row_dict.get('endereco', '')
-            if endereco_string and not row_dict.get('endereco_id'):
-                # Tentar extrair partes do endereço da string
-                endereco_estruturado = extrair_endereco_estruturado(endereco_string)
-                if endereco_estruturado:
-                    row_dict['endereco_estruturado'] = endereco_estruturado
-                    print(f"DEBUG: Endereço estruturado criado para imóvel {row_dict['id']}: {endereco_estruturado}")
+            # Criar endereço estruturado com dados reais da tabela EnderecoImovel
+            if row_dict.get('endereco_rua'):
+                row_dict['endereco_estruturado'] = {
+                    'rua': row_dict.get('endereco_rua', ''),
+                    'numero': row_dict.get('endereco_numero', ''),
+                    'complemento': row_dict.get('endereco_complemento', ''),
+                    'bairro': row_dict.get('endereco_bairro', ''),
+                    'cidade': row_dict.get('endereco_cidade', ''),
+                    'estado': row_dict.get('endereco_estado', ''),
+                    'cep': row_dict.get('endereco_cep', '')  # ✅ CORRIGIDO: CEP vem da tabela
+                }
+                print(f"DEBUG: Endereço estruturado com CEP para imóvel {row_dict['id']}: {row_dict['endereco_estruturado']}")
+            elif row_dict.get('endereco'):
+                # ✅ CORREÇÃO: Tentar buscar na EnderecoImovel primeiro, depois fallback para extração
+                endereco_encontrado = False
+
+                # Tentar encontrar endereço estruturado na tabela EnderecoImovel
+                endereco_string = row_dict.get('endereco', '')
+
+                # Extrair rua e número do endereço string para matching mais preciso
+                import re
+                rua_match = re.search(r'^([^,]+)', endereco_string)
+                numero_match = re.search(r',\s*(\d+)', endereco_string)
+
+                rua_busca = rua_match.group(1).strip() if rua_match else endereco_string[:30]
+                numero_busca = numero_match.group(1) if numero_match else ''
+
+                # Buscar por rua similar e número exato (se disponível)
+                if numero_busca:
+                    cursor.execute("""
+                        SELECT rua, numero, complemento, bairro, cidade, uf, cep,
+                               (CASE WHEN rua LIKE ? AND numero = ? THEN 3
+                                     WHEN rua LIKE ? THEN 2
+                                     ELSE 1 END) as prioridade
+                        FROM EnderecoImovel
+                        WHERE (rua LIKE ? OR rua LIKE ?)
+                        AND cep IS NOT NULL AND cep != ''
+                        ORDER BY prioridade DESC, id
+                    """, (f"%{rua_busca}%", numero_busca, f"%{rua_busca}%", f"%{rua_busca}%", f"%{endereco_string[:25]}%"))
+                else:
+                    cursor.execute("""
+                        SELECT rua, numero, complemento, bairro, cidade, uf, cep
+                        FROM EnderecoImovel
+                        WHERE rua LIKE ?
+                        AND cep IS NOT NULL AND cep != ''
+                        ORDER BY LEN(rua) DESC
+                    """, (f"%{rua_busca}%",))
+
+                endereco_match = cursor.fetchone()
+                if endereco_match:
+                    # Pode retornar 7 ou 8 colunas dependendo da consulta
+                    if len(endereco_match) == 8:  # Com prioridade
+                        rua, numero, complemento, bairro, cidade, uf, cep, prioridade = endereco_match
+                    else:  # Sem prioridade
+                        rua, numero, complemento, bairro, cidade, uf, cep = endereco_match
+                    row_dict['endereco_estruturado'] = {
+                        'rua': rua or '',
+                        'numero': numero or '',
+                        'complemento': complemento or '',
+                        'bairro': bairro or '',
+                        'cidade': cidade or '',
+                        'estado': uf or '',
+                        'cep': cep or ''
+                    }
+                    endereco_encontrado = True
+                    print(f"DEBUG: Endereço encontrado na EnderecoImovel para imóvel {row_dict['id']}: CEP {cep}")
+
+                # Fallback para extração de string se não encontrou na tabela
+                if not endereco_encontrado:
+                    endereco_estruturado = extrair_endereco_estruturado(endereco_string)
+                    if endereco_estruturado:
+                        row_dict['endereco_estruturado'] = endereco_estruturado
+                        print(f"DEBUG: Endereço extraído de string para imóvel {row_dict['id']}: {endereco_estruturado}")
 
             # Buscar todos os locadores deste imóvel na tabela N:N com dados completos
             cursor.execute("""
@@ -2952,13 +3047,25 @@ def atualizar_imovel(imovel_id, **kwargs):
         
         # Listar campos que podem ser atualizados baseados na estrutura da tabela
         campos_atualizaveis = [
-            'id_locador', 'id_locatario', 'tipo', 'endereco', 'endereco_id', 'valor_aluguel', 
+            'id_locador', 'id_locatario', 'tipo', 'endereco', 'endereco_id', 'valor_aluguel',
             'iptu', 'condominio', 'taxa_incendio', 'status', 'matricula_imovel',
-            'area_imovel', 'dados_imovel', 'permite_pets', 'metragem', 
+            'area_imovel', 'dados_imovel', 'permite_pets', 'metragem',
             'numero_quartos', 'numero_banheiros', 'numero_vagas', 'andar',
             'mobiliado', 'aceita_animais', 'valor_condominio', 'valor_iptu_mensal',
             'finalidade_imovel', 'nome_edificio', 'armario_embutido', 'escritorio',
-            'area_servico', 'ativo', 'observacoes'
+            'area_servico', 'ativo', 'observacoes',
+            # ✅ CORREÇÃO: Adicionar campos IPTU que estavam faltando
+            'titular_iptu', 'inscricao_imobiliaria', 'indicacao_fiscal', 'info_iptu',
+            # ✅ CORREÇÃO: Adicionar campos Condomínio que estavam faltando
+            'nome_condominio', 'sindico_condominio', 'cnpj_condominio',
+            'email_condominio', 'telefone_condominio', 'observacoes_condominio',
+            'boleto_condominio',
+            # ✅ CORREÇÃO: Adicionar outros campos da tabela Imoveis
+            'copel_unidade_consumidora', 'sanepar_matricula', 'tem_gas', 'info_gas',
+            'quartos', 'suites', 'banheiros', 'salas', 'cozinha', 'vagas_garagem',
+            'metragem_total', 'metragem_construida', 'ano_construcao', 'tipo_edificacao',
+            'tem_sacada', 'qtd_sacada', 'tem_churrasqueira', 'qtd_churrasqueira',
+            'elevador', 'aceita_pets', 'area_total', 'area_privativa', 'caracteristicas'
         ]
         
         # Filtrar apenas os campos que foram enviados e sao atualizáveis
