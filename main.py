@@ -5,7 +5,7 @@ import sys
 if sys.platform == "win32":
     os.environ["PYTHONIOENCODING"] = "utf-8"
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +15,9 @@ from datetime import date
 from contextlib import asynccontextmanager
 import json
 import io
+import subprocess
+import shutil
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Importar scheduler de acréscimos
@@ -1096,9 +1099,21 @@ async def criar_imovel(imovel: ImovelCreate):
         # Converter para dict
         imovel_data = imovel.model_dump(exclude_none=True)
 
-        # ✅ CORREÇÃO: Os campos Encargos agora vem diretamente do frontend (não mais aninhados)
-        # Removido processamento de informacoes_iptu e informacoes_condominio - campos vem diretos
-        
+        # Normaliza blocos de encargos enviados pelo frontend
+        info_iptu = imovel_data.pop('informacoes_iptu', None)
+        if info_iptu:
+            imovel_data.setdefault('titular_iptu', info_iptu.get('titular', ''))
+            imovel_data.setdefault('inscricao_imobiliaria', info_iptu.get('inscricao_imobiliaria', ''))
+            imovel_data.setdefault('indicacao_fiscal', info_iptu.get('indicacao_fiscal', ''))
+
+        info_condominio = imovel_data.pop('informacoes_condominio', None)
+        if info_condominio:
+            imovel_data.setdefault('nome_condominio', info_condominio.get('nome_condominio', ''))
+            imovel_data.setdefault('sindico_condominio', info_condominio.get('sindico_condominio', ''))
+            imovel_data.setdefault('cnpj_condominio', info_condominio.get('cnpj_condominio', ''))
+            imovel_data.setdefault('email_condominio', info_condominio.get('email_condominio', ''))
+            imovel_data.setdefault('telefone_condominio', info_condominio.get('telefone_condominio', ''))
+
         if imovel_data.get('dados_gerais'):
             dados_gerais = imovel_data.pop('dados_gerais')
             # Mapear para campos planos
@@ -1112,9 +1127,14 @@ async def criar_imovel(imovel: ImovelCreate):
             imovel_data['qtd_sacada'] = dados_gerais.get('qtd_sacada', 0)
             imovel_data['tem_churrasqueira'] = dados_gerais.get('tem_churrasqueira', False)
             imovel_data['qtd_churrasqueira'] = dados_gerais.get('qtd_churrasqueira', 0)
-            # ✅ CORREÇÃO: Converter mobiliado string para boolean (tipo correto do banco)
-            mobiliado_str = dados_gerais.get('mobiliado', 'nao')
-            imovel_data['mobiliado'] = mobiliado_str.lower() == 'sim'
+            # ✅ CORREÇÃO: Converter mobiliado (pode vir como string ou boolean)
+            mobiliado_valor = dados_gerais.get('mobiliado', False)
+            if isinstance(mobiliado_valor, bool):
+                imovel_data['mobiliado'] = mobiliado_valor
+            elif isinstance(mobiliado_valor, str):
+                imovel_data['mobiliado'] = mobiliado_valor.lower() == 'sim'
+            else:
+                imovel_data['mobiliado'] = False
             # permite_pets já existe no nível principal
             if 'permite_pets' not in imovel_data or not imovel_data['permite_pets']:
                 imovel_data['permite_pets'] = dados_gerais.get('permite_pets', False)
@@ -1252,15 +1272,13 @@ async def atualizar_imovel_endpoint(imovel_id: int, imovel: ImovelUpdate):
         print(f"CHAMANDO atualizar_imovel(id={imovel_id}, campos={list(dados_filtrados.keys())})")
         resultado = atualizar_imovel_db(imovel_id, **dados_filtrados)
         print(f"RESULTADO DO REPOSITORY: {resultado} (tipo: {type(resultado)})")
-        
-        if hasattr(resultado, 'get'):
-            print(f"Resultado detalhado: success={resultado.get('success')}, message={resultado.get('message')}")
-        
-        if resultado:
+
+        # ✅ CORREÇÃO: Tratar resultado como boolean (True/False) do adapter
+        if resultado == True:
             print(f"Imovel {imovel_id} atualizado com sucesso!")
             return {"message": f"Imóvel {imovel_id} atualizado com sucesso", "success": True}
         else:
-            print(f"Falha ao atualizar imovel {imovel_id}")
+            print(f"Falha ao atualizar imovel {imovel_id} - resultado: {resultado}")
             raise HTTPException(status_code=404, detail="Imóvel não encontrado ou nenhuma alteração foi feita")
     except HTTPException:
         raise
@@ -2573,6 +2591,144 @@ async def executar_job_acrescimos_manual():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao executar job: {str(e)}")
+
+
+# ==================== ENDPOINTS DE DEPLOY AUTOMÁTICO ====================
+
+@app.post("/upload/backend")
+async def upload_backend(file: UploadFile = File(...)):
+    """
+    Recebe upload da imagem Docker do backend e faz deploy automático
+    """
+    try:
+        print(f"📦 Recebendo upload do backend: {file.filename}")
+
+        # Definir diretório base (onde está o main.py)
+        base_dir = Path(__file__).parent
+        tar_path = base_dir / "locacao-backend.tar"
+
+        # Salvar arquivo .tar
+        print(f"💾 Salvando em: {tar_path}")
+        with open(tar_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        print(f"✅ Arquivo salvo: {tar_path.stat().st_size} bytes")
+
+        # Carregar imagem no Docker
+        print("🐋 Carregando imagem no Docker...")
+        load_result = subprocess.run(
+            ["docker", "load", "-i", str(tar_path)],
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+
+        if load_result.returncode != 0:
+            print(f"❌ Erro ao carregar imagem: {load_result.stderr}")
+            raise HTTPException(status_code=500, detail=f"Erro ao carregar imagem: {load_result.stderr}")
+
+        print(f"✅ Imagem carregada: {load_result.stdout}")
+
+        # Reiniciar container backend
+        print("🔄 Reiniciando container backend...")
+        compose_file = base_dir / "docker-compose.prod.yml"
+
+        restart_result = subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "up", "-d", "backend"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(base_dir)
+        )
+
+        if restart_result.returncode != 0:
+            print(f"⚠️ Aviso ao reiniciar: {restart_result.stderr}")
+
+        print(f"✅ Container reiniciado: {restart_result.stdout}")
+
+        return {
+            "status": "success",
+            "service": "backend",
+            "filename": file.filename,
+            "size": tar_path.stat().st_size,
+            "docker_load": load_result.stdout,
+            "docker_restart": restart_result.stdout
+        }
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Timeout ao executar comando Docker")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload do backend: {str(e)}")
+
+
+@app.post("/upload/frontend")
+async def upload_frontend(file: UploadFile = File(...)):
+    """
+    Recebe upload da imagem Docker do frontend e faz deploy automático
+    """
+    try:
+        print(f"📦 Recebendo upload do frontend: {file.filename}")
+
+        # Definir diretório base
+        base_dir = Path(__file__).parent
+        tar_path = base_dir / "locacao-frontend.tar"
+
+        # Salvar arquivo .tar
+        print(f"💾 Salvando em: {tar_path}")
+        with open(tar_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        print(f"✅ Arquivo salvo: {tar_path.stat().st_size} bytes")
+
+        # Carregar imagem no Docker
+        print("🐋 Carregando imagem no Docker...")
+        load_result = subprocess.run(
+            ["docker", "load", "-i", str(tar_path)],
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+
+        if load_result.returncode != 0:
+            print(f"❌ Erro ao carregar imagem: {load_result.stderr}")
+            raise HTTPException(status_code=500, detail=f"Erro ao carregar imagem: {load_result.stderr}")
+
+        print(f"✅ Imagem carregada: {load_result.stdout}")
+
+        # Reiniciar container frontend
+        print("🔄 Reiniciando container frontend...")
+        compose_file = base_dir / "docker-compose.prod.yml"
+
+        restart_result = subprocess.run(
+            ["docker-compose", "-f", str(compose_file), "up", "-d", "frontend"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(base_dir)
+        )
+
+        if restart_result.returncode != 0:
+            print(f"⚠️ Aviso ao reiniciar: {restart_result.stderr}")
+
+        print(f"✅ Container reiniciado: {restart_result.stdout}")
+
+        return {
+            "status": "success",
+            "service": "frontend",
+            "filename": file.filename,
+            "size": tar_path.stat().st_size,
+            "docker_load": load_result.stdout,
+            "docker_restart": restart_result.stdout
+        }
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Timeout ao executar comando Docker")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload do frontend: {str(e)}")
 
 
 if __name__ == "__main__":

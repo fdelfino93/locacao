@@ -4,16 +4,9 @@
   "description": "Sistema de Locações - Cobimob",
   "scripts": {
     "docker:build": ".\\scripts\\build.bat",
-    "docker:dev": ".\\scripts\\dev.bat",
-    "docker:save": ".\\scripts\\save-images.bat",
-    "docker:upload": ".\\scripts\\upload-webhook.bat",
-    "docker:deploy": ".\\scripts\\full-deploy.bat",
-    "docker:serve": ".\\scripts\\serve-files.bat",
-    "serve-images": ".\\scripts\\serve-images.bat",
-    "share-to-vm": ".\\scripts\\share-to-vm.bat",
-    "prepare-usb": ".\\scripts\\prepare-usb.bat",
+    "registry:login": ".\\scripts\\registry-login.bat",
+    "registry:push": ".\\scripts\\registry-push.bat",
     "dev": "docker-compose -f docker-compose.dev.yml up --build",
-    "prod": "docker-compose -f docker-compose.prod.yml up -d",
     "stop": "docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.prod.yml down"
   },
   "dependencies": {

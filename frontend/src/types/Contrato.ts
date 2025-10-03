@@ -17,16 +17,6 @@ export interface ContratoLocador {
   porcentagem: number;
   responsabilidade_principal?: boolean;
   data_criacao?: string;
-  // Campos de endereço
-  endereco?: {
-    cep: string;
-    rua: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    cidade: string;
-    estado: string;
-  };
 }
 
 export interface ContaBancariaLocador {

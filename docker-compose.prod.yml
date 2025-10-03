@@ -4,7 +4,7 @@ version: '3.8'
 services:
   # Backend FastAPI
   backend:
-    image: locacao-backend:latest
+    image: 192.168.1.159:5000/locacao-backend:latest
     ports:
       - "8080:8080"
     environment:
@@ -28,7 +28,7 @@ services:
 
   # Frontend React
   frontend:
-    image: locacao-frontend:latest
+    image: 192.168.1.159:5000/locacao-frontend:latest
     ports:
       - "3000:3000"
     environment:

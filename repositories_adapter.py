@@ -573,19 +573,31 @@ def buscar_imoveis():
                 # Aplicar processamento seguro (encoding + datetime)
                 row_dict[columns[i]] = safe_process_value(value)
 
-            # Criar endereço estruturado com dados reais da tabela EnderecoImovel
-            if row_dict.get('endereco_rua'):
+            # ✅ SEMPRE criar endereço estruturado (com dados ou vazio)
+            if row_dict.get('endereco_rua') or row_dict.get('endereco_cep'):
+                # Tem dados na tabela EnderecoImovel
                 row_dict['endereco_estruturado'] = {
-                    'rua': row_dict.get('endereco_rua', ''),
-                    'numero': row_dict.get('endereco_numero', ''),
-                    'complemento': row_dict.get('endereco_complemento', ''),
-                    'bairro': row_dict.get('endereco_bairro', ''),
-                    'cidade': row_dict.get('endereco_cidade', ''),
-                    'estado': row_dict.get('endereco_estado', ''),
-                    'cep': row_dict.get('endereco_cep', '')  # ✅ CORRIGIDO: CEP vem da tabela
+                    'rua': row_dict.get('endereco_rua') or '',
+                    'numero': row_dict.get('endereco_numero') or '',
+                    'complemento': row_dict.get('endereco_complemento') or '',
+                    'bairro': row_dict.get('endereco_bairro') or '',
+                    'cidade': row_dict.get('endereco_cidade') or '',
+                    'estado': row_dict.get('endereco_estado') or '',
+                    'cep': row_dict.get('endereco_cep') or ''
                 }
-                print(f"DEBUG: Endereço estruturado com CEP para imóvel {row_dict['id']}: {row_dict['endereco_estruturado']}")
+                print(f"DEBUG: Endereço estruturado com CEP para imóvel {row_dict['id']}: {row_dict['endereco_estruturado'].get('cep')}")
             elif row_dict.get('endereco'):
+                # ✅ Imóvel antigo sem endereco_id - criar estrutura vazia
+                row_dict['endereco_estruturado'] = {
+                    'rua': '',
+                    'numero': '',
+                    'complemento': '',
+                    'bairro': '',
+                    'cidade': '',
+                    'estado': '',
+                    'cep': ''
+                }
+                print(f"DEBUG: Imóvel {row_dict['id']} sem endereço estruturado (antigo)")
                 # ✅ CORREÇÃO: Tentar buscar na EnderecoImovel primeiro, depois fallback para extração
                 endereco_encontrado = False
 
@@ -922,17 +934,17 @@ def inserir_imovel(**kwargs):
     try:
         print(f"Inserindo imóvel - Dados recebidos: {kwargs}")
         
-        # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
+        # ✅ CORREÇÃO: Passar endereco_estruturado para o repository
         if 'endereco' in kwargs:
             try:
                 endereco_input = kwargs['endereco']
                 if isinstance(endereco_input, dict):
                     print(f"Processando endereço estruturado para insercao: {endereco_input}")
-                    endereco_string, endereco_id = processar_endereco_imovel(endereco_input)
-                    kwargs['endereco'] = endereco_string
-                    if endereco_id:
-                        kwargs['endereco_id'] = endereco_id
-                        print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
+                    # ✅ Passar como endereco_estruturado para o repository processar
+                    kwargs['endereco_estruturado'] = endereco_input
+                    # ✅ REMOVER campo 'endereco' para não sobrescrever
+                    kwargs.pop('endereco', None)
+                    print(f"✅ Endereço será processado pelo repository")
             except Exception as endereco_error:
                 print(f"AVISO: Erro ao processar endereco na insercao, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
@@ -3010,116 +3022,42 @@ def alterar_status_locatario(locatario_id, ativo):
         return False
 
 def atualizar_imovel(imovel_id, **kwargs):
-    """Atualiza um imóvel na tabela Imoveis"""
+    """Atualiza um imóvel usando o repository novo com suporte a locadores"""
     try:
-        conn = get_conexao()
-        cursor = conn.cursor()
-        
         print(f"Iniciando atualizacao do imóvel ID: {imovel_id}")
         print(f"Dados recebidos: {kwargs}")
-        
-        # PROCESSAMENTO HÍBRIDO DE ENDEREÇO - SEGURO
+
+        # ✅ CORREÇÃO: Passar endereco_estruturado para o repository
         if 'endereco' in kwargs:
             try:
                 endereco_input = kwargs['endereco']
                 if isinstance(endereco_input, dict):
-                    print(f"Processando endereço estruturado: {endereco_input}")
-                    endereco_string, endereco_id = processar_endereco_imovel(endereco_input)
-                    kwargs['endereco'] = endereco_string
-                    if endereco_id:
-                        kwargs['endereco_id'] = endereco_id
-                        print(f"SUCESSO: Endereço salvo na EnderecoImovel com ID: {endereco_id}")
+                    print(f"Processando endereço estruturado para atualizacao: {endereco_input}")
+                    # ✅ Passar como endereco_estruturado para o repository processar
+                    kwargs['endereco_estruturado'] = endereco_input
+                    # ✅ REMOVER campo 'endereco' para não sobrescrever
+                    kwargs.pop('endereco', None)
+                    print(f"✅ Endereço será processado pelo repository")
             except Exception as endereco_error:
                 print(f"AVISO: Erro ao processar endereco, usando fallback: {endereco_error}")
                 # Fallback seguro: converter para string
                 kwargs['endereco'] = str(kwargs['endereco'])
-        
-        # Primeiro verificar se o imóvel existe
-        cursor.execute("SELECT id, endereco, tipo FROM Imoveis WHERE id = ?", imovel_id)
-        imovel_existente = cursor.fetchone()
-        
-        if not imovel_existente:
-            print(f"Imóvel ID {imovel_id} nao encontrado na tabela Imoveis")
-            conn.close()
+
+        # ✅ Usar o repository novo que tem suporte completo
+        from locacao.repositories.imovel_repository import atualizar_imovel as atualizar_imovel_repo
+        resultado = atualizar_imovel_repo(imovel_id, **kwargs)
+
+        if resultado.get('success'):
+            print(f"✅ Imóvel {imovel_id} atualizado com sucesso via repository!")
+            return True
+        else:
+            print(f"❌ Erro ao atualizar via repository: {resultado.get('message')}")
             return False
-        
-        print(f"Imóvel encontrado: ID {imovel_existente[0]}, Endereço: {imovel_existente[1]}, Tipo: {imovel_existente[2]}")
-        
-        # Listar campos que podem ser atualizados baseados na estrutura da tabela
-        campos_atualizaveis = [
-            'id_locador', 'id_locatario', 'tipo', 'endereco', 'endereco_id', 'valor_aluguel',
-            'iptu', 'condominio', 'taxa_incendio', 'status', 'matricula_imovel',
-            'area_imovel', 'dados_imovel', 'permite_pets', 'metragem',
-            'numero_quartos', 'numero_banheiros', 'numero_vagas', 'andar',
-            'mobiliado', 'aceita_animais', 'valor_condominio', 'valor_iptu_mensal',
-            'finalidade_imovel', 'nome_edificio', 'armario_embutido', 'escritorio',
-            'area_servico', 'ativo', 'observacoes',
-            # ✅ CORREÇÃO: Adicionar campos IPTU que estavam faltando
-            'titular_iptu', 'inscricao_imobiliaria', 'indicacao_fiscal', 'info_iptu',
-            # ✅ CORREÇÃO: Adicionar campos Condomínio que estavam faltando
-            'nome_condominio', 'sindico_condominio', 'cnpj_condominio',
-            'email_condominio', 'telefone_condominio', 'observacoes_condominio',
-            'boleto_condominio',
-            # ✅ CORREÇÃO: Adicionar outros campos da tabela Imoveis
-            'copel_unidade_consumidora', 'sanepar_matricula', 'tem_gas', 'info_gas',
-            'quartos', 'suites', 'banheiros', 'salas', 'cozinha', 'vagas_garagem',
-            'metragem_total', 'metragem_construida', 'ano_construcao', 'tipo_edificacao',
-            'tem_sacada', 'qtd_sacada', 'tem_churrasqueira', 'qtd_churrasqueira',
-            'elevador', 'aceita_pets', 'area_total', 'area_privativa', 'caracteristicas'
-        ]
-        
-        # Filtrar apenas os campos que foram enviados e sao atualizáveis
-        campos_para_atualizar = {}
-        for campo, valor in kwargs.items():
-            if campo in campos_atualizaveis and valor is not None:
-                # Converter valores string para int/bool quando necessario
-                if campo in ['mobiliado', 'aceita_animais', 'permite_pets', 'ativo']:
-                    if isinstance(valor, str):
-                        if valor.upper() in ['SIM', 'S', 'TRUE', '1']:
-                            valor = 1
-                        elif valor.upper() in ['NAO', 'N', 'FALSE', '0', 'NÃO']:
-                            valor = 0
-                        else:
-                            valor = int(valor) if valor.isdigit() else 0
-                    elif isinstance(valor, bool):
-                        valor = 1 if valor else 0
-                campos_para_atualizar[campo] = valor
-        
-        if not campos_para_atualizar:
-            print("Nenhum campo válido para atualizar")
-            conn.close()
-            return False
-            
-        # Construir query de UPDATE dinamicamente
-        set_clause = ", ".join([f"{campo} = ?" for campo in campos_para_atualizar.keys()])
-        valores = list(campos_para_atualizar.values())
-        valores.append(imovel_id)  # Para o WHERE
-        
-        query = f"UPDATE Imoveis SET {set_clause} WHERE id = ?"
-        
-        print(f"Query: {query}")
-        print(f"Valores: {valores}")
-        
-        cursor.execute(query, valores)
-        
-        # Verificar se alguma linha foi afetada
-        if cursor.rowcount == 0:
-            print("Nenhuma linha foi afetada pela atualizacao")
-            conn.close()
-            return False
-        
-        conn.commit()
-        print(f"Imóvel {imovel_id} atualizado com sucesso! {cursor.rowcount} linha(s) afetada(s)")
-        
-        conn.close()
-        return True
-        
+
     except Exception as e:
         # Manter erro original com encoding UTF-8
         erro_msg = str(e)
         print(f"Erro ao atualizar imovel {imovel_id}: {erro_msg}")
-        if 'conn' in locals():
-            conn.close()
         return False
 
 def alterar_status_imovel(imovel_id, ativo):

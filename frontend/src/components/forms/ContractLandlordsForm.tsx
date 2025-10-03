@@ -17,10 +17,9 @@ import {
   Heart,
   MapPin
 } from 'lucide-react';
-import type { ContratoLocador, ContaBancariaLocador, LocadorOption, Endereco } from '../../types';
+import type { ContratoLocador, ContaBancariaLocador, LocadorOption } from '../../types';
 import { apiService } from '../../services/api';
 import { getApiUrl } from '@/config/api';
-import { EnderecoForm } from './EnderecoForm';
 
 interface ContractLandlordsFormProps {
   locadores: ContratoLocador[];
@@ -39,6 +38,7 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
   const [somaPercentual, setSomaPercentual] = useState(0);
 
   useEffect(() => {
+    console.log('🔥 VERSÃO NOVA DO COMPONENTE - SEM ENDEREÇO! 🔥');
     carregarLocadoresAtivos();
   }, []);
 
@@ -513,30 +513,6 @@ export const ContractLandlordsForm: React.FC<ContractLandlordsFormProps> = ({
                         </Label>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Seção de Endereço do Locador */}
-                  <div className="mt-6 pt-6 border-t border-border">
-                    <EnderecoForm
-                      endereco={locador.endereco || {
-                        cep: '',
-                        rua: '',
-                        numero: '',
-                        complemento: '',
-                        bairro: '',
-                        cidade: '',
-                        estado: ''
-                      }}
-                      onChange={(endereco) => {
-                        const novosLocadores = [...locadores];
-                        novosLocadores[index] = {
-                          ...novosLocadores[index],
-                          endereco
-                        };
-                        onChange(novosLocadores);
-                      }}
-                      prefixo={`Locador ${index + 1}`}
-                    />
                   </div>
                 </motion.div>
               );

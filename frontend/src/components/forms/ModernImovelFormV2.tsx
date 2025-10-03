@@ -86,6 +86,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
   const isReadOnly = isViewing;
 
   // Estados separados para melhor organização
+  const [enderecoId, setEnderecoId] = useState<number | null>(null); // ✅ Armazenar endereco_id
   const [endereco, setEndereco] = useState<Endereco>({
     rua: '',
     numero: '',
@@ -264,6 +265,12 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
   };
 
   const preencherFormularioComDados = (imovel: any) => {
+    // ✅ Capturar endereco_id para update
+    if (imovel.endereco_id) {
+      setEnderecoId(imovel.endereco_id);
+      console.log('✅ Endereco_id capturado:', imovel.endereco_id);
+    }
+
     // Preencher endereço se disponível
     if (imovel.endereco_estruturado) {
       // Priorizar endereço estruturado com campos separados
@@ -398,7 +405,51 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     console.log('✅ Formulário preenchido com dados do imóvel');
   };
 
+  const formatCep = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '');
+    if (numeros.length <= 5) {
+      return numeros;
+    }
+    return `${numeros.slice(0, 5)}-${numeros.slice(5, 8)}`;
+  };
+
+  const buscarCep = async (cepAtual: string) => {
+    const cepLimpo = cepAtual.replace(/\D/g, '');
+    if (cepLimpo.length !== 8) return;
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data?.erro) return;
+
+      setEndereco(prev => ({
+        ...prev,
+        cep: formatCep(cepLimpo),
+        rua: data.logradouro || prev.rua,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        estado: data.uf || prev.estado
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
+
   const handleEnderecoChange = (field: keyof Endereco, value: string) => {
+    if (field === 'cep') {
+      const cepFormatado = formatCep(value);
+      setEndereco(prev => ({
+        ...prev,
+        cep: cepFormatado
+      }));
+      if (cepFormatado.replace(/\D/g, '').length === 8) {
+        buscarCep(cepFormatado);
+      }
+      return;
+    }
+
     setEndereco(prev => ({
       ...prev,
       [field]: value
@@ -530,10 +581,34 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
     setMessage(null);
 
     try {
+      // ✅ CORREÇÃO: Converter campos de dados_gerais para tipos corretos do backend
+      const dadosGeraisPayload = {
+        ...dadosGerais,
+        qtd_garagem: dadosGerais.tem_garagem ? dadosGerais.qtd_garagem || 0 : 0,
+        tem_garagem: dadosGerais.tem_garagem,
+        // ✅ Converter mobiliado de string para boolean
+        mobiliado: dadosGerais.mobiliado === 'sim'
+      };
+
       // ✅ CORREÇÃO: Enviar campos diretamente em vez de aninhados em dados_gerais
       const imovelData = {
         ...formData,
+        // ✅ CORREÇÃO: Incluir endereco_id no payload de atualização
+        endereco_id: enderecoId,
         endereco,
+        informacoes_iptu: {
+          titular: informacoesIPTU.titular,
+          inscricao_imobiliaria: informacoesIPTU.inscricao_imobiliaria,
+          indicacao_fiscal: informacoesIPTU.indicacao_fiscal
+        },
+        informacoes_condominio: {
+          nome_condominio: informacoesCondominio.nome_condominio,
+          sindico_condominio: informacoesCondominio.sindico_condominio,
+          cnpj_condominio: informacoesCondominio.cnpj_condominio,
+          email_condominio: informacoesCondominio.email_condominio,
+          telefone_condominio: informacoesCondominio.telefone_condominio
+        },
+        dados_gerais: dadosGeraisPayload,
         // ✅ CORREÇÃO ENCARGOS: Enviar campos IPTU diretamente (não aninhados)
         titular_iptu: informacoesIPTU.titular,
         inscricao_imobiliaria: informacoesIPTU.inscricao_imobiliaria,
@@ -1230,6 +1305,7 @@ export const ModernImovelFormV2: React.FC<ModernImovelFormV2Props> = ({ onBack, 
                           type="text"
                           value={endereco.cep}
                           onChange={(e) => handleEnderecoChange('cep', e.target.value)}
+                          onBlur={() => buscarCep(endereco.cep)}
                           placeholder="00000-000"
                           icon={MapPin}
                           maxLength={9}
